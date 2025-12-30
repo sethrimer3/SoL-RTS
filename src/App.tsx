@@ -10,7 +10,7 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Label } from './components/ui/label';
 import { Switch } from './components/ui/switch';
-import { GameController, Robot, ListChecks, GearSix, ArrowLeft, Flag, MapPin, WifiHigh, ChartBar } from '@phosphor-icons/react';
+import { GameController, Robot, ListChecks, GearSix, ArrowLeft, Flag, MapPin, WifiHigh, ChartBar, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { UnitSelectionScreen } from './components/UnitSelectionScreen';
 import { MapSelectionScreen } from './components/MapSelectionScreen';
@@ -19,6 +19,7 @@ import { StatisticsScreen } from './components/StatisticsScreen';
 import { getMapById, getValidBasePositions } from './lib/maps';
 import { MultiplayerManager, LobbyData } from './lib/multiplayer';
 import { PlayerStatistics, MatchStats, createEmptyStatistics, updateStatistics } from './lib/statistics';
+import { soundManager } from './lib/sound';
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,6 +38,7 @@ function App() {
   const [unitSlots, setUnitSlots] = useKV<Record<string, UnitType>>('unit-slots', { left: 'marine', up: 'warrior', down: 'snaker' });
   const [selectedMap, setSelectedMap] = useKV('selected-map', 'open');
   const [playerStatistics, setPlayerStatistics] = useKV<PlayerStatistics>('player-statistics', createEmptyStatistics());
+  const [soundEnabled, setSoundEnabled] = useKV<boolean>('sound-enabled', true);
 
   const gameState = gameStateRef.current;
 
@@ -48,7 +50,12 @@ function App() {
       multiplayerManagerRef.current = new MultiplayerManager(uid);
     };
     initUser();
+    soundManager.setEnabled(soundEnabled ?? true);
   }, []);
+
+  useEffect(() => {
+    soundManager.setEnabled(soundEnabled ?? true);
+  }, [soundEnabled]);
 
   useEffect(() => {
     if (currentLobby && currentLobby.status === 'playing' && gameState.mode === 'multiplayerLobby') {
@@ -92,12 +99,20 @@ function App() {
 
       if (gameStateRef.current.mode === 'countdown') {
         const elapsed = now - (gameStateRef.current.countdownStartTime || now);
+        const secondsRemaining = Math.ceil(3 - elapsed / 1000);
+        const prevSeconds = Math.ceil(3 - (elapsed - 16.67) / 1000);
+        
+        if (secondsRemaining !== prevSeconds && secondsRemaining > 0) {
+          soundManager.playCountdown();
+        }
+        
         if (elapsed >= 3000) {
           gameStateRef.current.mode = 'game';
           gameStateRef.current.matchStartAnimation = {
             startTime: now,
             phase: 'bases-sliding',
           };
+          soundManager.playMatchStart();
           delete gameStateRef.current.countdownStartTime;
         }
       }
@@ -166,6 +181,7 @@ function App() {
   }, []);
 
   const startGame = (mode: 'ai' | 'player') => {
+    soundManager.playButtonClick();
     gameStateRef.current = createCountdownState(mode, gameStateRef.current.settings);
     setRenderTrigger(prev => prev + 1);
   };
@@ -178,6 +194,12 @@ function App() {
   };
 
   const returnToMenu = (recordMatch: boolean = false, result?: 'victory' | 'defeat' | 'surrender') => {
+    if (result === 'victory') {
+      soundManager.playVictory();
+    } else if (result === 'defeat') {
+      soundManager.playDefeat();
+    }
+    
     if (recordMatch && result && gameStateRef.current.matchStats && gameStateRef.current.vsMode) {
       const duration = (Date.now() - gameStateRef.current.matchStats.startTime) / 1000;
       const newMatch: MatchStats = {
@@ -222,32 +244,38 @@ function App() {
   };
 
   const goToSettings = () => {
+    soundManager.playButtonClick();
     gameStateRef.current.mode = 'settings';
     setRenderTrigger(prev => prev + 1);
   };
 
   const goToUnitSelection = () => {
+    soundManager.playButtonClick();
     gameStateRef.current.mode = 'unitSelection';
     setRenderTrigger(prev => prev + 1);
   };
 
   const goToMapSelection = () => {
+    soundManager.playButtonClick();
     gameStateRef.current.mode = 'mapSelection';
     setRenderTrigger(prev => prev + 1);
   };
 
   const goToMultiplayer = () => {
+    soundManager.playButtonClick();
     gameStateRef.current.mode = 'multiplayerLobby';
     refreshLobbies();
     setRenderTrigger(prev => prev + 1);
   };
 
   const backToMenu = () => {
+    soundManager.playButtonClick();
     gameStateRef.current.mode = 'menu';
     setRenderTrigger(prev => prev + 1);
   };
 
   const goToStatistics = () => {
+    soundManager.playButtonClick();
     gameStateRef.current.mode = 'statistics';
     setRenderTrigger(prev => prev + 1);
   };
@@ -424,17 +452,6 @@ function App() {
             <h1 className="orbitron text-4xl font-bold text-center text-primary mb-4 tracking-wider uppercase">
               Neon Command
             </h1>
-            
-            <Button
-              onClick={() => startGame('player')}
-              disabled
-              className="h-14 text-lg orbitron uppercase tracking-wider"
-              variant="outline"
-            >
-              <GameController className="mr-2" size={24} />
-              Vs. Player
-              <span className="ml-2 text-xs">(Coming Soon)</span>
-            </Button>
 
             <Button
               onClick={() => startGame('ai')}
@@ -511,7 +528,10 @@ function App() {
                   ].map((color) => (
                     <button
                       key={color.name}
-                      onClick={() => setPlayerColor(color.value)}
+                      onClick={() => {
+                        soundManager.playButtonClick();
+                        setPlayerColor(color.value);
+                      }}
                       className="w-12 h-12 rounded border-2 transition-all"
                       style={{
                         backgroundColor: color.value,
@@ -533,7 +553,10 @@ function App() {
                   ].map((color) => (
                     <button
                       key={color.name}
-                      onClick={() => setEnemyColor(color.value)}
+                      onClick={() => {
+                        soundManager.playButtonClick();
+                        setEnemyColor(color.value);
+                      }}
                       className="w-12 h-12 rounded border-2 transition-all"
                       style={{
                         backgroundColor: color.value,
@@ -542,6 +565,23 @@ function App() {
                     />
                   ))}
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sound-toggle" className="flex items-center gap-2">
+                  {soundEnabled ? <SpeakerHigh size={20} /> : <SpeakerSlash size={20} />}
+                  Sound Effects
+                </Label>
+                <Switch
+                  id="sound-toggle"
+                  checked={soundEnabled ?? true}
+                  onCheckedChange={(checked) => {
+                    setSoundEnabled(checked);
+                    if (checked) {
+                      soundManager.playButtonClick();
+                    }
+                  }}
+                />
               </div>
 
               <Button

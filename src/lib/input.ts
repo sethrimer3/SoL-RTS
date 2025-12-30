@@ -16,6 +16,7 @@ import {
 } from './types';
 import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels } from './gameUtils';
 import { spawnUnit } from './simulation';
+import { soundManager } from './sound';
 
 interface TouchState {
   startPos: { x: number; y: number };
@@ -181,6 +182,7 @@ function handleRectSelection(
   const minY = Math.min(rect.y1, rect.y2);
   const maxY = Math.max(rect.y1, rect.y2);
 
+  const prevSize = state.selectedUnits.size;
   state.selectedUnits.clear();
   state.bases.forEach((b) => (b.isSelected = false));
 
@@ -191,6 +193,10 @@ function handleRectSelection(
       state.selectedUnits.add(unit.id);
     }
   });
+
+  if (state.selectedUnits.size > 0 && state.selectedUnits.size !== prevSize) {
+    soundManager.playUnitSelect();
+  }
 }
 
 function handleLaserSwipe(
@@ -207,6 +213,7 @@ function handleLaserSwipe(
 
   const swipeDir = normalize({ x: swipe.x, y: -swipe.y });
 
+  soundManager.playLaserFire();
   fireLaser(state, base, swipeDir);
   base.laserCooldown = LASER_COOLDOWN;
 }
@@ -284,17 +291,20 @@ function handleTap(state: GameState, screenPos: { x: number; y: number }, canvas
     state.selectedUnits.clear();
     state.selectedUnits.add(tappedUnit.id);
     state.bases.forEach((b) => (b.isSelected = false));
+    soundManager.playUnitSelect();
     return;
   }
 
   const selectedBase = state.bases.find((b) => b.isSelected && b.owner === playerIndex);
   if (selectedBase) {
     selectedBase.movementTarget = worldPos;
+    soundManager.playUnitMove();
     return;
   }
 
   if (state.selectedUnits.size > 0) {
     addMovementCommand(state, worldPos);
+    soundManager.playUnitMove();
   }
 }
 

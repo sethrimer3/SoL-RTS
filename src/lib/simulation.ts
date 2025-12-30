@@ -14,6 +14,7 @@ import {
 } from './types';
 import { distance, normalize, scale, add, subtract, generateId } from './gameUtils';
 import { checkObstacleCollision } from './maps';
+import { soundManager } from './sound';
 
 export function updateGame(state: GameState, deltaTime: number): void {
   if (state.mode !== 'game') return;
@@ -38,8 +39,11 @@ function updateIncome(state: GameState, deltaTime: number): void {
   state.lastIncomeTime += deltaTime;
   if (state.lastIncomeTime >= 1.0) {
     state.lastIncomeTime -= 1.0;
-    state.players.forEach((player) => {
+    state.players.forEach((player, index) => {
       player.photons += player.incomeRate;
+      if (index === 0) {
+        soundManager.playIncomeTick();
+      }
     });
   }
 }
@@ -216,6 +220,8 @@ function executeAbility(state: GameState, unit: Unit, node: CommandNode): void {
   if (unit.abilityCooldown > 0) return;
 
   const def = UNIT_DEFINITIONS[unit.type];
+
+  soundManager.playAbility();
 
   if (unit.type === 'marine') {
     executeBurstFire(state, unit, node.direction);
@@ -480,11 +486,19 @@ function updateCombat(state: GameState, deltaTime: number): void {
         if (state.matchStats && unit.owner === 0) {
           state.matchStats.damageDealtByPlayer += damage;
         }
+        
+        if (unit.owner === 0 && Math.random() < 0.05) {
+          soundManager.playAttack();
+        }
       } else {
         (target as Base).hp -= damage;
         
         if (state.matchStats && unit.owner === 0) {
           state.matchStats.damageDealtByPlayer += damage;
+        }
+        
+        if (unit.owner === 0 && Math.random() < 0.1) {
+          soundManager.playBaseDamage();
         }
       }
     }
@@ -496,7 +510,14 @@ function updateCombat(state: GameState, deltaTime: number): void {
     return acc;
   }, {} as Record<number, number>);
   
+  const oldUnits = [...state.units];
   state.units = state.units.filter((u) => u.hp > 0);
+  
+  oldUnits.forEach(u => {
+    if (u.hp <= 0) {
+      soundManager.playUnitDeath();
+    }
+  });
   
   if (state.matchStats) {
     const afterUnitsByOwner = state.units.reduce((acc, u) => {
@@ -512,6 +533,7 @@ function updateCombat(state: GameState, deltaTime: number): void {
 function checkVictory(state: GameState): void {
   state.bases.forEach((base) => {
     if (base.hp <= 0) {
+      soundManager.playBaseDestroyed();
       state.winner = base.owner === 0 ? 1 : 0;
       state.mode = 'victory';
     }
@@ -529,6 +551,10 @@ export function spawnUnit(state: GameState, owner: number, type: UnitType, spawn
   if (state.matchStats && owner === 0) {
     state.matchStats.unitsTrainedByPlayer += 1;
     state.matchStats.photonsSpentByPlayer += def.cost;
+  }
+
+  if (owner === 0) {
+    soundManager.playUnitTrain();
   }
 
   const unit: Unit = {
