@@ -188,7 +188,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
 };
 
 export interface GameState {
-  mode: 'menu' | 'game' | 'settings' | 'unitSelection' | 'victory' | 'mapSelection' | 'multiplayerLobby' | 'countdown';
+  mode: 'menu' | 'game' | 'settings' | 'unitSelection' | 'victory' | 'mapSelection' | 'multiplayerLobby' | 'countdown' | 'statistics';
   vsMode: 'ai' | 'player' | 'online' | null;
   
   units: Unit[];
@@ -224,5 +224,13 @@ export interface GameState {
   matchStartAnimation?: {
     startTime: number;
     phase: 'bases-sliding' | 'go';
+  };
+
+  matchStats?: {
+    startTime: number;
+    unitsTrainedByPlayer: number;
+    unitsKilledByPlayer: number;
+    damageDealtByPlayer: number;
+    photonsSpentByPlayer: number;
   };
 }

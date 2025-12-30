@@ -10,13 +10,15 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Label } from './components/ui/label';
 import { Switch } from './components/ui/switch';
-import { GameController, Robot, ListChecks, GearSix, ArrowLeft, Flag, MapPin, WifiHigh } from '@phosphor-icons/react';
+import { GameController, Robot, ListChecks, GearSix, ArrowLeft, Flag, MapPin, WifiHigh, ChartBar } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { UnitSelectionScreen } from './components/UnitSelectionScreen';
 import { MapSelectionScreen } from './components/MapSelectionScreen';
 import { MultiplayerLobbyScreen } from './components/MultiplayerLobbyScreen';
+import { StatisticsScreen } from './components/StatisticsScreen';
 import { getMapById, getValidBasePositions } from './lib/maps';
 import { MultiplayerManager, LobbyData } from './lib/multiplayer';
+import { PlayerStatistics, MatchStats, createEmptyStatistics, updateStatistics } from './lib/statistics';
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -34,6 +36,7 @@ function App() {
   const [enabledUnits, setEnabledUnits] = useKV<string[]>('enabled-units', ['marine', 'warrior', 'snaker', 'tank', 'scout', 'artillery', 'medic', 'interceptor']);
   const [unitSlots, setUnitSlots] = useKV<Record<string, UnitType>>('unit-slots', { left: 'marine', up: 'warrior', down: 'snaker' });
   const [selectedMap, setSelectedMap] = useKV('selected-map', 'open');
+  const [playerStatistics, setPlayerStatistics] = useKV<PlayerStatistics>('player-statistics', createEmptyStatistics());
 
   const gameState = gameStateRef.current;
 
@@ -174,7 +177,33 @@ function App() {
     setRenderTrigger(prev => prev + 1);
   };
 
-  const returnToMenu = () => {
+  const returnToMenu = (recordMatch: boolean = false, result?: 'victory' | 'defeat' | 'surrender') => {
+    if (recordMatch && result && gameStateRef.current.matchStats && gameStateRef.current.vsMode) {
+      const duration = (Date.now() - gameStateRef.current.matchStats.startTime) / 1000;
+      const newMatch: MatchStats = {
+        matchId: generateId(),
+        timestamp: Date.now(),
+        result,
+        vsMode: gameStateRef.current.vsMode,
+        opponentName: gameStateRef.current.vsMode === 'ai' ? 'AI' : undefined,
+        mapId: gameStateRef.current.settings.selectedMap,
+        duration,
+        unitsTrainedByPlayer: gameStateRef.current.matchStats.unitsTrainedByPlayer,
+        unitsKilledByPlayer: gameStateRef.current.matchStats.unitsKilledByPlayer,
+        damageDealtByPlayer: gameStateRef.current.matchStats.damageDealtByPlayer,
+        photonsSpentByPlayer: gameStateRef.current.matchStats.photonsSpentByPlayer,
+        basesDestroyedByPlayer: result === 'victory' ? 1 : 0,
+        finalPlayerColor: gameStateRef.current.settings.playerColor,
+        finalEnemyColor: gameStateRef.current.settings.enemyColor,
+      };
+      
+      setPlayerStatistics((currentStats) => {
+        return updateStatistics(currentStats || createEmptyStatistics(), newMatch);
+      });
+      
+      toast.success('Match statistics saved!');
+    }
+    
     if (multiplayerManagerRef.current?.getGameId()) {
       multiplayerManagerRef.current.endGame();
     }
@@ -218,6 +247,11 @@ function App() {
     setRenderTrigger(prev => prev + 1);
   };
 
+  const goToStatistics = () => {
+    gameStateRef.current.mode = 'statistics';
+    setRenderTrigger(prev => prev + 1);
+  };
+
   const handleMapSelect = (mapId: string) => {
     setSelectedMap(mapId);
     toast.success(`Map changed to ${getMapById(mapId)?.name || mapId}`);
@@ -237,7 +271,7 @@ function App() {
     state.surrenderExpanded = true;
     
     if (state.surrenderClicks >= 5) {
-      returnToMenu();
+      returnToMenu(true, 'surrender');
       toast.error('You surrendered!');
     } else {
       toast.warning(`Click ${5 - state.surrenderClicks} more times to surrender`);
@@ -446,6 +480,15 @@ function App() {
               <GearSix className="mr-2" size={24} />
               Settings
             </Button>
+
+            <Button
+              onClick={goToStatistics}
+              className="h-14 text-lg orbitron uppercase tracking-wider"
+              variant="outline"
+            >
+              <ChartBar className="mr-2" size={24} />
+              Statistics
+            </Button>
           </div>
         </div>
       )}
@@ -545,6 +588,13 @@ function App() {
         />
       )}
 
+      {gameState.mode === 'statistics' && (
+        <StatisticsScreen
+          statistics={playerStatistics || createEmptyStatistics()}
+          onBack={backToMenu}
+        />
+      )}
+
       {gameState.mode === 'victory' && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80">
           <Card className="w-96 max-w-full">
@@ -557,7 +607,11 @@ function App() {
               <p className="text-center mb-6">
                 {gameState.winner === 0 ? 'You destroyed the enemy base!' : 'Your base was destroyed.'}
               </p>
-              <Button onClick={returnToMenu} className="w-full orbitron" variant="default">
+              <Button 
+                onClick={() => returnToMenu(true, gameState.winner === 0 ? 'victory' : 'defeat')} 
+                className="w-full orbitron" 
+                variant="default"
+              >
                 Return to Menu
               </Button>
             </CardContent>
@@ -644,6 +698,13 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     lastSurrenderClickTime: 0,
     surrenderExpanded: false,
     countdownStartTime: Date.now(),
+    matchStats: {
+      startTime: Date.now(),
+      unitsTrainedByPlayer: 0,
+      unitsKilledByPlayer: 0,
+      damageDealtByPlayer: 0,
+      photonsSpentByPlayer: 0,
+    },
   };
 }
 
@@ -815,6 +876,13 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean): GameStat
     lastSurrenderClickTime: 0,
     surrenderExpanded: false,
     countdownStartTime: Date.now(),
+    matchStats: {
+      startTime: Date.now(),
+      unitsTrainedByPlayer: 0,
+      unitsKilledByPlayer: 0,
+      damageDealtByPlayer: 0,
+      photonsSpentByPlayer: 0,
+    },
   };
 }
 

@@ -140,14 +140,24 @@ function updateAbilityEffects(unit: Unit, state: GameState, deltaTime: number): 
       const enemies = state.units.filter((u) => u.owner !== unit.owner);
       enemies.forEach((enemy) => {
         if (distance(enemy.position, unit.bombardmentActive!.targetPos) <= 3) {
-          enemy.hp -= 40 * unit.damageMultiplier * deltaTime;
+          const damage = 40 * unit.damageMultiplier * deltaTime;
+          enemy.hp -= damage;
+          
+          if (state.matchStats && unit.owner === 0) {
+            state.matchStats.damageDealtByPlayer += damage;
+          }
         }
       });
 
       const enemyBases = state.bases.filter((b) => b.owner !== unit.owner);
       enemyBases.forEach((base) => {
         if (distance(base.position, unit.bombardmentActive!.targetPos) <= 3) {
-          base.hp -= 80 * unit.damageMultiplier * deltaTime;
+          const damage = 80 * unit.damageMultiplier * deltaTime;
+          base.hp -= damage;
+          
+          if (state.matchStats && unit.owner === 0) {
+            state.matchStats.damageDealtByPlayer += damage;
+          }
         }
       });
     }
@@ -170,6 +180,10 @@ function updateAbilityEffects(unit: Unit, state: GameState, deltaTime: number): 
         const target = enemies.find((e) => distance(e.position, missile.target) < 0.5);
         if (target) {
           target.hp -= missile.damage;
+          
+          if (state.matchStats && unit.owner === 0) {
+            state.matchStats.damageDealtByPlayer += missile.damage;
+          }
         }
       });
       unit.missileBarrageActive = undefined;
@@ -264,6 +278,10 @@ function executeBurstFire(state: GameState, unit: Unit, direction: { x: number; 
 
     if (hitTarget) {
       (hitTarget as Unit).hp -= shotDamage;
+      
+      if (state.matchStats && unit.owner === 0) {
+        state.matchStats.damageDealtByPlayer += shotDamage;
+      }
     }
   }
 }
@@ -287,7 +305,13 @@ function executeExecuteDash(state: GameState, unit: Unit, targetPos: { x: number
 
   unit.position = { ...nearest.position };
   const def = UNIT_DEFINITIONS.warrior;
-  nearest.hp -= def.attackDamage * 5 * unit.damageMultiplier;
+  const damage = def.attackDamage * 5 * unit.damageMultiplier;
+  nearest.hp -= damage;
+  
+  if (state.matchStats && unit.owner === 0) {
+    state.matchStats.damageDealtByPlayer += damage;
+  }
+  
   unit.dashExecuting = true;
   setTimeout(() => {
     unit.dashExecuting = false;
@@ -316,8 +340,13 @@ function executeLineJump(state: GameState, unit: Unit): void {
     enemies.forEach((enemy) => {
       if (hitEnemies.has(enemy.id)) return;
       if (distance(enemy.position, checkPos) < UNIT_SIZE_METERS) {
-        enemy.hp -= 20 * unit.damageMultiplier;
+        const damage = 20 * unit.damageMultiplier;
+        enemy.hp -= damage;
         hitEnemies.add(enemy.id);
+        
+        if (state.matchStats && unit.owner === 0) {
+          state.matchStats.damageDealtByPlayer += damage;
+        }
       }
     });
   }
@@ -447,13 +476,37 @@ function updateCombat(state: GameState, deltaTime: number): void {
         }
 
         targetUnit.hp -= damage;
+        
+        if (state.matchStats && unit.owner === 0) {
+          state.matchStats.damageDealtByPlayer += damage;
+        }
       } else {
         (target as Base).hp -= damage;
+        
+        if (state.matchStats && unit.owner === 0) {
+          state.matchStats.damageDealtByPlayer += damage;
+        }
       }
     }
   });
 
+  const beforeFilter = state.units.length;
+  const unitsByOwner = state.units.reduce((acc, u) => {
+    acc[u.owner] = (acc[u.owner] || 0) + 1;
+    return acc;
+  }, {} as Record<number, number>);
+  
   state.units = state.units.filter((u) => u.hp > 0);
+  
+  if (state.matchStats) {
+    const afterUnitsByOwner = state.units.reduce((acc, u) => {
+      acc[u.owner] = (acc[u.owner] || 0) + 1;
+      return acc;
+    }, {} as Record<number, number>);
+    
+    const enemyUnitsKilled = (unitsByOwner[1] || 0) - (afterUnitsByOwner[1] || 0);
+    state.matchStats.unitsKilledByPlayer += enemyUnitsKilled;
+  }
 }
 
 function checkVictory(state: GameState): void {
@@ -472,6 +525,11 @@ export function spawnUnit(state: GameState, owner: number, type: UnitType, spawn
   if (!state.settings.enabledUnits.has(type)) return;
 
   state.players[owner].photons -= def.cost;
+
+  if (state.matchStats && owner === 0) {
+    state.matchStats.unitsTrainedByPlayer += 1;
+    state.matchStats.photonsSpentByPlayer += def.cost;
+  }
 
   const unit: Unit = {
     id: generateId(),
