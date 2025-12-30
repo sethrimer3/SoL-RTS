@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { useKV } from '@github/spark/hooks';
-import { GameState, COLORS, UnitType, BASE_SIZE_METERS } from './lib/types';
+import { GameState, COLORS, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS } from './lib/types';
 import { generateId } from './lib/gameUtils';
 import { updateGame } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
-import { handleTouchStart, handleTouchMove, handleTouchEnd } from './lib/input';
+import { handleTouchStart, handleTouchMove, handleTouchEnd, handleMouseDown, handleMouseMove, handleMouseUp, getActiveSelectionRect } from './lib/input';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Label } from './components/ui/label';
 import { Switch } from './components/ui/switch';
-import { GameController, Robot, ListChecks, GearSix, ArrowLeft } from '@phosphor-icons/react';
+import { GameController, Robot, ListChecks, GearSix, ArrowLeft, Flag } from '@phosphor-icons/react';
+import { toast } from 'sonner';
+import { UnitSelectionScreen } from './components/UnitSelectionScreen';
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -22,6 +24,7 @@ function App() {
   const [playerColor, setPlayerColor] = useKV('player-color', COLORS.playerDefault);
   const [enemyColor, setEnemyColor] = useKV('enemy-color', COLORS.enemyDefault);
   const [enabledUnits, setEnabledUnits] = useKV<string[]>('enabled-units', ['marine', 'warrior', 'snaker']);
+  const [unitSlots, setUnitSlots] = useKV<Record<string, UnitType>>('unit-slots', { left: 'marine', up: 'warrior', down: 'snaker' });
 
   const gameState = gameStateRef.current;
 
@@ -30,12 +33,13 @@ function App() {
       playerColor: playerColor || COLORS.playerDefault,
       enemyColor: enemyColor || COLORS.enemyDefault,
       enabledUnits: new Set((enabledUnits || ['marine', 'warrior', 'snaker']) as UnitType[]),
+      unitSlots: (unitSlots || { left: 'marine', up: 'warrior', down: 'snaker' }) as Record<'left' | 'up' | 'down', UnitType>,
     };
     gameStateRef.current.players = gameStateRef.current.players.map((p, i) => ({
       ...p,
       color: i === 0 ? (playerColor || COLORS.playerDefault) : (enemyColor || COLORS.enemyDefault),
     }));
-  }, [playerColor, enemyColor, enabledUnits]);
+  }, [playerColor, enemyColor, enabledUnits, unitSlots]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -62,7 +66,8 @@ function App() {
         updateAI(gameStateRef.current, deltaTime);
       }
 
-      renderGame(ctx, gameStateRef.current, canvas);
+      const selectionRect = getActiveSelectionRect();
+      renderGame(ctx, gameStateRef.current, canvas, selectionRect);
 
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     };
@@ -89,10 +94,21 @@ function App() {
     canvas.addEventListener('touchmove', handleMove, { passive: false });
     canvas.addEventListener('touchend', handleEnd, { passive: false });
 
+    const handleMDown = (e: MouseEvent) => handleMouseDown(e, gameStateRef.current, canvas);
+    const handleMMove = (e: MouseEvent) => handleMouseMove(e, gameStateRef.current, canvas);
+    const handleMUp = (e: MouseEvent) => handleMouseUp(e, gameStateRef.current, canvas);
+
+    canvas.addEventListener('mousedown', handleMDown);
+    canvas.addEventListener('mousemove', handleMMove);
+    canvas.addEventListener('mouseup', handleMUp);
+
     return () => {
       canvas.removeEventListener('touchstart', handleStart);
       canvas.removeEventListener('touchmove', handleMove);
       canvas.removeEventListener('touchend', handleEnd);
+      canvas.removeEventListener('mousedown', handleMDown);
+      canvas.removeEventListener('mousemove', handleMMove);
+      canvas.removeEventListener('mouseup', handleMUp);
     };
   }, []);
 
@@ -130,9 +146,55 @@ function App() {
     setRenderTrigger(prev => prev + 1);
   };
 
+  const handleSurrenderClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const now = Date.now();
+    const state = gameStateRef.current;
+    
+    if (now - state.lastSurrenderClickTime > 3000) {
+      state.surrenderClicks = 0;
+    }
+    
+    state.surrenderClicks++;
+    state.lastSurrenderClickTime = now;
+    
+    if (state.surrenderClicks >= 5) {
+      state.mode = 'victory';
+      state.winner = 1;
+      toast.error('You surrendered!');
+    } else {
+      toast.warning(`Click ${5 - state.surrenderClicks} more times to surrender`);
+    }
+  };
+
+  const handleCanvasSurrenderReset = () => {
+    if (gameStateRef.current.surrenderClicks > 0 && gameStateRef.current.surrenderClicks < 5) {
+      gameStateRef.current.surrenderClicks = 0;
+    }
+  };
+
+  const handleSlotChange = (slot: 'left' | 'up' | 'down', unitType: UnitType) => {
+    setUnitSlots((current) => ({
+      ...(current || { left: 'marine', up: 'warrior', down: 'snaker' }),
+      [slot]: unitType,
+    }));
+  };
+
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-background">
+    <div className="relative w-screen h-screen overflow-hidden bg-background" onClick={handleCanvasSurrenderReset}>
       <canvas ref={canvasRef} className="absolute inset-0" />
+
+      {gameState.mode === 'game' && (
+        <Button
+          onClick={handleSurrenderClick}
+          className="absolute top-4 left-4 orbitron"
+          variant="destructive"
+          size="sm"
+        >
+          <Flag className="mr-2" size={16} />
+          Surrender {gameState.surrenderClicks > 0 && `(${gameState.surrenderClicks}/5)`}
+        </Button>
+      )}
 
       {gameState.mode === 'menu' && (
         <div className="absolute inset-0 flex items-center justify-center">
@@ -247,33 +309,12 @@ function App() {
       )}
 
       {gameState.mode === 'unitSelection' && (
-        <div className="absolute inset-0 flex items-center justify-center p-4 overflow-auto">
-          <Card className="w-96 max-w-full">
-            <CardHeader>
-              <CardTitle className="orbitron text-2xl">Unit Selection</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {(['marine', 'warrior', 'snaker'] as UnitType[]).map((unitType) => (
-                <div key={unitType} className="flex items-center justify-between">
-                  <Label className="capitalize">{unitType}</Label>
-                  <Switch
-                    checked={(enabledUnits || ['marine', 'warrior', 'snaker']).includes(unitType)}
-                    onCheckedChange={() => toggleUnit(unitType)}
-                  />
-                </div>
-              ))}
-
-              <Button
-                onClick={backToMenu}
-                className="w-full orbitron mt-6"
-                variant="outline"
-              >
-                <ArrowLeft className="mr-2" size={20} />
-                Back to Menu
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        <UnitSelectionScreen
+          unitSlots={unitSlots as Record<'left' | 'up' | 'down', UnitType>}
+          onSlotChange={handleSlotChange}
+          onBack={backToMenu}
+          playerColor={playerColor || COLORS.playerDefault}
+        />
       )}
 
       {gameState.mode === 'victory' && (
@@ -317,7 +358,10 @@ function createInitialState(): GameState {
       playerColor: COLORS.playerDefault,
       enemyColor: COLORS.enemyDefault,
       enabledUnits: new Set(['marine', 'warrior', 'snaker']),
+      unitSlots: { left: 'marine', up: 'warrior', down: 'snaker' },
     },
+    surrenderClicks: 0,
+    lastSurrenderClickTime: 0,
   };
 }
 
@@ -360,6 +404,8 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
     lastIncomeTime: 0,
     winner: null,
     settings,
+    surrenderClicks: 0,
+    lastSurrenderClickTime: 0,
   };
 }
 

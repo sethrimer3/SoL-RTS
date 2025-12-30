@@ -41,11 +41,11 @@ This is a full real-time strategy game with multiple systems: menu navigation, g
 - **Success criteria**: Swipe directions detected accurately, cost indicators glow when affordable, units spawn at base and move to rally points
 
 ### Command Queue Visualization
-- **Functionality**: Display all queued orders for both players' units as glowing paths and arrows
-- **Purpose**: Creates strategic depth through telegraphed moves, allowing counterplay
+- **Functionality**: Display all queued orders for both players' units as glowing paths and arrows in their team colors
+- **Purpose**: Creates strategic depth through telegraphed moves, allowing counterplay while maintaining team identification
 - **Trigger**: Any command issued to units or bases
-- **Progression**: Command Created → Queue Node Added → Visual Element Drawn (dot/line/arrow) → Unit Executes → Visual Removed
-- **Success criteria**: All movement and ability orders visible to both players, lines connect smoothly, indicators update in real-time as nodes complete
+- **Progression**: Command Created → Queue Node Added → Visual Element Drawn (dot/line/arrow in player color) → Unit Executes → Visual Removed
+- **Success criteria**: All movement and ability orders visible to both players, lines connect smoothly, indicators update in real-time as nodes complete, enemy paths shown in enemy color
 
 ### Distance-Based Promotion System
 - **Functionality**: Unit damage multipliers increase based on distance traveled, accelerated by queue depth
@@ -62,11 +62,25 @@ This is a full real-time strategy game with multiple systems: menu navigation, g
 - **Success criteria**: Input sequence recognized reliably, laser visual shows clear beam, damage calculation correct (200 to units, 300 to bases), cooldown indicator visible
 
 ### Settings & Unit Selection
-- **Functionality**: Configure player colors and enable/disable unit types
-- **Purpose**: Personalization and strategic preparation
+- **Functionality**: Configure player colors and assign units to base spawn slots with visual interface
+- **Purpose**: Personalization and strategic preparation through customizable spawn loadouts
 - **Trigger**: Button press from main menu
-- **Progression**: Menu → Settings/Unit Selection Screen → Color Picker / Unit Toggle → Save → Return to Menu
-- **Success criteria**: Color changes reflect in-game immediately, unit toggles prevent training disabled units
+- **Progression**: Menu → Settings/Unit Selection Screen → Color Picker / Unit Slot Assignment → Save → Return to Menu
+- **Success criteria**: Color changes reflect in-game immediately, unit slot assignments update base spawning, visual interface shows base with clickable slots
+
+### Desktop Support
+- **Functionality**: Full mouse and keyboard controls mirroring touch input
+- **Purpose**: Enables gameplay on desktop browsers with same mechanics
+- **Trigger**: Mouse events on canvas
+- **Progression**: Mouse Down → Drag Detection → Command Creation → Mouse Up → Execution
+- **Success criteria**: Click-drag for selection rectangle, click-drag for abilities, mouse controls feel identical to touch, selection rectangle renders during drag
+
+### Surrender System
+- **Functionality**: 5-click surrender mechanism with cancellation on any other click
+- **Purpose**: Allows player to end match early while preventing accidental surrenders
+- **Trigger**: Clicking surrender button in top-left during game
+- **Progression**: Click 1 → Counter Shows (1/5) → Clicks 2-4 → Counter Updates → Click 5 → Match Ends as Defeat → OR → Click Canvas → Counter Resets
+- **Success criteria**: Button shows progress, 5 clicks triggers defeat, clicking elsewhere cancels, toast notifications show remaining clicks
 
 ## Edge Case Handling
 
@@ -80,6 +94,9 @@ This is a full real-time strategy game with multiple systems: menu navigation, g
 - **Cooldown Spam** - Multiple swipes during cooldown are ignored silently
 - **Empty Selection Commands** - Movement/ability gestures with no units selected do nothing
 - **Base Collision** - Bases push away from each other if paths cross
+- **Surrender Counter Reset** - Clicking anywhere other than surrender button resets the 5-click counter
+- **Mouse and Touch Simultaneous** - Input handlers treat mouse as single persistent touch point
+- **Rapid Surrender Clicks** - 3-second timeout window; counter resets if clicks too slow
 
 ## Design Direction
 
@@ -138,28 +155,38 @@ This is a Canvas-based game, so traditional shadcn components are primarily used
 
 - **Components**: 
   - Main Menu: Custom canvas-based UI with neon button rectangles
-  - Settings Screen: shadcn `Card`, `Label`, `Select` (color picker), `Switch` (unit toggles)
+  - Settings Screen: shadcn `Card`, `Label`, color picker buttons
+  - Unit Selection Screen: Custom `Card` with visual base representation and slot selectors showing unit icons
   - Victory Overlay: Custom canvas modal with shadcn-styled `Button` for "Return to Menu"
+  - Surrender Button: shadcn `Button` with `Flag` icon, fixed position top-left with click counter
   - Debug HUD: Canvas text rendering, no React components
 - **Customizations**: 
-  - Custom canvas gesture handlers for all gameplay input
+  - Custom canvas gesture handlers for all gameplay input (touch and mouse)
   - Neon glow effects via canvas shadowBlur and multiple stroke layers
-  - Custom color picker using canvas radial gradient
+  - Custom unit slot selector with clickable positions around base visual
+  - Unit icons rendered as SVG mini-representations matching in-game appearance
+  - Selection rectangle overlay during drag operations (canvas or mouse)
 - **States**: 
   - Units: default (subtle glow), selected (bright pulsing glow), executing ability (color flash)
   - Base: idle (dim), spawnable sides (bright glow), selected (border pulse), laser cooldown (progress arc)
   - Buttons: rest (medium glow), touch-down (bright), disabled (very dim + "Coming Soon" text)
+  - Surrender Button: default (small), showing count (expanded with progress), about to surrender (destructive styling)
+  - Unit Slots: unselected (subtle), selected for editing (highlighted ring), hover (scale-up)
 - **Icon Selection**: 
-  - @phosphor-icons/react for menu navigation: `GameController`, `Robot`, `ListChecks`, `GearSix`, `ArrowLeft`
+  - @phosphor-icons/react for menu navigation: `GameController`, `Robot`, `ListChecks`, `GearSix`, `ArrowLeft`, `Flag`
   - Canvas-drawn icons for in-game elements (unit shapes, ability arrows)
+  - SVG mini-units for slot selection interface (matching game visuals)
 - **Spacing**: 
   - Menu buttons: 16px vertical gap, 24px horizontal padding, 48px from edges
-  - Debug HUD: 12px from top-left corner, 16px line height
+  - Debug HUD: 12px from top-left corner, 16px line height (moved down if surrender button visible)
   - Selection indicators: 4px offset from unit edges
   - Command queue dots: 8px diameter, lines 2px width, arrows 12px length
+  - Surrender button: 16px from top-left corner, compact sizing
+  - Unit slot selectors: 80px squares with 32px gap from base center
 - **Mobile**: 
   - Canvas fills entire viewport (100vw/100vh minus minimal chrome)
-  - Touch targets minimum 44px for menu buttons
+  - Touch targets minimum 44px for menu buttons and unit slots
   - Dynamic canvas scaling to match device pixel ratio for sharp rendering
   - Split-screen in 2-player mode with vertical divider at 50%
   - Settings use vertical scrolling card layout optimized for portrait orientation
+  - Unit selection screen responsive, base scales to fit screen

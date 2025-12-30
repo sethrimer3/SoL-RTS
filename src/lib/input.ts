@@ -27,6 +27,7 @@ interface TouchState {
 }
 
 const touchStates = new Map<number, TouchState>();
+let mouseState: TouchState | null = null;
 
 const SWIPE_THRESHOLD_PX = 30;
 const TAP_TIME_MS = 300;
@@ -251,16 +252,16 @@ function handleBaseSwipe(state: GameState, base: Base, swipe: { x: number; y: nu
   let rallyOffset = { x: 0, y: 0 };
 
   if (angleDeg >= -45 && angleDeg < 45) {
-    spawnType = 'marine';
+    spawnType = state.settings.unitSlots.left;
     rallyOffset = { x: 8, y: 0 };
   } else if (angleDeg >= 45 && angleDeg < 135) {
-    spawnType = 'warrior';
+    spawnType = state.settings.unitSlots.up;
     rallyOffset = { x: 0, y: -8 };
   } else if (angleDeg < -45 && angleDeg >= -135) {
-    spawnType = 'snaker';
+    spawnType = state.settings.unitSlots.down;
     rallyOffset = { x: 0, y: 8 };
   } else {
-    spawnType = 'marine';
+    spawnType = state.settings.unitSlots.left;
     rallyOffset = { x: -8, y: 0 };
   }
 
@@ -324,4 +325,121 @@ function addMovementCommand(state: GameState, worldPos: { x: number; y: number }
 
     unit.commandQueue.push({ type: 'move', position: worldPos });
   });
+}
+
+export function handleMouseDown(e: MouseEvent, state: GameState, canvas: HTMLCanvasElement): void {
+  if (state.mode !== 'game') return;
+  e.preventDefault();
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const worldPos = pixelsToPosition({ x, y });
+
+  const playerIndex = state.vsMode === 'player' && x > canvas.width / 2 ? 1 : 0;
+
+  const touchedBase = findTouchedBase(state, worldPos, playerIndex);
+  const touchedDot = findTouchedMovementDot(state, worldPos, playerIndex);
+
+  mouseState = {
+    startPos: { x, y },
+    startTime: Date.now(),
+    isDragging: false,
+    selectedUnitsSnapshot: new Set(state.selectedUnits),
+    touchedBase,
+    touchedMovementDot: touchedDot,
+  };
+}
+
+export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCanvasElement): void {
+  if (state.mode !== 'game') return;
+  if (!mouseState) return;
+  e.preventDefault();
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const dx = x - mouseState.startPos.x;
+  const dy = y - mouseState.startPos.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dist > 10 && !mouseState.isDragging) {
+    mouseState.isDragging = true;
+
+    const elapsed = Date.now() - mouseState.startTime;
+    if (elapsed > HOLD_TIME_MS) {
+      mouseState.selectionRect = {
+        x1: mouseState.startPos.x,
+        y1: mouseState.startPos.y,
+        x2: x,
+        y2: y,
+      };
+    }
+  }
+
+  if (mouseState.selectionRect) {
+    mouseState.selectionRect.x2 = x;
+    mouseState.selectionRect.y2 = y;
+  }
+}
+
+export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanvasElement): void {
+  if (state.mode !== 'game') return;
+  if (!mouseState) return;
+  e.preventDefault();
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const dx = x - mouseState.startPos.x;
+  const dy = y - mouseState.startPos.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const elapsed = Date.now() - mouseState.startTime;
+
+  const playerIndex = state.vsMode === 'player' && mouseState.startPos.x > canvas.width / 2 ? 1 : 0;
+
+  if (mouseState.selectionRect) {
+    handleRectSelection(state, mouseState.selectionRect, canvas, playerIndex);
+  } else if (mouseState.touchedMovementDot) {
+    handleLaserSwipe(state, mouseState.touchedMovementDot, { x: dx, y: dy });
+  } else if (mouseState.touchedBase && !mouseState.isDragging) {
+    const base = mouseState.touchedBase;
+    if (base.isSelected) {
+      base.isSelected = false;
+    } else {
+      state.bases.forEach((b) => (b.isSelected = false));
+      base.isSelected = true;
+      state.selectedUnits.clear();
+    }
+  } else if (mouseState.touchedBase && mouseState.isDragging && dist > SWIPE_THRESHOLD_PX) {
+    handleBaseSwipe(state, mouseState.touchedBase, { x: dx, y: dy }, playerIndex);
+  } else if (elapsed < TAP_TIME_MS && dist < 10) {
+    handleTap(state, { x, y }, canvas, playerIndex);
+  } else if (mouseState.isDragging && state.selectedUnits.size > 0) {
+    const worldStart = pixelsToPosition(mouseState.startPos);
+    const worldEnd = pixelsToPosition({ x, y });
+    const dragVector = subtract(worldEnd, worldStart);
+
+    if (distance({ x: 0, y: 0 }, dragVector) > 0.5) {
+      handleAbilityDrag(state, dragVector, worldStart);
+    }
+  }
+
+  mouseState = null;
+}
+
+export function getActiveSelectionRect(): { x1: number; y1: number; x2: number; y2: number } | null {
+  if (mouseState?.selectionRect) {
+    return mouseState.selectionRect;
+  }
+  
+  for (const touchState of touchStates.values()) {
+    if (touchState.selectionRect) {
+      return touchState.selectionRect;
+    }
+  }
+  
+  return null;
 }

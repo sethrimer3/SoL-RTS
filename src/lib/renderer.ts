@@ -9,7 +9,7 @@ import {
 } from './types';
 import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract } from './gameUtils';
 
-export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canvas: HTMLCanvasElement): void {
+export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canvas: HTMLCanvasElement, selectionRect?: { x1: number; y1: number; x2: number; y2: number } | null): void {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   drawBackground(ctx, canvas);
@@ -19,6 +19,9 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
     drawBases(ctx, state);
     drawUnits(ctx, state);
     drawSelectionIndicators(ctx, state);
+    if (selectionRect) {
+      drawSelectionRect(ctx, selectionRect, state);
+    }
     drawHUD(ctx, state);
   }
 }
@@ -58,8 +61,8 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
   state.units.forEach((unit) => {
     const color = state.players[unit.owner].color;
     
-    ctx.strokeStyle = COLORS.telegraph;
-    ctx.fillStyle = COLORS.telegraph;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     ctx.lineWidth = 2;
     ctx.globalAlpha = 0.6;
 
@@ -135,14 +138,13 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
     const playerPhotons = state.players[base.owner].photons;
 
     const doorPositions = [
-      { x: screenPos.x, y: screenPos.y - size / 2, type: 'warrior' as const },
-      { x: screenPos.x - size / 2, y: screenPos.y, type: 'marine' as const },
-      { x: screenPos.x, y: screenPos.y + size / 2, type: 'snaker' as const },
+      { x: screenPos.x, y: screenPos.y - size / 2, type: state.settings.unitSlots.up },
+      { x: screenPos.x - size / 2, y: screenPos.y, type: state.settings.unitSlots.left },
+      { x: screenPos.x, y: screenPos.y + size / 2, type: state.settings.unitSlots.down },
     ];
 
     doorPositions.forEach((door) => {
       const def = UNIT_DEFINITIONS[door.type];
-      if (!state.settings.enabledUnits.has(door.type)) return;
 
       const canAfford = playerPhotons >= def.cost;
 
@@ -280,4 +282,24 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
 
   ctx.fillStyle = COLORS.white;
   ctx.fillText(`Time: ${Math.floor(state.elapsedTime)}s`, 10, 60);
+}
+
+function drawSelectionRect(ctx: CanvasRenderingContext2D, rect: { x1: number; y1: number; x2: number; y2: number }, state: GameState): void {
+  const minX = Math.min(rect.x1, rect.x2);
+  const maxX = Math.max(rect.x1, rect.x2);
+  const minY = Math.min(rect.y1, rect.y2);
+  const maxY = Math.max(rect.y1, rect.y2);
+
+  ctx.strokeStyle = COLORS.white;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+  ctx.globalAlpha = 0.8;
+  
+  ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+  
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+  
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1.0;
 }

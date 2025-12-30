@@ -141,5 +141,9 @@ export interface GameState {
     playerColor: string;
     enemyColor: string;
     enabledUnits: Set<UnitType>;
+    unitSlots: Record<'left' | 'up' | 'down', UnitType>;
   };
+
+  surrenderClicks: number;
+  lastSurrenderClickTime: number;
 }
