@@ -1,0 +1,283 @@
+import {
+  GameState,
+  Unit,
+  Base,
+  COLORS,
+  UNIT_SIZE_METERS,
+  BASE_SIZE_METERS,
+  UNIT_DEFINITIONS,
+} from './types';
+import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract } from './gameUtils';
+
+export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canvas: HTMLCanvasElement): void {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  drawBackground(ctx, canvas);
+
+  if (state.mode === 'game') {
+    drawCommandQueues(ctx, state);
+    drawBases(ctx, state);
+    drawUnits(ctx, state);
+    drawSelectionIndicators(ctx, state);
+    drawHUD(ctx, state);
+  }
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
+  ctx.fillStyle = COLORS.background;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = COLORS.pattern;
+  ctx.lineWidth = 1;
+
+  const gridSize = 40;
+  for (let x = 0; x < canvas.width; x += gridSize) {
+    for (let y = 0; y < canvas.height; y += gridSize) {
+      ctx.beginPath();
+      ctx.arc(x, y, 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  const spacing = 80;
+  for (let x = 0; x < canvas.width; x += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+}
+
+function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): void {
+  state.units.forEach((unit) => {
+    const color = state.players[unit.owner].color;
+    
+    ctx.strokeStyle = COLORS.telegraph;
+    ctx.fillStyle = COLORS.telegraph;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.6;
+
+    let lastPos = unit.position;
+
+    unit.commandQueue.forEach((node, index) => {
+      const screenPos = positionToPixels(node.position);
+
+      if (node.type === 'move') {
+        const lastScreenPos = positionToPixels(lastPos);
+        ctx.beginPath();
+        ctx.moveTo(lastScreenPos.x, lastScreenPos.y);
+        ctx.lineTo(screenPos.x, screenPos.y);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(screenPos.x, screenPos.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        lastPos = node.position;
+      } else if (node.type === 'ability') {
+        const dir = normalize(node.direction);
+        const arrowLen = 12;
+        const arrowEnd = add(node.position, scale(dir, 0.5));
+        const arrowEndScreen = positionToPixels(arrowEnd);
+
+        ctx.save();
+        ctx.translate(arrowEndScreen.x, arrowEndScreen.y);
+        const angle = Math.atan2(dir.y, dir.x);
+        ctx.rotate(angle);
+
+        ctx.beginPath();
+        ctx.moveTo(arrowLen, 0);
+        ctx.lineTo(0, -6);
+        ctx.lineTo(0, 6);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+
+        lastPos = node.position;
+      }
+    });
+
+    ctx.globalAlpha = 1.0;
+  });
+}
+
+function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
+  state.bases.forEach((base) => {
+    const screenPos = positionToPixels(base.position);
+    const size = metersToPixels(BASE_SIZE_METERS);
+    const color = state.players[base.owner].color;
+
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+
+    if (base.isSelected) {
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 20;
+      ctx.strokeRect(screenPos.x - size / 2, screenPos.y - size / 2, size, size);
+      ctx.restore();
+    }
+
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(screenPos.x - size / 2, screenPos.y - size / 2, size, size);
+    ctx.globalAlpha = 1.0;
+    ctx.strokeRect(screenPos.x - size / 2, screenPos.y - size / 2, size, size);
+
+    const doorSize = size / 3;
+    const playerPhotons = state.players[base.owner].photons;
+
+    const doorPositions = [
+      { x: screenPos.x, y: screenPos.y - size / 2, type: 'warrior' as const },
+      { x: screenPos.x - size / 2, y: screenPos.y, type: 'marine' as const },
+      { x: screenPos.x, y: screenPos.y + size / 2, type: 'snaker' as const },
+    ];
+
+    doorPositions.forEach((door) => {
+      const def = UNIT_DEFINITIONS[door.type];
+      if (!state.settings.enabledUnits.has(door.type)) return;
+
+      const canAfford = playerPhotons >= def.cost;
+
+      if (canAfford && !base.isSelected) {
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 15;
+        ctx.globalAlpha = 0.8;
+
+        if (door.y < screenPos.y) {
+          ctx.fillRect(door.x - doorSize / 2, door.y, doorSize, 3);
+        } else if (door.y > screenPos.y) {
+          ctx.fillRect(door.x - doorSize / 2, door.y - 3, doorSize, 3);
+        } else if (door.x < screenPos.x) {
+          ctx.fillRect(door.x, door.y - doorSize / 2, 3, doorSize);
+        }
+
+        ctx.restore();
+      }
+    });
+
+    if (base.movementTarget) {
+      const targetScreen = positionToPixels(base.movementTarget);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(targetScreen.x, targetScreen.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const hpPercent = base.hp / base.maxHp;
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(screenPos.x - size / 2, screenPos.y - size / 2 - 10, size * hpPercent, 4);
+  });
+}
+
+function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
+  state.units.forEach((unit) => {
+    const screenPos = positionToPixels(unit.position);
+    const color = state.players[unit.owner].color;
+
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+
+    if (unit.type === 'snaker') {
+      drawSnaker(ctx, unit, screenPos, color);
+    } else {
+      const radius = metersToPixels(UNIT_SIZE_METERS / 2);
+
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
+
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (unit.type === 'warrior') {
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(screenPos.x - radius, screenPos.y - radius);
+        ctx.lineTo(screenPos.x + radius, screenPos.y + radius);
+        ctx.moveTo(screenPos.x + radius, screenPos.y - radius);
+        ctx.lineTo(screenPos.x - radius, screenPos.y + radius);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+
+    ctx.fillStyle = COLORS.white;
+    ctx.font = '10px Space Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${unit.damageMultiplier.toFixed(1)}x`, screenPos.x, screenPos.y + 20);
+
+    const hpPercent = unit.hp / unit.maxHp;
+    ctx.fillStyle = '#00ff00';
+    ctx.fillRect(screenPos.x - 10, screenPos.y - 18, 20 * hpPercent, 2);
+  });
+}
+
+function drawSnaker(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { x: number; y: number }, color: string): void {
+  const segmentSize = 6;
+  const segments = 5;
+
+  for (let i = 0; i < segments; i++) {
+    const offset = i * 8;
+    const angle = (unit.distanceTraveled * 2 + i * 0.5) % (Math.PI * 2);
+    const wobble = Math.sin(angle) * 3;
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(screenPos.x - offset + wobble, screenPos.y - segmentSize);
+    ctx.lineTo(screenPos.x - offset - segmentSize + wobble, screenPos.y);
+    ctx.lineTo(screenPos.x - offset + wobble, screenPos.y + segmentSize);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState): void {
+  state.units.forEach((unit) => {
+    if (!state.selectedUnits.has(unit.id)) return;
+
+    const screenPos = positionToPixels(unit.position);
+    const radius = metersToPixels(UNIT_SIZE_METERS / 2) + 4;
+    const color = state.players[unit.owner].color;
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+  });
+}
+
+function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
+  ctx.fillStyle = COLORS.white;
+  ctx.font = '14px Space Grotesk, sans-serif';
+  ctx.textAlign = 'left';
+
+  const p1 = state.players[0];
+  ctx.fillStyle = p1.color;
+  ctx.fillText(`P1: ${Math.floor(p1.photons)} photons (+${p1.incomeRate}/s)`, 10, 20);
+
+  if (state.players[1]) {
+    const p2 = state.players[1];
+    ctx.fillStyle = p2.color;
+    ctx.fillText(`P2: ${Math.floor(p2.photons)} photons (+${p2.incomeRate}/s)`, 10, 40);
+  }
+
+  ctx.fillStyle = COLORS.white;
+  ctx.fillText(`Time: ${Math.floor(state.elapsedTime)}s`, 10, 60);
+}

@@ -1,0 +1,64 @@
+import { GameState, UNIT_DEFINITIONS, UnitType, QUEUE_MAX_LENGTH } from './types';
+import { spawnUnit } from './simulation';
+import { distance, add } from './gameUtils';
+
+let lastAIAction = 0;
+const AI_ACTION_INTERVAL = 2.0;
+
+export function updateAI(state: GameState, deltaTime: number): void {
+  if (state.vsMode !== 'ai') return;
+
+  lastAIAction += deltaTime;
+
+  if (lastAIAction >= AI_ACTION_INTERVAL) {
+    lastAIAction = 0;
+    performAIActions(state);
+  }
+}
+
+function performAIActions(state: GameState): void {
+  const aiPlayer = 1;
+  const aiBase = state.bases.find((b) => b.owner === aiPlayer);
+  if (!aiBase) return;
+
+  const aiPhotons = state.players[aiPlayer].photons;
+
+  const unitTypes: UnitType[] = ['marine', 'warrior', 'snaker'].filter((type) =>
+    state.settings.enabledUnits.has(type as UnitType)
+  ) as UnitType[];
+
+  if (unitTypes.length === 0) return;
+
+  const chosenType = unitTypes[Math.floor(Math.random() * unitTypes.length)];
+  const def = UNIT_DEFINITIONS[chosenType];
+
+  if (aiPhotons >= def.cost) {
+    const rallyOffsets = [
+      { x: -8, y: 0 },
+      { x: 0, y: -8 },
+      { x: 0, y: 8 },
+    ];
+    const rallyOffset = rallyOffsets[Math.floor(Math.random() * rallyOffsets.length)];
+    const rallyPos = add(aiBase.position, rallyOffset);
+
+    spawnUnit(state, aiPlayer, chosenType, aiBase.position, rallyPos);
+  }
+
+  const aiUnits = state.units.filter((u) => u.owner === aiPlayer);
+  const playerBase = state.bases.find((b) => b.owner === 0);
+
+  if (playerBase) {
+    aiUnits.forEach((unit) => {
+      if (unit.commandQueue.length < 3 && Math.random() < 0.3) {
+        const targetPos = {
+          x: playerBase.position.x + (Math.random() - 0.5) * 10,
+          y: playerBase.position.y + (Math.random() - 0.5) * 10,
+        };
+
+        if (unit.commandQueue.length < QUEUE_MAX_LENGTH) {
+          unit.commandQueue.push({ type: 'move', position: targetPos });
+        }
+      }
+    });
+  }
+}

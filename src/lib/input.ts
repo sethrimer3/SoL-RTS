@@ -1,0 +1,327 @@
+import {
+  GameState,
+  Unit,
+  CommandNode,
+  Base,
+  QUEUE_MAX_LENGTH,
+  ABILITY_MAX_RANGE,
+  LASER_RANGE,
+  LASER_WIDTH,
+  LASER_DAMAGE_UNIT,
+  LASER_DAMAGE_BASE,
+  LASER_COOLDOWN,
+  BASE_SIZE_METERS,
+  UNIT_SIZE_METERS,
+} from './types';
+import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels } from './gameUtils';
+import { spawnUnit } from './simulation';
+
+interface TouchState {
+  startPos: { x: number; y: number };
+  startTime: number;
+  isDragging: boolean;
+  selectedUnitsSnapshot: Set<string>;
+  selectionRect?: { x1: number; y1: number; x2: number; y2: number };
+  touchedBase?: Base;
+  touchedMovementDot?: { base: Base; dotPos: { x: number; y: number } };
+}
+
+const touchStates = new Map<number, TouchState>();
+
+const SWIPE_THRESHOLD_PX = 30;
+const TAP_TIME_MS = 300;
+const HOLD_TIME_MS = 200;
+
+export function handleTouchStart(e: TouchEvent, state: GameState, canvas: HTMLCanvasElement): void {
+  if (state.mode !== 'game') return;
+  e.preventDefault();
+
+  Array.from(e.changedTouches).forEach((touch) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    const worldPos = pixelsToPosition({ x, y });
+
+    const playerIndex = state.vsMode === 'player' && x > canvas.width / 2 ? 1 : 0;
+
+    const touchedBase = findTouchedBase(state, worldPos, playerIndex);
+    const touchedDot = findTouchedMovementDot(state, worldPos, playerIndex);
+
+    touchStates.set(touch.identifier, {
+      startPos: { x, y },
+      startTime: Date.now(),
+      isDragging: false,
+      selectedUnitsSnapshot: new Set(state.selectedUnits),
+      touchedBase,
+      touchedMovementDot: touchedDot,
+    });
+  });
+}
+
+export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCanvasElement): void {
+  if (state.mode !== 'game') return;
+  e.preventDefault();
+
+  Array.from(e.changedTouches).forEach((touch) => {
+    const touchState = touchStates.get(touch.identifier);
+    if (!touchState) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    const dx = x - touchState.startPos.x;
+    const dy = y - touchState.startPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 10 && !touchState.isDragging) {
+      touchState.isDragging = true;
+
+      const elapsed = Date.now() - touchState.startTime;
+      if (elapsed > HOLD_TIME_MS) {
+        touchState.selectionRect = {
+          x1: touchState.startPos.x,
+          y1: touchState.startPos.y,
+          x2: x,
+          y2: y,
+        };
+      }
+    }
+
+    if (touchState.selectionRect) {
+      touchState.selectionRect.x2 = x;
+      touchState.selectionRect.y2 = y;
+    }
+  });
+}
+
+export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanvasElement): void {
+  if (state.mode !== 'game') return;
+  e.preventDefault();
+
+  Array.from(e.changedTouches).forEach((touch) => {
+    const touchState = touchStates.get(touch.identifier);
+    if (!touchState) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    const dx = x - touchState.startPos.x;
+    const dy = y - touchState.startPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const elapsed = Date.now() - touchState.startTime;
+
+    const playerIndex = state.vsMode === 'player' && touchState.startPos.x > canvas.width / 2 ? 1 : 0;
+
+    if (touchState.selectionRect) {
+      handleRectSelection(state, touchState.selectionRect, canvas, playerIndex);
+    } else if (touchState.touchedMovementDot) {
+      handleLaserSwipe(state, touchState.touchedMovementDot, { x: dx, y: dy });
+    } else if (touchState.touchedBase && !touchState.isDragging) {
+      const base = touchState.touchedBase;
+      if (base.isSelected) {
+        base.isSelected = false;
+      } else {
+        state.bases.forEach((b) => (b.isSelected = false));
+        base.isSelected = true;
+        state.selectedUnits.clear();
+      }
+    } else if (touchState.touchedBase && touchState.isDragging && dist > SWIPE_THRESHOLD_PX) {
+      handleBaseSwipe(state, touchState.touchedBase, { x: dx, y: dy }, playerIndex);
+    } else if (elapsed < TAP_TIME_MS && dist < 10) {
+      handleTap(state, { x, y }, canvas, playerIndex);
+    } else if (touchState.isDragging && state.selectedUnits.size > 0) {
+      const worldStart = pixelsToPosition(touchState.startPos);
+      const worldEnd = pixelsToPosition({ x, y });
+      const dragVector = subtract(worldEnd, worldStart);
+
+      if (distance({ x: 0, y: 0 }, dragVector) > 0.5) {
+        handleAbilityDrag(state, dragVector, worldStart);
+      }
+    }
+
+    touchStates.delete(touch.identifier);
+  });
+}
+
+function findTouchedBase(state: GameState, worldPos: { x: number; y: number }, playerIndex: number): Base | undefined {
+  return state.bases.find((base) => {
+    if (base.owner !== playerIndex) return false;
+    const dist = distance(base.position, worldPos);
+    return dist < BASE_SIZE_METERS / 2;
+  });
+}
+
+function findTouchedMovementDot(
+  state: GameState,
+  worldPos: { x: number; y: number },
+  playerIndex: number
+): { base: Base; dotPos: { x: number; y: number } } | undefined {
+  for (const base of state.bases) {
+    if (base.owner !== playerIndex || !base.isSelected || !base.movementTarget) continue;
+    const dist = distance(base.movementTarget, worldPos);
+    if (dist < 0.5) {
+      return { base, dotPos: base.movementTarget };
+    }
+  }
+  return undefined;
+}
+
+function handleRectSelection(
+  state: GameState,
+  rect: { x1: number; y1: number; x2: number; y2: number },
+  canvas: HTMLCanvasElement,
+  playerIndex: number
+): void {
+  const minX = Math.min(rect.x1, rect.x2);
+  const maxX = Math.max(rect.x1, rect.x2);
+  const minY = Math.min(rect.y1, rect.y2);
+  const maxY = Math.max(rect.y1, rect.y2);
+
+  state.selectedUnits.clear();
+  state.bases.forEach((b) => (b.isSelected = false));
+
+  state.units.forEach((unit) => {
+    if (unit.owner !== playerIndex) return;
+    const screenPos = positionToPixels(unit.position);
+    if (screenPos.x >= minX && screenPos.x <= maxX && screenPos.y >= minY && screenPos.y <= maxY) {
+      state.selectedUnits.add(unit.id);
+    }
+  });
+}
+
+function handleLaserSwipe(
+  state: GameState,
+  touchedDot: { base: Base; dotPos: { x: number; y: number } },
+  swipe: { x: number; y: number }
+): void {
+  const { base } = touchedDot;
+
+  if (base.laserCooldown > 0) return;
+
+  const swipeLen = Math.sqrt(swipe.x * swipe.x + swipe.y * swipe.y);
+  if (swipeLen < SWIPE_THRESHOLD_PX) return;
+
+  const swipeDir = normalize({ x: swipe.x, y: -swipe.y });
+
+  fireLaser(state, base, swipeDir);
+  base.laserCooldown = LASER_COOLDOWN;
+}
+
+function fireLaser(state: GameState, base: Base, direction: { x: number; y: number }): void {
+  const laserEnd = add(base.position, scale(direction, LASER_RANGE));
+
+  state.units.forEach((unit) => {
+    if (unit.owner === base.owner) return;
+
+    const toUnit = subtract(unit.position, base.position);
+    const projectedDist = toUnit.x * direction.x + toUnit.y * direction.y;
+    const perpDist = Math.abs(toUnit.x * direction.y - toUnit.y * direction.x);
+
+    if (projectedDist > 0 && projectedDist < LASER_RANGE && perpDist < LASER_WIDTH / 2) {
+      unit.hp -= LASER_DAMAGE_UNIT;
+    }
+  });
+
+  state.bases.forEach((targetBase) => {
+    if (targetBase.owner === base.owner) return;
+
+    const toBase = subtract(targetBase.position, base.position);
+    const projectedDist = toBase.x * direction.x + toBase.y * direction.y;
+    const perpDist = Math.abs(toBase.x * direction.y - toBase.y * direction.x);
+
+    const baseRadius = BASE_SIZE_METERS / 2;
+    if (projectedDist > 0 && projectedDist < LASER_RANGE && perpDist < LASER_WIDTH / 2 + baseRadius) {
+      targetBase.hp -= LASER_DAMAGE_BASE;
+    }
+  });
+}
+
+function handleBaseSwipe(state: GameState, base: Base, swipe: { x: number; y: number }, playerIndex: number): void {
+  if (base.isSelected) return;
+
+  const swipeLen = Math.sqrt(swipe.x * swipe.x + swipe.y * swipe.y);
+  if (swipeLen < SWIPE_THRESHOLD_PX) return;
+
+  const angle = Math.atan2(-swipe.y, swipe.x);
+  const angleDeg = (angle * 180) / Math.PI;
+
+  let spawnType: 'marine' | 'warrior' | 'snaker' | null = null;
+  let rallyOffset = { x: 0, y: 0 };
+
+  if (angleDeg >= -45 && angleDeg < 45) {
+    spawnType = 'marine';
+    rallyOffset = { x: 8, y: 0 };
+  } else if (angleDeg >= 45 && angleDeg < 135) {
+    spawnType = 'warrior';
+    rallyOffset = { x: 0, y: -8 };
+  } else if (angleDeg < -45 && angleDeg >= -135) {
+    spawnType = 'snaker';
+    rallyOffset = { x: 0, y: 8 };
+  } else {
+    spawnType = 'marine';
+    rallyOffset = { x: -8, y: 0 };
+  }
+
+  const rallyPos = add(base.position, rallyOffset);
+  spawnUnit(state, playerIndex, spawnType, base.position, rallyPos);
+}
+
+function handleTap(state: GameState, screenPos: { x: number; y: number }, canvas: HTMLCanvasElement, playerIndex: number): void {
+  const worldPos = pixelsToPosition(screenPos);
+
+  const tappedUnit = state.units.find((unit) => {
+    if (unit.owner !== playerIndex) return false;
+    return distance(unit.position, worldPos) < UNIT_SIZE_METERS / 2;
+  });
+
+  if (tappedUnit) {
+    state.selectedUnits.clear();
+    state.selectedUnits.add(tappedUnit.id);
+    state.bases.forEach((b) => (b.isSelected = false));
+    return;
+  }
+
+  const selectedBase = state.bases.find((b) => b.isSelected && b.owner === playerIndex);
+  if (selectedBase) {
+    selectedBase.movementTarget = worldPos;
+    return;
+  }
+
+  if (state.selectedUnits.size > 0) {
+    addMovementCommand(state, worldPos);
+  }
+}
+
+function handleAbilityDrag(state: GameState, dragVector: { x: number; y: number }, worldStart: { x: number; y: number }): void {
+  const dragLen = distance({ x: 0, y: 0 }, dragVector);
+  const clampedLen = Math.min(dragLen, ABILITY_MAX_RANGE);
+  const direction = normalize(dragVector);
+  const clampedVector = scale(direction, clampedLen);
+
+  state.units.forEach((unit) => {
+    if (!state.selectedUnits.has(unit.id)) return;
+    if (unit.commandQueue.length >= QUEUE_MAX_LENGTH) return;
+
+    const abilityPos = add(unit.position, clampedVector);
+
+    const pathToAbility: CommandNode = { type: 'move', position: abilityPos };
+    const abilityNode: CommandNode = { type: 'ability', position: abilityPos, direction: clampedVector };
+
+    if (unit.commandQueue.length === 0 || unit.commandQueue[unit.commandQueue.length - 1].type === 'ability') {
+      unit.commandQueue.push(pathToAbility);
+    }
+
+    unit.commandQueue.push(abilityNode);
+  });
+}
+
+function addMovementCommand(state: GameState, worldPos: { x: number; y: number }): void {
+  state.units.forEach((unit) => {
+    if (!state.selectedUnits.has(unit.id)) return;
+    if (unit.commandQueue.length >= QUEUE_MAX_LENGTH) return;
+
+    unit.commandQueue.push({ type: 'move', position: worldPos });
+  });
+}
