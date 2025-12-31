@@ -237,7 +237,7 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
     ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.7;
 
     let lastPos = unit.position;
 
@@ -246,14 +246,26 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
 
       if (node.type === 'move') {
         const lastScreenPos = positionToPixels(lastPos);
+        
+        // Draw path with glow
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 8;
         ctx.beginPath();
         ctx.moveTo(lastScreenPos.x, lastScreenPos.y);
         ctx.lineTo(screenPos.x, screenPos.y);
         ctx.stroke();
+        ctx.shadowBlur = 0;
 
+        // Draw waypoint with pulsing animation
+        const pulse = Math.sin((Date.now() / 1000) * 2 + index) * 0.3 + 0.7;
+        ctx.globalAlpha = 0.8 * pulse;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 12;
         ctx.beginPath();
-        ctx.arc(screenPos.x, screenPos.y, 4, 0, Math.PI * 2);
+        ctx.arc(screenPos.x, screenPos.y, 4 + pulse * 2, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.7;
 
         lastPos = node.position;
       } else if (node.type === 'ability') {
@@ -267,6 +279,10 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
         const angle = Math.atan2(dir.y, dir.x);
         ctx.rotate(angle);
 
+        // Draw arrow with enhanced glow
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 15;
+        ctx.globalAlpha = 0.9;
         ctx.beginPath();
         ctx.moveTo(arrowLen, 0);
         ctx.lineTo(0, -6);
@@ -997,11 +1013,22 @@ function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState
 
     ctx.save();
     
-    // Draw outer glow ring
+    // Draw outer rotating ring
     ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.3;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+    ctx.setLineDash([8, 8]);
+    ctx.lineDashOffset = time * 20; // Rotate clockwise
+    
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, radius + 6, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Draw outer glow ring
     ctx.lineWidth = 3;
     ctx.globalAlpha = pulse * 0.4;
-    ctx.shadowColor = color;
     ctx.shadowBlur = 15;
     ctx.setLineDash([]);
     
@@ -1014,7 +1041,7 @@ function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState
     ctx.lineWidth = 2;
     ctx.shadowBlur = 10;
     ctx.setLineDash([4, 4]);
-    ctx.lineDashOffset = -time * 10; // Animate dash
+    ctx.lineDashOffset = -time * 10; // Animate dash counter-clockwise
     
     ctx.beginPath();
     ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
@@ -1027,13 +1054,14 @@ function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState
     const markerSize = 6;
     const markerDist = radius + 2;
     
-    // Draw 4 corner brackets
+    // Draw 4 corner brackets that rotate slightly
     for (let i = 0; i < 4; i++) {
-      const angle = (i * Math.PI / 2) + Math.PI / 4;
+      const angle = (i * Math.PI / 2) + Math.PI / 4 + Math.sin(time * 2) * 0.05;
       const x = screenPos.x + Math.cos(angle) * markerDist;
       const y = screenPos.y + Math.sin(angle) * markerDist;
       
-      // Draw bracket
+      // Draw bracket with enhanced glow
+      ctx.globalAlpha = 0.8 + pulse * 0.2;
       ctx.beginPath();
       ctx.moveTo(x - markerSize * Math.cos(angle - Math.PI / 4), y - markerSize * Math.sin(angle - Math.PI / 4));
       ctx.lineTo(x, y);

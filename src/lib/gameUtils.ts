@@ -138,3 +138,32 @@ export function generateStarfield(canvasWidth: number, canvasHeight: number): Ar
   return stars;
 }
 
+// Object pool for particle reuse to improve performance
+class ParticlePool {
+  private pool: any[] = [];
+  private maxSize: number = 500; // Limit pool size
+  
+  get(): any {
+    return this.pool.pop() || null;
+  }
+  
+  release(particle: any): void {
+    if (this.pool.length < this.maxSize) {
+      // Reset particle properties for reuse
+      particle.id = '';
+      particle.position = { x: 0, y: 0 };
+      particle.velocity = { x: 0, y: 0 };
+      particle.alpha = 1;
+      particle.lifetime = 0;
+      particle.createdAt = 0;
+      this.pool.push(particle);
+    }
+  }
+  
+  clear(): void {
+    this.pool = [];
+  }
+}
+
+export const particlePool = new ParticlePool();
+
