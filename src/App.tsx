@@ -7,6 +7,8 @@ import { updateGame } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
 import { handleTouchStart, handleTouchMove, handleTouchEnd, handleMouseDown, handleMouseMove, handleMouseUp, getActiveSelectionRect } from './lib/input';
+import { initializeCamera, updateCamera, zoomCamera, panCamera, resetCamera } from './lib/camera';
+import { updateVisualEffects } from './lib/visualEffects';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Label } from './components/ui/label';
@@ -48,6 +50,8 @@ function App() {
   const [musicVolume, setMusicVolume] = useKV<number>('music-volume', 0.5);
   const [showNumericHP, setShowNumericHP] = useKV<boolean>('show-numeric-hp', true);
   const [showMinimap, setShowMinimap] = useKV<boolean>('show-minimap', true);
+  const [showPerformance, setShowPerformance] = useKV<boolean>('show-performance', false);
+  const [enableCameraControls, setEnableCameraControls] = useKV<boolean>('enable-camera-controls', true);
 
   const gameState = gameStateRef.current;
 
@@ -146,6 +150,9 @@ function App() {
       const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1);
       lastTimeRef.current = now;
 
+      // Performance profiling
+      const updateStartTime = performance.now();
+
       // Update FPS counter
       if (!gameStateRef.current.lastFpsUpdate) {
         gameStateRef.current.lastFpsUpdate = now;
@@ -175,6 +182,10 @@ function App() {
             phase: 'bases-sliding',
           };
           soundManager.playMatchStart();
+          
+          // Initialize camera for game
+          initializeCamera(gameStateRef.current);
+          
           delete gameStateRef.current.countdownStartTime;
           setRenderTrigger(prev => prev + 1);
         }
@@ -194,6 +205,12 @@ function App() {
         if (!gameStateRef.current.matchStartAnimation || (gameStateRef.current.matchStartAnimation.phase === 'go')) {
           updateGame(gameStateRef.current, deltaTime);
           updateAI(gameStateRef.current, deltaTime);
+          
+          // Update camera and visual effects
+          if (enableCameraControls) {
+            updateCamera(gameStateRef.current, deltaTime);
+          }
+          updateVisualEffects(gameStateRef.current, deltaTime);
         }
         
         if (gameStateRef.current.matchTimeLimit && !gameStateRef.current.timeoutWarningShown) {
@@ -207,22 +224,119 @@ function App() {
         }
       }
 
+      const updateEndTime = performance.now();
+      const renderStartTime = performance.now();
+
       const selectionRect = getActiveSelectionRect();
       renderGame(ctx, gameStateRef.current, canvas, selectionRect);
+
+      const renderEndTime = performance.now();
+
+      // Update performance profiling
+      if (showPerformance) {
+        if (!gameStateRef.current.performanceProfiling) {
+          gameStateRef.current.performanceProfiling = {
+            enabled: true,
+            frameTimings: [],
+            updateTime: 0,
+            renderTime: 0,
+            avgFrameTime: 0,
+          };
+        }
+        
+        gameStateRef.current.performanceProfiling.updateTime = updateEndTime - updateStartTime;
+        gameStateRef.current.performanceProfiling.renderTime = renderEndTime - renderStartTime;
+        
+        const frameTime = renderEndTime - updateStartTime;
+        gameStateRef.current.performanceProfiling.frameTimings.push(frameTime);
+        if (gameStateRef.current.performanceProfiling.frameTimings.length > 60) {
+          gameStateRef.current.performanceProfiling.frameTimings.shift();
+        }
+        
+        const sum = gameStateRef.current.performanceProfiling.frameTimings.reduce((a, b) => a + b, 0);
+        gameStateRef.current.performanceProfiling.avgFrameTime = sum / gameStateRef.current.performanceProfiling.frameTimings.length;
+      }
 
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     };
 
     gameLoop();
+    
+    // Add mouse wheel zoom handler
+    const handleWheel = (e: WheelEvent) => {
+      if (gameStateRef.current.mode === 'game' && enableCameraControls) {
+        e.preventDefault();
+        const zoomDelta = e.deltaY > 0 ? -1 : 1;
+        zoomCamera(gameStateRef.current, zoomDelta);
+      }
+    };
+    
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
       window.removeEventListener('orientationchange', resizeCanvas);
+      canvas.removeEventListener('wheel', handleWheel);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, []);
+  }, [enableCameraControls]);
+
+  // Camera pan controls with WASD and Arrow keys
+  useEffect(() => {
+    if (!enableCameraControls || gameState.mode !== 'game') return;
+
+    const pressedKeys = new Set<string>();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].includes(e.key)) {
+        pressedKeys.add(e.key.toLowerCase());
+        e.preventDefault();
+      }
+      
+      // R key to reset camera
+      if (e.key === 'r' || e.key === 'R') {
+        resetCamera(gameStateRef.current);
+        e.preventDefault();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      pressedKeys.delete(e.key.toLowerCase());
+    };
+
+    // Update camera position based on pressed keys
+    const updateCameraPan = () => {
+      if (pressedKeys.size === 0 || !enableCameraControls) return;
+
+      const direction = { x: 0, y: 0 };
+      
+      if (pressedKeys.has('w') || pressedKeys.has('arrowup')) direction.y -= 1;
+      if (pressedKeys.has('s') || pressedKeys.has('arrowdown')) direction.y += 1;
+      if (pressedKeys.has('a') || pressedKeys.has('arrowleft')) direction.x -= 1;
+      if (pressedKeys.has('d') || pressedKeys.has('arrowright')) direction.x += 1;
+
+      // Normalize diagonal movement
+      const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+      if (length > 0) {
+        direction.x /= length;
+        direction.y /= length;
+        panCamera(gameStateRef.current, direction, 1/60);
+      }
+    };
+
+    const intervalId = setInterval(updateCameraPan, 16); // ~60fps
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [enableCameraControls, gameState.mode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -592,6 +706,41 @@ function App() {
         setRenderTrigger(prev => prev + 1);
       }
     },
+    onNumberKey: (num: number) => {
+      if (gameState.mode === 'game') {
+        // Ctrl/Cmd + number = assign selected units to control group
+        // Just number = select control group
+        const isAssigning = window.event && (
+          (window.event as KeyboardEvent).ctrlKey || 
+          (window.event as KeyboardEvent).metaKey
+        );
+        
+        if (isAssigning) {
+          // Assign current selection to control group
+          gameStateRef.current.controlGroups[num] = new Set(gameStateRef.current.selectedUnits);
+          toast.success(`Control group ${num} assigned (${gameStateRef.current.selectedUnits.size} units)`);
+          soundManager.playButtonClick();
+        } else {
+          // Select control group
+          const group = gameStateRef.current.controlGroups[num];
+          if (group && group.size > 0) {
+            // Filter out dead units
+            const livingUnits = Array.from(group).filter(id => 
+              gameStateRef.current.units.some(u => u.id === id && u.hp > 0)
+            );
+            
+            if (livingUnits.length > 0) {
+              gameStateRef.current.selectedUnits = new Set(livingUnits);
+              gameStateRef.current.bases.forEach(b => b.isSelected = false);
+              soundManager.playUnitSelect();
+              setRenderTrigger(prev => prev + 1);
+            } else {
+              toast.info(`Control group ${num} is empty`);
+            }
+          }
+        }
+      }
+    },
   }, gameState.mode === 'game' || gameState.mode !== 'menu');
 
   return (
@@ -860,6 +1009,37 @@ function App() {
                 />
               </div>
 
+              <div className="flex items-center justify-between">
+                <Label htmlFor="camera-toggle">Camera Controls (Zoom/Pan)</Label>
+                <Switch
+                  id="camera-toggle"
+                  checked={enableCameraControls ?? true}
+                  onCheckedChange={(checked) => {
+                    setEnableCameraControls(checked);
+                    soundManager.playButtonClick();
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="performance-toggle">Show Performance Stats</Label>
+                <Switch
+                  id="performance-toggle"
+                  checked={showPerformance ?? false}
+                  onCheckedChange={(checked) => {
+                    setShowPerformance(checked);
+                    soundManager.playButtonClick();
+                  }}
+                />
+              </div>
+
+              <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                <p><strong>Camera Controls:</strong></p>
+                <p>• Mouse Wheel: Zoom in/out</p>
+                <p>• WASD or Arrow Keys: Pan camera</p>
+                <p>• R Key: Reset camera</p>
+              </div>
+
               <Button
                 onClick={backToMenu}
                 className="w-full orbitron"
@@ -947,16 +1127,31 @@ function App() {
                       ? 'Time limit reached! Your base took more damage.'
                       : 'Your base was destroyed.'}
               </p>
-              <Button 
-                onClick={() => returnToMenu(
-                  true, 
-                  gameState.winner === -1 ? 'draw' : gameState.winner === 0 ? 'victory' : 'defeat'
-                )} 
-                className="w-full orbitron animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700" 
-                variant="default"
-              >
-                Return to Menu
-              </Button>
+              <div className="flex gap-2">
+                {gameState.vsMode === 'ai' && (
+                  <Button 
+                    onClick={() => {
+                      returnToMenu(true, gameState.winner === -1 ? 'draw' : gameState.winner === 0 ? 'victory' : 'defeat');
+                      // Start a new game after a brief delay
+                      setTimeout(() => startGame('ai', gameState.settings.selectedMap), 100);
+                    }} 
+                    className="flex-1 orbitron animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700" 
+                    variant="default"
+                  >
+                    Quick Rematch
+                  </Button>
+                )}
+                <Button 
+                  onClick={() => returnToMenu(
+                    true, 
+                    gameState.winner === -1 ? 'draw' : gameState.winner === 0 ? 'victory' : 'defeat'
+                  )} 
+                  className="flex-1 orbitron animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700" 
+                  variant={gameState.vsMode === 'ai' ? 'outline' : 'default'}
+                >
+                  Return to Menu
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -978,6 +1173,8 @@ function createInitialState(): GameState {
       { photons: 0, incomeRate: 1, color: COLORS.enemyDefault },
     ],
     selectedUnits: new Set(),
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
     elapsedTime: 0,
     lastIncomeTime: 0,
     winner: null,
@@ -1041,6 +1238,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
       { photons: 50, incomeRate: 1, color: settings.enemyColor },
     ],
     selectedUnits: new Set(),
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
     elapsedTime: 0,
     lastIncomeTime: 0,
     winner: null,
@@ -1107,6 +1305,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
       { photons: 50, incomeRate: 1, color: settings.enemyColor },
     ],
     selectedUnits: new Set(),
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
     elapsedTime: 0,
     lastIncomeTime: 0,
     winner: null,
@@ -1163,6 +1362,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
       { photons: 50, incomeRate: 1, color: isHost ? lobby.guestColor || COLORS.enemyDefault : lobby.hostColor },
     ],
     selectedUnits: new Set(),
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
     elapsedTime: 0,
     lastIncomeTime: 0,
     winner: null,
@@ -1231,6 +1431,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
       { photons: 50, incomeRate: 1, color: isHost ? lobby.guestColor || COLORS.enemyDefault : lobby.hostColor },
     ],
     selectedUnits: new Set(),
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
     elapsedTime: 0,
     lastIncomeTime: 0,
     winner: null,

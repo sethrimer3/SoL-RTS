@@ -17,6 +17,7 @@ import {
 import { distance, normalize, scale, add, subtract, generateId } from './gameUtils';
 import { checkObstacleCollision } from './maps';
 import { soundManager } from './sound';
+import { createSpawnEffect, createHitSparks, createAbilityEffect } from './visualEffects';
 
 // Particle physics constants
 const PARTICLE_ATTRACTION_STRENGTH = 6.0; // How strongly particles are attracted to their unit
@@ -498,6 +499,7 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
           if (target && target.hp > 0) {
             target.hp -= projectile.damage;
             createDamageNumber(state, projectile.position, projectile.damage, projectile.color);
+            createHitSparks(state, projectile.position, projectile.color, 6);
             
             if (state.matchStats && projectile.owner === 0) {
               state.matchStats.damageDealtByPlayer += projectile.damage;
@@ -512,6 +514,7 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
             if (distance(enemy.position, projectile.position) < UNIT_SIZE_METERS / 2) {
               enemy.hp -= projectile.damage;
               createDamageNumber(state, projectile.position, projectile.damage, projectile.color);
+              createHitSparks(state, projectile.position, projectile.color, 6);
               
               if (state.matchStats && projectile.owner === 0) {
                 state.matchStats.damageDealtByPlayer += projectile.damage;
@@ -527,6 +530,7 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
             for (const base of enemyBases) {
               if (distance(base.position, projectile.position) < BASE_SIZE_METERS / 2) {
                 base.hp -= projectile.damage;
+                createHitSparks(state, projectile.position, projectile.color, 8);
                 
                 if (state.matchStats) {
                   if (base.owner === 0) {
@@ -778,12 +782,15 @@ function executeAbility(state: GameState, unit: Unit, node: CommandNode): void {
   soundManager.playAbility();
 
   if (unit.type === 'marine') {
+    createAbilityEffect(state, unit, node.position, 'burst-fire');
     executeBurstFire(state, unit, node.direction);
     unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'warrior') {
+    createAbilityEffect(state, unit, node.position, 'execute-dash');
     executeExecuteDash(state, unit, node.position);
     unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'snaker') {
+    createAbilityEffect(state, unit, node.position, 'line-jump');
     unit.lineJumpTelegraph = {
       startTime: Date.now(),
       endPos: add(unit.position, scale(normalize(node.direction), Math.min(distance({ x: 0, y: 0 }, node.direction), 10))),
@@ -791,18 +798,23 @@ function executeAbility(state: GameState, unit: Unit, node: CommandNode): void {
     };
     unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'tank') {
+    createAbilityEffect(state, unit, node.position, 'shield-dome');
     executeShieldDome(state, unit);
     unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'scout') {
+    createAbilityEffect(state, unit, node.position, 'cloak');
     executeCloak(state, unit);
     unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'artillery') {
+    createAbilityEffect(state, unit, node.position, 'bombardment');
     executeArtilleryBombardment(state, unit, node.position);
     unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'medic') {
+    createAbilityEffect(state, unit, node.position, 'heal-pulse');
     executeHealPulse(state, unit);
     unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'interceptor') {
+    createAbilityEffect(state, unit, node.position, 'missile-barrage');
     executeMissileBarrage(state, unit, node.direction);
     unit.abilityCooldown = def.abilityCooldown;
   }
