@@ -119,13 +119,35 @@ function App() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const detectOrientation = () => {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                        ('ontouchstart' in window) || 
+                        (window.innerWidth < 768);
+      const isPortrait = window.innerHeight > window.innerWidth;
+      
+      gameStateRef.current.isMobile = isMobile;
+      gameStateRef.current.isPortrait = isPortrait;
+    };
+
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      detectOrientation();
+      const isMobile = gameStateRef.current.isMobile;
+      const isPortrait = gameStateRef.current.isPortrait;
+      
+      // For mobile in portrait mode, swap dimensions to rotate the view
+      if (isMobile && isPortrait) {
+        // Use landscape dimensions but rotated
+        canvas.width = window.innerHeight;
+        canvas.height = window.innerWidth;
+      } else {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
     };
 
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', resizeCanvas);
 
     const gameLoop = () => {
       const now = Date.now();
@@ -190,6 +212,7 @@ function App() {
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('orientationchange', resizeCanvas);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -536,7 +559,18 @@ function App() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background" onClick={handleCanvasSurrenderReset}>
-      <canvas ref={canvasRef} className="absolute inset-0" />
+      <canvas 
+        ref={canvasRef} 
+        className="absolute inset-0" 
+        style={{
+          transformOrigin: 'top left',
+          ...(gameState.isMobile && gameState.isPortrait ? {
+            transform: 'rotate(90deg) translateY(-100%)',
+            width: '100vh',
+            height: '100vw'
+          } : {})
+        }}
+      />
 
       {gameState.mode === 'game' && (
         <Button

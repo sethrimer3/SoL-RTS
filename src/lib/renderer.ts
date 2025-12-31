@@ -26,6 +26,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       if (selectionRect) {
         drawSelectionRect(ctx, selectionRect, state);
       }
+      drawVisualFeedback(ctx, state);
       drawHUD(ctx, state);
     }
   }
@@ -726,4 +727,70 @@ function drawSelectionRect(ctx: CanvasRenderingContext2D, rect: { x1: number; y1
   
   ctx.setLineDash([]);
   ctx.globalAlpha = 1.0;
+}
+
+function drawVisualFeedback(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.visualFeedback || state.visualFeedback.length === 0) return;
+  
+  const now = Date.now();
+  
+  state.visualFeedback.forEach(feedback => {
+    const elapsed = now - feedback.startTime;
+    const progress = elapsed / 500; // 500ms fade out
+    const alpha = Math.max(0, 1 - progress);
+    
+    if (feedback.type === 'tap') {
+      const screenPos = positionToPixels(feedback.position);
+      const radius = 10 + elapsed * 0.05;
+      
+      ctx.save();
+      ctx.strokeStyle = COLORS.white;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = alpha;
+      ctx.shadowColor = COLORS.white;
+      ctx.shadowBlur = 10;
+      
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      ctx.restore();
+    } else if (feedback.type === 'drag' && feedback.endPosition) {
+      const startScreen = positionToPixels(feedback.position);
+      const endScreen = positionToPixels(feedback.endPosition);
+      
+      ctx.save();
+      ctx.strokeStyle = COLORS.telegraph;
+      ctx.lineWidth = 4;
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.shadowColor = COLORS.telegraph;
+      ctx.shadowBlur = 15;
+      
+      ctx.beginPath();
+      ctx.moveTo(startScreen.x, startScreen.y);
+      ctx.lineTo(endScreen.x, endScreen.y);
+      ctx.stroke();
+      
+      // Draw arrowhead
+      const dx = endScreen.x - startScreen.x;
+      const dy = endScreen.y - startScreen.y;
+      const angle = Math.atan2(dy, dx);
+      const arrowSize = 15;
+      
+      ctx.beginPath();
+      ctx.moveTo(endScreen.x, endScreen.y);
+      ctx.lineTo(
+        endScreen.x - arrowSize * Math.cos(angle - Math.PI / 6),
+        endScreen.y - arrowSize * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.moveTo(endScreen.x, endScreen.y);
+      ctx.lineTo(
+        endScreen.x - arrowSize * Math.cos(angle + Math.PI / 6),
+        endScreen.y - arrowSize * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+  });
 }
