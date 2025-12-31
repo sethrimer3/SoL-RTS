@@ -1227,12 +1227,60 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.font = '14px Space Grotesk, sans-serif';
   }
   
-  // Draw FPS counter in top right
+  // Draw FPS counter and performance stats in top right
   if (state.fps !== undefined) {
     ctx.textAlign = 'right';
     const fpsColor = state.fps >= FPS_GOOD_THRESHOLD ? FPS_COLOR_GOOD : state.fps >= FPS_OK_THRESHOLD ? FPS_COLOR_OK : FPS_COLOR_BAD;
     ctx.fillStyle = fpsColor;
     ctx.fillText(`${state.fps} FPS`, ctx.canvas.width - 10, 20);
+    
+    // Draw detailed performance stats if enabled
+    if (state.performanceProfiling?.enabled) {
+      ctx.font = '12px Space Mono, monospace';
+      ctx.fillStyle = COLORS.white;
+      const prof = state.performanceProfiling;
+      ctx.fillText(`Frame: ${prof.avgFrameTime.toFixed(2)}ms`, ctx.canvas.width - 10, 40);
+      ctx.fillText(`Update: ${prof.updateTime.toFixed(2)}ms`, ctx.canvas.width - 10, 55);
+      ctx.fillText(`Render: ${prof.renderTime.toFixed(2)}ms`, ctx.canvas.width - 10, 70);
+      
+      // Draw frame time graph
+      const graphWidth = 120;
+      const graphHeight = 30;
+      const graphX = ctx.canvas.width - graphWidth - 10;
+      const graphY = 80;
+      
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.strokeRect(graphX, graphY, graphWidth, graphHeight);
+      
+      // Draw frame times
+      if (prof.frameTimings.length > 1) {
+        ctx.strokeStyle = fpsColor;
+        ctx.beginPath();
+        prof.frameTimings.forEach((time, i) => {
+          const x = graphX + (i / prof.frameTimings.length) * graphWidth;
+          const y = graphY + graphHeight - Math.min((time / 33.33) * graphHeight, graphHeight); // 33.33ms = 30fps
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+        ctx.stroke();
+        
+        // Draw 16.67ms line (60fps target)
+        ctx.strokeStyle = 'rgba(100, 255, 100, 0.3)';
+        ctx.setLineDash([2, 2]);
+        const targetY = graphY + graphHeight - (16.67 / 33.33) * graphHeight;
+        ctx.beginPath();
+        ctx.moveTo(graphX, targetY);
+        ctx.lineTo(graphX + graphWidth, targetY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      
+      ctx.font = '14px Space Grotesk, sans-serif';
+    }
+    
     ctx.textAlign = 'left';
   }
   

@@ -7,6 +7,8 @@ import { updateGame } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
 import { handleTouchStart, handleTouchMove, handleTouchEnd, handleMouseDown, handleMouseMove, handleMouseUp, getActiveSelectionRect } from './lib/input';
+import { initializeCamera, updateCamera, zoomCamera, panCamera, resetCamera } from './lib/camera';
+import { updateVisualEffects } from './lib/visualEffects';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Label } from './components/ui/label';
@@ -48,6 +50,8 @@ function App() {
   const [musicVolume, setMusicVolume] = useKV<number>('music-volume', 0.5);
   const [showNumericHP, setShowNumericHP] = useKV<boolean>('show-numeric-hp', true);
   const [showMinimap, setShowMinimap] = useKV<boolean>('show-minimap', true);
+  const [showPerformance, setShowPerformance] = useKV<boolean>('show-performance', false);
+  const [enableCameraControls, setEnableCameraControls] = useKV<boolean>('enable-camera-controls', true);
 
   const gameState = gameStateRef.current;
 
@@ -146,6 +150,9 @@ function App() {
       const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1);
       lastTimeRef.current = now;
 
+      // Performance profiling
+      const updateStartTime = performance.now();
+
       // Update FPS counter
       if (!gameStateRef.current.lastFpsUpdate) {
         gameStateRef.current.lastFpsUpdate = now;
@@ -175,6 +182,10 @@ function App() {
             phase: 'bases-sliding',
           };
           soundManager.playMatchStart();
+          
+          // Initialize camera for game
+          initializeCamera(gameStateRef.current);
+          
           delete gameStateRef.current.countdownStartTime;
           setRenderTrigger(prev => prev + 1);
         }
@@ -194,6 +205,12 @@ function App() {
         if (!gameStateRef.current.matchStartAnimation || (gameStateRef.current.matchStartAnimation.phase === 'go')) {
           updateGame(gameStateRef.current, deltaTime);
           updateAI(gameStateRef.current, deltaTime);
+          
+          // Update camera and visual effects
+          if (enableCameraControls) {
+            updateCamera(gameStateRef.current, deltaTime);
+          }
+          updateVisualEffects(gameStateRef.current, deltaTime);
         }
         
         if (gameStateRef.current.matchTimeLimit && !gameStateRef.current.timeoutWarningShown) {
@@ -207,22 +224,119 @@ function App() {
         }
       }
 
+      const updateEndTime = performance.now();
+      const renderStartTime = performance.now();
+
       const selectionRect = getActiveSelectionRect();
       renderGame(ctx, gameStateRef.current, canvas, selectionRect);
+
+      const renderEndTime = performance.now();
+
+      // Update performance profiling
+      if (showPerformance) {
+        if (!gameStateRef.current.performanceProfiling) {
+          gameStateRef.current.performanceProfiling = {
+            enabled: true,
+            frameTimings: [],
+            updateTime: 0,
+            renderTime: 0,
+            avgFrameTime: 0,
+          };
+        }
+        
+        gameStateRef.current.performanceProfiling.updateTime = updateEndTime - updateStartTime;
+        gameStateRef.current.performanceProfiling.renderTime = renderEndTime - renderStartTime;
+        
+        const frameTime = renderEndTime - updateStartTime;
+        gameStateRef.current.performanceProfiling.frameTimings.push(frameTime);
+        if (gameStateRef.current.performanceProfiling.frameTimings.length > 60) {
+          gameStateRef.current.performanceProfiling.frameTimings.shift();
+        }
+        
+        const sum = gameStateRef.current.performanceProfiling.frameTimings.reduce((a, b) => a + b, 0);
+        gameStateRef.current.performanceProfiling.avgFrameTime = sum / gameStateRef.current.performanceProfiling.frameTimings.length;
+      }
 
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     };
 
     gameLoop();
+    
+    // Add mouse wheel zoom handler
+    const handleWheel = (e: WheelEvent) => {
+      if (gameStateRef.current.mode === 'game' && enableCameraControls) {
+        e.preventDefault();
+        const zoomDelta = e.deltaY > 0 ? -1 : 1;
+        zoomCamera(gameStateRef.current, zoomDelta);
+      }
+    };
+    
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
       window.removeEventListener('orientationchange', resizeCanvas);
+      canvas.removeEventListener('wheel', handleWheel);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, []);
+  }, [enableCameraControls]);
+
+  // Camera pan controls with WASD and Arrow keys
+  useEffect(() => {
+    if (!enableCameraControls || gameState.mode !== 'game') return;
+
+    const pressedKeys = new Set<string>();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].includes(e.key)) {
+        pressedKeys.add(e.key.toLowerCase());
+        e.preventDefault();
+      }
+      
+      // R key to reset camera
+      if (e.key === 'r' || e.key === 'R') {
+        resetCamera(gameStateRef.current);
+        e.preventDefault();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      pressedKeys.delete(e.key.toLowerCase());
+    };
+
+    // Update camera position based on pressed keys
+    const updateCameraPan = () => {
+      if (pressedKeys.size === 0 || !enableCameraControls) return;
+
+      const direction = { x: 0, y: 0 };
+      
+      if (pressedKeys.has('w') || pressedKeys.has('arrowup')) direction.y -= 1;
+      if (pressedKeys.has('s') || pressedKeys.has('arrowdown')) direction.y += 1;
+      if (pressedKeys.has('a') || pressedKeys.has('arrowleft')) direction.x -= 1;
+      if (pressedKeys.has('d') || pressedKeys.has('arrowright')) direction.x += 1;
+
+      // Normalize diagonal movement
+      const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+      if (length > 0) {
+        direction.x /= length;
+        direction.y /= length;
+        panCamera(gameStateRef.current, direction, 1/60);
+      }
+    };
+
+    const intervalId = setInterval(updateCameraPan, 16); // ~60fps
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [enableCameraControls, gameState.mode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -858,6 +972,37 @@ function App() {
                     soundManager.playButtonClick();
                   }}
                 />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="camera-toggle">Camera Controls (Zoom/Pan)</Label>
+                <Switch
+                  id="camera-toggle"
+                  checked={enableCameraControls ?? true}
+                  onCheckedChange={(checked) => {
+                    setEnableCameraControls(checked);
+                    soundManager.playButtonClick();
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="performance-toggle">Show Performance Stats</Label>
+                <Switch
+                  id="performance-toggle"
+                  checked={showPerformance ?? false}
+                  onCheckedChange={(checked) => {
+                    setShowPerformance(checked);
+                    soundManager.playButtonClick();
+                  }}
+                />
+              </div>
+
+              <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                <p><strong>Camera Controls:</strong></p>
+                <p>• Mouse Wheel: Zoom in/out</p>
+                <p>• WASD or Arrow Keys: Pan camera</p>
+                <p>• R Key: Reset camera</p>
               </div>
 
               <Button

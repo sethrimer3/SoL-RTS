@@ -346,12 +346,22 @@ export interface GameState {
   // Minimap settings
   showMinimap?: boolean;
   
-  // Camera settings for smooth panning
+  // Camera settings for smooth panning and zooming
   camera?: {
     offset: Vector2;
     targetOffset: Vector2;
     zoom: number;
     targetZoom: number;
+    smoothing: number;
+  };
+  
+  // Performance profiling
+  performanceProfiling?: {
+    enabled: boolean;
+    frameTimings: number[];
+    updateTime: number;
+    renderTime: number;
+    avgFrameTime: number;
   };
   
   // Explosion particles for unit deaths
