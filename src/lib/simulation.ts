@@ -21,6 +21,7 @@ import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhanced
 
 // Unit collision constants
 const UNIT_COLLISION_RADIUS = UNIT_SIZE_METERS / 2; // Minimum distance between unit centers
+const UNIT_COLLISION_SQUEEZE_FACTOR = 0.8; // Allow units to squeeze past each other (80% of full diameter)
 
 // Particle physics constants
 const PARTICLE_ATTRACTION_STRENGTH = 6.0; // How strongly particles are attracted to their unit
@@ -59,7 +60,7 @@ export const MOTION_TRAIL_DURATION = 0.5; // seconds for motion trail fade
 // Check if a position would collide with any existing unit
 function checkUnitCollision(position: Vector2, currentUnitId: string, allUnits: Unit[]): boolean {
   // Use a slightly smaller collision radius to allow units to squeeze past each other
-  const collisionRadius = (UNIT_COLLISION_RADIUS * 2) * 0.8; // 80% of full diameter
+  const collisionRadius = (UNIT_COLLISION_RADIUS * 2) * UNIT_COLLISION_SQUEEZE_FACTOR;
   
   for (const otherUnit of allUnits) {
     // Skip checking against self
@@ -671,7 +672,8 @@ function updateUnits(state: GameState, deltaTime: number): void {
           !checkUnitCollision(newPosition, unit.id, state.units)) {
         unit.position = newPosition;
       } else {
-        // Collision detected - unit will wait and retry next frame
+        // Collision detected - unit waits and will retry movement next frame
+        // Units naturally unstick as other units move away
         return;
       }
 
@@ -727,7 +729,8 @@ function updateUnits(state: GameState, deltaTime: number): void {
           !checkUnitCollision(newPosition, unit.id, state.units)) {
         unit.position = newPosition;
       } else {
-        // Collision detected - unit will wait and retry next frame
+        // Collision detected - unit waits and will retry movement next frame
+        // Units naturally unstick as other units move away
         return;
       }
 

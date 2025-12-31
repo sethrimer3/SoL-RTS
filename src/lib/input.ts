@@ -346,7 +346,7 @@ function isDoubleTap(state: GameState, screenPos: { x: number; y: number }): boo
     
     if (timeSinceLastTap < DOUBLE_TAP_TIME_MS && dist < DOUBLE_TAP_DISTANCE_PX) {
       // Reset double-tap tracking
-      state.lastTapTime = 0;
+      state.lastTapTime = undefined;
       state.lastTapPosition = undefined;
       return true;
     }
