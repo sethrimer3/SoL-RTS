@@ -41,7 +41,13 @@ function addVisualFeedback(state: GameState, type: 'tap' | 'drag', position: { x
   }
   
   const worldPos = pixelsToPosition(position);
-  const feedback: any = {
+  const feedback: {
+    id: string;
+    type: 'tap' | 'drag';
+    position: { x: number; y: number };
+    startTime: number;
+    endPosition?: { x: number; y: number };
+  } = {
     id: Math.random().toString(36).substring(2, 15),
     type,
     position: worldPos,
@@ -59,7 +65,7 @@ function addVisualFeedback(state: GameState, type: 'tap' | 'drag', position: { x
   state.visualFeedback = state.visualFeedback.filter(f => now - f.startTime < 500);
 }
 
-function transformCoordinates(state: GameState, clientX: number, clientY: number, rect: DOMRect): { x: number; y: number } {
+function transformCoordinates(clientX: number, clientY: number, rect: DOMRect): { x: number; y: number } {
   const x = clientX - rect.left;
   const y = clientY - rect.top;
   
@@ -72,7 +78,7 @@ export function handleTouchStart(e: TouchEvent, state: GameState, canvas: HTMLCa
 
   Array.from(e.changedTouches).forEach((touch) => {
     const rect = canvas.getBoundingClientRect();
-    const { x, y } = transformCoordinates(state, touch.clientX, touch.clientY, rect);
+    const { x, y } = transformCoordinates(touch.clientX, touch.clientY, rect);
     const worldPos = pixelsToPosition({ x, y });
     
     // Add visual feedback for touch start
@@ -103,7 +109,7 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
     if (!touchState) return;
 
     const rect = canvas.getBoundingClientRect();
-    const { x, y } = transformCoordinates(state, touch.clientX, touch.clientY, rect);
+    const { x, y } = transformCoordinates(touch.clientX, touch.clientY, rect);
 
     const dx = x - touchState.startPos.x;
     const dy = y - touchState.startPos.y;
@@ -139,7 +145,7 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
     if (!touchState) return;
 
     const rect = canvas.getBoundingClientRect();
-    const { x, y } = transformCoordinates(state, touch.clientX, touch.clientY, rect);
+    const { x, y } = transformCoordinates(touch.clientX, touch.clientY, rect);
 
     const dx = x - touchState.startPos.x;
     const dy = y - touchState.startPos.y;
@@ -384,7 +390,7 @@ export function handleMouseDown(e: MouseEvent, state: GameState, canvas: HTMLCan
   e.preventDefault();
 
   const rect = canvas.getBoundingClientRect();
-  const { x, y } = transformCoordinates(state, e.clientX, e.clientY, rect);
+  const { x, y } = transformCoordinates(e.clientX, e.clientY, rect);
   const worldPos = pixelsToPosition({ x, y });
   
   // Add visual feedback for mouse down
@@ -411,7 +417,7 @@ export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCan
   e.preventDefault();
 
   const rect = canvas.getBoundingClientRect();
-  const { x, y } = transformCoordinates(state, e.clientX, e.clientY, rect);
+  const { x, y } = transformCoordinates(e.clientX, e.clientY, rect);
 
   const dx = x - mouseState.startPos.x;
   const dy = y - mouseState.startPos.y;
@@ -442,7 +448,7 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
   e.preventDefault();
 
   const rect = canvas.getBoundingClientRect();
-  const { x, y } = transformCoordinates(state, e.clientX, e.clientY, rect);
+  const { x, y } = transformCoordinates(e.clientX, e.clientY, rect);
 
   const dx = x - mouseState.startPos.x;
   const dy = y - mouseState.startPos.y;
