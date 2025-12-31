@@ -35,6 +35,20 @@ const PROJECTILE_LIFETIME = 2.0; // seconds before projectile disappears
 const MELEE_EFFECT_DURATION = 0.2; // seconds for melee attack visual
 const LASER_BEAM_DURATION = 0.5; // seconds for laser beam visual
 
+// Visual effect constants
+const IMPACT_EFFECT_DURATION = 0.5; // seconds for impact ring animation
+const IMPACT_EFFECT_CLEANUP_TIME = 1.0; // seconds before old effects are removed
+const DAMAGE_NUMBER_DURATION = 0.8; // seconds for damage number animation
+const DAMAGE_NUMBER_CLEANUP_TIME = 1.0; // seconds before old numbers are removed
+const SCREEN_SHAKE_BASE_DAMAGE = 10; // base damage divisor for shake intensity
+const SCREEN_SHAKE_MAX_INTENSITY = 8; // maximum shake intensity
+const SCREEN_SHAKE_DURATION_SHORT = 0.2; // seconds for unit death shakes
+const SCREEN_SHAKE_DURATION_MEDIUM = 0.3; // seconds for base damage shakes
+const SCREEN_SHAKE_DURATION_LONG = 0.8; // seconds for base destruction
+const SCREEN_SHAKE_BASE_DESTROY_INTENSITY = 15; // shake intensity for base destruction
+const SCREEN_SHAKE_MULTI_KILL_MULTIPLIER = 0.8; // multiplier per unit killed
+const SCREEN_SHAKE_MULTI_KILL_THRESHOLD = 3; // minimum units for multi-kill shake
+
 // Create particles for a unit
 function createParticlesForUnit(unit: Unit, count: number): Particle[] {
   const particles: Particle[] = [];
@@ -158,15 +172,15 @@ function createImpactEffect(state: GameState, position: Vector2, color: string, 
     position: { ...position },
     color,
     startTime: Date.now(),
-    duration: 0.5, // 0.5 seconds
+    duration: IMPACT_EFFECT_DURATION,
     size,
   });
   
-  // Clean up old effects (older than 1 second)
+  // Clean up old effects
   const now = Date.now();
   state.impactEffects = state.impactEffects.filter((effect) => {
     const age = (now - effect.startTime) / 1000;
-    return age < 1;
+    return age < IMPACT_EFFECT_CLEANUP_TIME;
   });
 }
 
@@ -182,14 +196,14 @@ function createDamageNumber(state: GameState, position: Vector2, damage: number,
     damage: Math.round(damage),
     color,
     startTime: Date.now(),
-    duration: 0.8, // 0.8 seconds
+    duration: DAMAGE_NUMBER_DURATION,
   });
   
-  // Clean up old damage numbers (older than 1 second)
+  // Clean up old damage numbers
   const now = Date.now();
   state.damageNumbers = state.damageNumbers.filter((num) => {
     const age = (now - num.startTime) / 1000;
-    return age < 1;
+    return age < DAMAGE_NUMBER_CLEANUP_TIME;
   });
 }
 
@@ -815,7 +829,7 @@ function updateCombat(state: GameState, deltaTime: number): void {
             const color = state.players[unit.owner].color;
             createImpactEffect(state, targetBase.position, color, 2.5);
             // Stronger shake for base damage (scales with damage)
-            createScreenShake(state, Math.min(damage / 10, 8), 0.3);
+            createScreenShake(state, Math.min(damage / SCREEN_SHAKE_BASE_DAMAGE, SCREEN_SHAKE_MAX_INTENSITY), SCREEN_SHAKE_DURATION_MEDIUM);
           }
           
           if (state.matchStats) {
@@ -863,8 +877,8 @@ function updateCombat(state: GameState, deltaTime: number): void {
     });
     
     // Shake screen if multiple units died at once
-    if (deadUnits.length >= 3) {
-      createScreenShake(state, deadUnits.length * 0.8, 0.2);
+    if (deadUnits.length >= SCREEN_SHAKE_MULTI_KILL_THRESHOLD) {
+      createScreenShake(state, deadUnits.length * SCREEN_SHAKE_MULTI_KILL_MULTIPLIER, SCREEN_SHAKE_DURATION_SHORT);
     }
   }
   
@@ -884,7 +898,7 @@ function checkVictory(state: GameState): void {
     if (base.hp <= 0) {
       soundManager.playBaseDestroyed();
       // Big screen shake for base destruction
-      createScreenShake(state, 15, 0.8);
+      createScreenShake(state, SCREEN_SHAKE_BASE_DESTROY_INTENSITY, SCREEN_SHAKE_DURATION_LONG);
       // Big impact effect for base destruction
       const color = state.players[base.owner === 0 ? 1 : 0].color; // Use attacker's color
       createImpactEffect(state, base.position, color, 4.0);

@@ -102,6 +102,16 @@ export function generateStarfield(canvasWidth: number, canvasHeight: number): Ar
   twinkleSpeed: number;
   twinkleOffset: number;
 }> {
+  // Starfield constants
+  const MIN_STARS = 100;
+  const STAR_COUNT_VARIANCE = 50;
+  const STAR_SIZE_MIN = 0.5;
+  const STAR_SIZE_VARIANCE = 2;
+  const STAR_BRIGHTNESS_MIN = 0.3;
+  const STAR_BRIGHTNESS_VARIANCE = 0.7;
+  const STAR_TWINKLE_SPEED_MIN = 0.5;
+  const STAR_TWINKLE_SPEED_VARIANCE = 2;
+  
   const stars: Array<{
     x: number;
     y: number;
@@ -111,16 +121,16 @@ export function generateStarfield(canvasWidth: number, canvasHeight: number): Ar
     twinkleOffset: number;
   }> = [];
   
-  const numStars = 100 + Math.floor(Math.random() * 50); // 100-150 stars
+  const numStars = MIN_STARS + Math.floor(Math.random() * STAR_COUNT_VARIANCE);
   
   for (let i = 0; i < numStars; i++) {
-    const size = Math.random() * Math.random() * 2; // Quadratic distribution for more small stars
+    const size = Math.random() * Math.random() * STAR_SIZE_VARIANCE; // Quadratic distribution for more small stars
     stars.push({
       x: Math.random() * canvasWidth,
       y: Math.random() * canvasHeight,
-      size: 0.5 + size,
-      brightness: 0.3 + Math.random() * 0.7,
-      twinkleSpeed: 0.5 + Math.random() * 2,
+      size: STAR_SIZE_MIN + size,
+      brightness: STAR_BRIGHTNESS_MIN + Math.random() * STAR_BRIGHTNESS_VARIANCE,
+      twinkleSpeed: STAR_TWINKLE_SPEED_MIN + Math.random() * STAR_TWINKLE_SPEED_VARIANCE,
       twinkleOffset: Math.random() * Math.PI * 2,
     });
   }

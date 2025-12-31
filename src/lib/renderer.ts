@@ -12,6 +12,20 @@ import {
 import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract } from './gameUtils';
 import { Obstacle } from './maps';
 
+// FPS Counter constants
+const FPS_GOOD_THRESHOLD = 55;
+const FPS_OK_THRESHOLD = 30;
+const FPS_COLOR_GOOD = 'oklch(0.70 0.20 140)';
+const FPS_COLOR_OK = 'oklch(0.85 0.20 95)';
+const FPS_COLOR_BAD = 'oklch(0.62 0.28 25)';
+
+// Minimap constants
+const MINIMAP_SIZE_RATIO = 0.2;
+const MINIMAP_PADDING = 10;
+const MINIMAP_BASE_SIZE = 8;
+const MINIMAP_UNIT_SIZE = 2;
+const MINIMAP_OBSTACLE_MIN_SIZE = 2;
+
 // Helper function to get bright highlight color for team
 function getTeamHighlightColor(owner: number): string {
   return owner === 0 
@@ -1028,7 +1042,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
   // Draw FPS counter in top right
   if (state.fps !== undefined) {
     ctx.textAlign = 'right';
-    const fpsColor = state.fps >= 55 ? 'oklch(0.70 0.20 140)' : state.fps >= 30 ? 'oklch(0.85 0.20 95)' : 'oklch(0.62 0.28 25)';
+    const fpsColor = state.fps >= FPS_GOOD_THRESHOLD ? FPS_COLOR_GOOD : state.fps >= FPS_OK_THRESHOLD ? FPS_COLOR_OK : FPS_COLOR_BAD;
     ctx.fillStyle = fpsColor;
     ctx.fillText(`${state.fps} FPS`, ctx.canvas.width - 10, 20);
     ctx.textAlign = 'left';
@@ -1212,9 +1226,9 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
   if (!state.showMinimap) return;
   
   // Minimap configuration
-  const minimapSize = Math.min(canvas.width, canvas.height) * 0.2;
-  const minimapX = canvas.width - minimapSize - 10;
-  const minimapY = canvas.height - minimapSize - 10;
+  const minimapSize = Math.min(canvas.width, canvas.height) * MINIMAP_SIZE_RATIO;
+  const minimapX = canvas.width - minimapSize - MINIMAP_PADDING;
+  const minimapY = canvas.height - minimapSize - MINIMAP_PADDING;
   
   // Calculate arena bounds
   const arenaWidth = canvas.width / 20; // meters
@@ -1243,7 +1257,7 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
   state.obstacles.forEach(obstacle => {
     const pos = toMinimapPos(obstacle.position);
     ctx.fillStyle = 'rgba(100, 100, 100, 0.6)';
-    const size = Math.max(2, (obstacle.width / arenaWidth) * minimapSize);
+    const size = Math.max(MINIMAP_OBSTACLE_MIN_SIZE, (obstacle.width / arenaWidth) * minimapSize);
     ctx.fillRect(pos.x - size / 2, pos.y - size / 2, size, size);
   });
   
@@ -1254,8 +1268,7 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
     ctx.fillStyle = color;
     ctx.shadowColor = color;
     ctx.shadowBlur = 4;
-    const size = 8;
-    ctx.fillRect(pos.x - size / 2, pos.y - size / 2, size, size);
+    ctx.fillRect(pos.x - MINIMAP_BASE_SIZE / 2, pos.y - MINIMAP_BASE_SIZE / 2, MINIMAP_BASE_SIZE, MINIMAP_BASE_SIZE);
     ctx.shadowBlur = 0;
   });
   
@@ -1265,7 +1278,7 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
     const color = state.players[unit.owner].color;
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
+    ctx.arc(pos.x, pos.y, MINIMAP_UNIT_SIZE, 0, Math.PI * 2);
     ctx.fill();
   });
   
