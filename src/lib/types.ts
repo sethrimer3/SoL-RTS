@@ -79,6 +79,7 @@ export interface Unit {
   particles?: Particle[]; // Particles attracted to the unit
   meleeAttackEffect?: { endTime: number; targetPos: Vector2 }; // Visual effect for melee attacks
   attackCooldown?: number; // Time until next attack
+  selectionRing?: { startTime: number }; // Selection ring animation
 }
 
 export interface Base {

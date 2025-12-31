@@ -30,6 +30,12 @@ const MINIMAP_OBSTACLE_MIN_SIZE = 2;
 // Culling constants
 const OFFSCREEN_CULLING_MARGIN = 50; // pixels margin for culling off-screen objects
 
+// Enhanced visual effect constants
+const SELECTION_RING_EXPANSION_SPEED = 1.5; // Speed of expanding selection ring
+const SELECTION_RING_MAX_SIZE = 1.8; // Maximum size multiplier for selection ring
+const GLOW_PULSE_FREQUENCY = 1.5; // Hz for glow pulsing
+const ABILITY_READY_PULSE_INTENSITY = 0.4; // Intensity of ability ready pulse
+
 // Helper function to get bright highlight color for team
 function getTeamHighlightColor(owner: number): string {
   return owner === 0 
@@ -742,6 +748,44 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.font = '10px Space Mono, monospace';
     ctx.textAlign = 'center';
     ctx.fillText(`${unit.damageMultiplier.toFixed(1)}x`, screenPos.x, screenPos.y + 20);
+    
+    // Draw ability cooldown indicator
+    const unitDef = UNIT_DEFINITIONS[unit.type];
+    if (unitDef.abilityName && unitDef.abilityCooldown > 0) {
+      const cooldownPercent = unit.abilityCooldown / unitDef.abilityCooldown;
+      const radius = metersToPixels(UNIT_SIZE_METERS / 2) + 2;
+      const yOffset = -radius - 5;
+      
+      if (cooldownPercent > 0) {
+        // Draw cooldown arc
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.5;
+        const startAngle = -Math.PI / 2;
+        const endAngle = startAngle + (Math.PI * 2 * (1 - cooldownPercent));
+        
+        ctx.beginPath();
+        ctx.arc(screenPos.x, screenPos.y + yOffset, 6, startAngle, endAngle);
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        // Ability ready - draw pulsing indicator
+        const time = Date.now() / 1000;
+        const pulse = Math.sin(time * 4) * 0.3 + 0.7;
+        
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.globalAlpha = pulse;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        
+        ctx.beginPath();
+        ctx.arc(screenPos.x, screenPos.y + yOffset, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
   });
 }
 
@@ -1033,9 +1077,19 @@ function drawMeleeAttack(ctx: CanvasRenderingContext2D, unit: Unit, unitScreenPo
 
 function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState): void {
   const time = Date.now() / 1000;
+  const now = Date.now();
   
   state.units.forEach((unit) => {
-    if (!state.selectedUnits.has(unit.id)) return;
+    if (!state.selectedUnits.has(unit.id)) {
+      // Clear selection ring if unit is deselected
+      delete unit.selectionRing;
+      return;
+    }
+    
+    // Initialize selection ring animation if newly selected
+    if (!unit.selectionRing) {
+      unit.selectionRing = { startTime: now };
+    }
 
     const screenPos = positionToPixels(unit.position);
     const baseRadius = metersToPixels(UNIT_SIZE_METERS / 2) + 4;
@@ -1046,6 +1100,24 @@ function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState
     const radius = baseRadius * (1 + pulse * 0.15); // Pulse size slightly
 
     ctx.save();
+    
+    // Draw expanding selection ring on initial selection (first 0.5 seconds)
+    const selectionAge = (now - unit.selectionRing.startTime) / 1000;
+    if (selectionAge < 0.5) {
+      const expandProgress = selectionAge / 0.5;
+      const expandRadius = baseRadius + expandProgress * baseRadius * 1.2;
+      const expandAlpha = 1 - expandProgress;
+      
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = expandAlpha * 0.6;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 20;
+      
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, expandRadius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     
     // Draw outer rotating ring
     ctx.strokeStyle = color;
@@ -1211,19 +1283,68 @@ function drawSelectionRect(ctx: CanvasRenderingContext2D, rect: { x1: number; y1
   const maxX = Math.max(rect.x1, rect.x2);
   const minY = Math.min(rect.y1, rect.y2);
   const maxY = Math.max(rect.y1, rect.y2);
+  const width = maxX - minX;
+  const height = maxY - minY;
+  
+  const time = Date.now() / 1000;
+  const color = COLORS.playerDefault; // Use player color for selection
 
-  ctx.strokeStyle = COLORS.white;
+  ctx.save();
+  
+  // Draw gradient fill
+  const gradient = ctx.createLinearGradient(minX, minY, maxX, maxY);
+  gradient.addColorStop(0, color + '15'); // Add alpha to color (hex format)
+  gradient.addColorStop(0.5, color + '08');
+  gradient.addColorStop(1, color + '15');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(minX, minY, width, height);
+  
+  // Draw animated border
+  ctx.strokeStyle = color;
   ctx.lineWidth = 2;
-  ctx.setLineDash([5, 5]);
-  ctx.globalAlpha = 0.8;
+  ctx.setLineDash([8, 4]);
+  ctx.lineDashOffset = time * 20; // Animate dashes
+  ctx.globalAlpha = 0.9;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 10;
+  ctx.strokeRect(minX, minY, width, height);
   
-  ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
-  
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-  ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
-  
+  // Draw corner highlights
   ctx.setLineDash([]);
-  ctx.globalAlpha = 1.0;
+  ctx.lineWidth = 3;
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 15;
+  const cornerSize = 12;
+  
+  // Top-left corner
+  ctx.beginPath();
+  ctx.moveTo(minX, minY + cornerSize);
+  ctx.lineTo(minX, minY);
+  ctx.lineTo(minX + cornerSize, minY);
+  ctx.stroke();
+  
+  // Top-right corner
+  ctx.beginPath();
+  ctx.moveTo(maxX - cornerSize, minY);
+  ctx.lineTo(maxX, minY);
+  ctx.lineTo(maxX, minY + cornerSize);
+  ctx.stroke();
+  
+  // Bottom-right corner
+  ctx.beginPath();
+  ctx.moveTo(maxX, maxY - cornerSize);
+  ctx.lineTo(maxX, maxY);
+  ctx.lineTo(maxX - cornerSize, maxY);
+  ctx.stroke();
+  
+  // Bottom-left corner
+  ctx.beginPath();
+  ctx.moveTo(minX + cornerSize, maxY);
+  ctx.lineTo(minX, maxY);
+  ctx.lineTo(minX, maxY - cornerSize);
+  ctx.stroke();
+  
+  ctx.restore();
 }
 
 function drawVisualFeedback(ctx: CanvasRenderingContext2D, state: GameState): void {
@@ -1584,23 +1705,28 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
   
   ctx.save();
   
-  // Draw minimap background with gradient
-  const gradient = ctx.createLinearGradient(minimapX, minimapY, minimapX, minimapY + minimapSize);
-  gradient.addColorStop(0, 'rgba(15, 15, 20, 0.9)');
-  gradient.addColorStop(1, 'rgba(10, 10, 15, 0.9)');
+  // Draw minimap background with enhanced gradient
+  const gradient = ctx.createRadialGradient(
+    minimapX + minimapSize / 2, minimapY + minimapSize / 2, 0,
+    minimapX + minimapSize / 2, minimapY + minimapSize / 2, minimapSize / 2
+  );
+  gradient.addColorStop(0, 'rgba(20, 20, 30, 0.95)');
+  gradient.addColorStop(1, 'rgba(10, 10, 15, 0.95)');
   ctx.fillStyle = gradient;
   ctx.fillRect(minimapX, minimapY, minimapSize, minimapSize);
   
-  // Draw minimap border with glow effect
-  ctx.strokeStyle = 'oklch(0.55 0.20 240)';
+  // Draw minimap border with enhanced glow effect
+  const time = Date.now() / 1000;
+  const borderPulse = Math.sin(time * 1.5) * 0.3 + 0.7;
+  ctx.strokeStyle = 'oklch(0.60 0.22 240)';
   ctx.lineWidth = 2;
-  ctx.shadowColor = 'oklch(0.55 0.20 240)';
-  ctx.shadowBlur = 8;
+  ctx.shadowColor = 'oklch(0.60 0.22 240)';
+  ctx.shadowBlur = 10 * borderPulse;
   ctx.strokeRect(minimapX, minimapY, minimapSize, minimapSize);
   ctx.shadowBlur = 0;
   
-  // Draw grid overlay
-  ctx.strokeStyle = 'rgba(100, 150, 200, 0.1)';
+  // Draw enhanced grid overlay
+  ctx.strokeStyle = 'rgba(100, 150, 200, 0.15)';
   ctx.lineWidth = 1;
   const gridLines = 4;
   for (let i = 1; i < gridLines; i++) {
@@ -1628,25 +1754,35 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
     };
   };
   
-  // Draw obstacles with enhanced visuals
+  // Draw obstacles with enhanced visuals and better contrast
   state.obstacles.forEach(obstacle => {
     const pos = toMinimapPos(obstacle.position);
     const size = Math.max(MINIMAP_OBSTACLE_MIN_SIZE, (obstacle.width / arenaWidth) * minimapSize);
     
-    // Different colors based on obstacle type
+    ctx.save();
+    
+    // Different colors based on obstacle type with increased opacity
     if (obstacle.type === 'wall') {
-      ctx.fillStyle = 'rgba(100, 120, 180, 0.5)';
+      ctx.fillStyle = 'rgba(120, 140, 200, 0.7)';
+      ctx.strokeStyle = 'rgba(150, 170, 230, 0.8)';
     } else if (obstacle.type === 'pillar') {
-      ctx.fillStyle = 'rgba(150, 100, 180, 0.5)';
+      ctx.fillStyle = 'rgba(170, 120, 200, 0.7)';
+      ctx.strokeStyle = 'rgba(200, 150, 230, 0.8)';
     } else {
-      ctx.fillStyle = 'rgba(180, 100, 80, 0.5)';
+      ctx.fillStyle = 'rgba(200, 120, 100, 0.7)';
+      ctx.strokeStyle = 'rgba(230, 150, 130, 0.8)';
     }
     
     ctx.fillRect(pos.x - size / 2, pos.y - size / 2, size, size);
     
-    // Add subtle border
-    ctx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
+    // Add glowing border for better visibility
     ctx.lineWidth = 1;
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 3;
+    ctx.strokeRect(pos.x - size / 2, pos.y - size / 2, size, size);
+    ctx.shadowBlur = 0;
+    
+    ctx.restore();
     ctx.strokeRect(pos.x - size / 2, pos.y - size / 2, size, size);
   });
   
