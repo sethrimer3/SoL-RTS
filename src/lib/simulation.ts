@@ -568,6 +568,7 @@ export function updateGame(state: GameState, deltaTime: number): void {
   updateBases(state, deltaTime);
   updateProjectiles(state, deltaTime);
   updateCombat(state, deltaTime);
+  cleanupDeadUnits(state); // Clean up dead units after combat
   updateExplosionParticles(state, deltaTime);
   updateEnergyPulses(state);
   updateHitSparks(state, deltaTime);
@@ -1195,6 +1196,13 @@ function performAttack(state: GameState, unit: Unit, target: Unit | Base): void 
 function cleanupDeadUnits(state: GameState): void {
   
   const oldUnits = [...state.units];
+  
+  // Count units by owner before filtering
+  const unitsByOwner = oldUnits.reduce((acc, u) => {
+    acc[u.owner] = (acc[u.owner] || 0) + 1;
+    return acc;
+  }, {} as Record<number, number>);
+  
   state.units = state.units.filter((u) => u.hp > 0);
   
   // Create impact effects for dead units and screen shake for multiple deaths
