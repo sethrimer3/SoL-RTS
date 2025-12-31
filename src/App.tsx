@@ -131,18 +131,8 @@ function App() {
 
     const resizeCanvas = () => {
       detectOrientation();
-      const isMobile = gameStateRef.current.isMobile;
-      const isPortrait = gameStateRef.current.isPortrait;
-      
-      // For mobile in portrait mode, swap dimensions to rotate the view
-      if (isMobile && isPortrait) {
-        // Use landscape dimensions but rotated
-        canvas.width = window.innerHeight;
-        canvas.height = window.innerWidth;
-      } else {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-      }
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     };
 
     resizeCanvas();
@@ -561,15 +551,7 @@ function App() {
     <div className="relative w-screen h-screen overflow-hidden bg-background" onClick={handleCanvasSurrenderReset}>
       <canvas 
         ref={canvasRef} 
-        className="absolute inset-0" 
-        style={{
-          transformOrigin: 'top left',
-          ...(gameState.isMobile && gameState.isPortrait ? {
-            transform: 'rotate(90deg) translateY(-100%)',
-            width: '100vh',
-            height: '100vw'
-          } : {})
-        }}
+        className="absolute inset-0"
       />
 
       {gameState.mode === 'game' && (

@@ -60,15 +60,8 @@ function addVisualFeedback(state: GameState, type: 'tap' | 'drag', position: { x
 }
 
 function transformCoordinates(state: GameState, clientX: number, clientY: number, rect: DOMRect): { x: number; y: number } {
-  let x = clientX - rect.left;
-  let y = clientY - rect.top;
-  
-  // If mobile and portrait, coordinates need to be rotated
-  if (state.isMobile && state.isPortrait) {
-    const temp = x;
-    x = y;
-    y = rect.height - temp;
-  }
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
   
   return { x, y };
 }
