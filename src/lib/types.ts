@@ -241,4 +241,15 @@ export interface GameState {
   timeoutWarningShown?: boolean;
   
   topographyLines?: Array<{ x1: number; y1: number; x2: number; y2: number }>;
+  
+  // Mobile orientation and visual feedback
+  isMobile?: boolean;
+  isPortrait?: boolean;
+  visualFeedback?: Array<{
+    id: string;
+    type: 'tap' | 'drag';
+    position: Vector2;
+    startTime: number;
+    endPosition?: Vector2;
+  }>;
 }
