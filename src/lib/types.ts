@@ -79,6 +79,7 @@ export interface Unit {
   particles?: Particle[]; // Particles attracted to the unit
   meleeAttackEffect?: { endTime: number; targetPos: Vector2 }; // Visual effect for melee attacks
   attackCooldown?: number; // Time until next attack
+  selectionRing?: { startTime: number }; // Selection ring animation
 }
 
 export interface Base {
@@ -344,6 +345,14 @@ export interface GameState {
   
   // Minimap settings
   showMinimap?: boolean;
+  
+  // Camera settings for smooth panning
+  camera?: {
+    offset: Vector2;
+    targetOffset: Vector2;
+    zoom: number;
+    targetZoom: number;
+  };
   
   // Explosion particles for unit deaths
   explosionParticles?: Array<{
