@@ -35,6 +35,20 @@ const PROJECTILE_LIFETIME = 2.0; // seconds before projectile disappears
 const MELEE_EFFECT_DURATION = 0.2; // seconds for melee attack visual
 const LASER_BEAM_DURATION = 0.5; // seconds for laser beam visual
 
+// Visual effect constants
+const IMPACT_EFFECT_DURATION = 0.5; // seconds for impact ring animation
+const IMPACT_EFFECT_CLEANUP_TIME = 1.0; // seconds before old effects are removed
+const DAMAGE_NUMBER_DURATION = 0.8; // seconds for damage number animation
+const DAMAGE_NUMBER_CLEANUP_TIME = 1.0; // seconds before old numbers are removed
+const SCREEN_SHAKE_BASE_DAMAGE = 10; // base damage divisor for shake intensity
+const SCREEN_SHAKE_MAX_INTENSITY = 8; // maximum shake intensity
+const SCREEN_SHAKE_DURATION_SHORT = 0.2; // seconds for unit death shakes
+const SCREEN_SHAKE_DURATION_MEDIUM = 0.3; // seconds for base damage shakes
+const SCREEN_SHAKE_DURATION_LONG = 0.8; // seconds for base destruction
+const SCREEN_SHAKE_BASE_DESTROY_INTENSITY = 15; // shake intensity for base destruction
+const SCREEN_SHAKE_MULTI_KILL_MULTIPLIER = 0.8; // multiplier per unit killed
+const SCREEN_SHAKE_MULTI_KILL_THRESHOLD = 3; // minimum units for multi-kill shake
+
 // Create particles for a unit
 function createParticlesForUnit(unit: Unit, count: number): Particle[] {
   const particles: Particle[] = [];
@@ -147,6 +161,64 @@ function createProjectile(state: GameState, sourceUnit: Unit, target: Vector2, t
   };
 }
 
+// Create an impact effect
+function createImpactEffect(state: GameState, position: Vector2, color: string, size: number = 1): void {
+  if (!state.impactEffects) {
+    state.impactEffects = [];
+  }
+  
+  state.impactEffects.push({
+    id: generateId(),
+    position: { ...position },
+    color,
+    startTime: Date.now(),
+    duration: IMPACT_EFFECT_DURATION,
+    size,
+  });
+  
+  // Clean up old effects
+  const now = Date.now();
+  state.impactEffects = state.impactEffects.filter((effect) => {
+    const age = (now - effect.startTime) / 1000;
+    return age < IMPACT_EFFECT_CLEANUP_TIME;
+  });
+}
+
+// Create a floating damage number
+function createDamageNumber(state: GameState, position: Vector2, damage: number, color: string): void {
+  if (!state.damageNumbers) {
+    state.damageNumbers = [];
+  }
+  
+  state.damageNumbers.push({
+    id: generateId(),
+    position: { ...position },
+    damage: Math.round(damage),
+    color,
+    startTime: Date.now(),
+    duration: DAMAGE_NUMBER_DURATION,
+  });
+  
+  // Clean up old damage numbers
+  const now = Date.now();
+  state.damageNumbers = state.damageNumbers.filter((num) => {
+    const age = (now - num.startTime) / 1000;
+    return age < DAMAGE_NUMBER_CLEANUP_TIME;
+  });
+}
+
+// Create screen shake effect
+function createScreenShake(state: GameState, intensity: number, duration: number): void {
+  // Only create new shake if current shake is weaker or expired
+  if (!state.screenShake || state.screenShake.intensity < intensity) {
+    state.screenShake = {
+      intensity,
+      duration,
+      startTime: Date.now(),
+    };
+  }
+}
+
 // Update projectiles - movement and collision
 function updateProjectiles(state: GameState, deltaTime: number): void {
   const now = Date.now();
@@ -168,11 +240,15 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
     if (distToTarget < 0.5 || age > projectile.lifetime) {
       // Hit target or expired
       if (distToTarget < 0.5) {
+        // Create impact effect
+        createImpactEffect(state, projectile.position, projectile.color, 0.8);
+        
         // Apply damage if target still exists
         if (projectile.targetUnit) {
           const target = state.units.find((u) => u.id === projectile.targetUnit);
           if (target && target.hp > 0) {
             target.hp -= projectile.damage;
+            createDamageNumber(state, projectile.position, projectile.damage, projectile.color);
             
             if (state.matchStats && projectile.owner === 0) {
               state.matchStats.damageDealtByPlayer += projectile.damage;
@@ -186,6 +262,7 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
           for (const enemy of enemies) {
             if (distance(enemy.position, projectile.position) < UNIT_SIZE_METERS / 2) {
               enemy.hp -= projectile.damage;
+              createDamageNumber(state, projectile.position, projectile.damage, projectile.color);
               
               if (state.matchStats && projectile.owner === 0) {
                 state.matchStats.damageDealtByPlayer += projectile.damage;
@@ -744,7 +821,16 @@ function updateCombat(state: GameState, deltaTime: number): void {
           };
         } else {
           const targetBase = target as Base;
+          const prevHp = targetBase.hp;
           targetBase.hp -= damage;
+          
+          // Create impact effect and screen shake for base damage
+          if (prevHp > 0 && targetBase.hp < prevHp) {
+            const color = state.players[unit.owner].color;
+            createImpactEffect(state, targetBase.position, color, 2.5);
+            // Stronger shake for base damage (scales with damage)
+            createScreenShake(state, Math.min(damage / SCREEN_SHAKE_BASE_DAMAGE, SCREEN_SHAKE_MAX_INTENSITY), SCREEN_SHAKE_DURATION_MEDIUM);
+          }
           
           if (state.matchStats) {
             if (targetBase.owner === 0) {
@@ -781,11 +867,20 @@ function updateCombat(state: GameState, deltaTime: number): void {
   const oldUnits = [...state.units];
   state.units = state.units.filter((u) => u.hp > 0);
   
-  oldUnits.forEach(u => {
-    if (u.hp <= 0) {
+  // Create impact effects for dead units and screen shake for multiple deaths
+  const deadUnits = oldUnits.filter(u => u.hp <= 0);
+  if (deadUnits.length > 0) {
+    deadUnits.forEach(u => {
+      const color = state.players[u.owner].color;
+      createImpactEffect(state, u.position, color, 1.2);
       soundManager.playUnitDeath();
+    });
+    
+    // Shake screen if multiple units died at once
+    if (deadUnits.length >= SCREEN_SHAKE_MULTI_KILL_THRESHOLD) {
+      createScreenShake(state, deadUnits.length * SCREEN_SHAKE_MULTI_KILL_MULTIPLIER, SCREEN_SHAKE_DURATION_SHORT);
     }
-  });
+  }
   
   if (state.matchStats) {
     const afterUnitsByOwner = state.units.reduce((acc, u) => {
@@ -802,6 +897,11 @@ function checkVictory(state: GameState): void {
   state.bases.forEach((base) => {
     if (base.hp <= 0) {
       soundManager.playBaseDestroyed();
+      // Big screen shake for base destruction
+      createScreenShake(state, SCREEN_SHAKE_BASE_DESTROY_INTENSITY, SCREEN_SHAKE_DURATION_LONG);
+      // Big impact effect for base destruction
+      const color = state.players[base.owner === 0 ? 1 : 0].color; // Use attacker's color
+      createImpactEffect(state, base.position, color, 4.0);
       state.winner = base.owner === 0 ? 1 : 0;
       state.mode = 'victory';
     }

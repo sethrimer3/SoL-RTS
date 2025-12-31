@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useKV } from './hooks/useKV';
 import { GameState, COLORS, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS } from './lib/types';
-import { generateId, generateTopographyLines, isPortraitOrientation } from './lib/gameUtils';
+import { generateId, generateTopographyLines, generateStarfield, isPortraitOrientation } from './lib/gameUtils';
 import { updateGame } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
@@ -46,6 +46,7 @@ function App() {
   const [sfxVolume, setSfxVolume] = useKV<number>('sfx-volume', 0.7);
   const [musicVolume, setMusicVolume] = useKV<number>('music-volume', 0.5);
   const [showNumericHP, setShowNumericHP] = useKV<boolean>('show-numeric-hp', true);
+  const [showMinimap, setShowMinimap] = useKV<boolean>('show-minimap', true);
 
   const gameState = gameStateRef.current;
 
@@ -96,11 +97,12 @@ function App() {
       selectedMap: selectedMap || 'open',
       showNumericHP: showNumericHP ?? true,
     };
+    gameStateRef.current.showMinimap = showMinimap ?? true;
     gameStateRef.current.players = gameStateRef.current.players.map((p, i) => ({
       ...p,
       color: i === 0 ? (playerColor || COLORS.playerDefault) : (enemyColor || COLORS.enemyDefault),
     }));
-  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP]);
+  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP, showMinimap]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -142,6 +144,19 @@ function App() {
       const now = Date.now();
       const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1);
       lastTimeRef.current = now;
+
+      // Update FPS counter
+      if (!gameStateRef.current.lastFpsUpdate) {
+        gameStateRef.current.lastFpsUpdate = now;
+        gameStateRef.current.frameCount = 0;
+        gameStateRef.current.fps = 60;
+      }
+      gameStateRef.current.frameCount = (gameStateRef.current.frameCount || 0) + 1;
+      if (now - gameStateRef.current.lastFpsUpdate >= 1000) {
+        gameStateRef.current.fps = gameStateRef.current.frameCount;
+        gameStateRef.current.frameCount = 0;
+        gameStateRef.current.lastFpsUpdate = now;
+      }
 
       if (gameStateRef.current.mode === 'countdown') {
         const elapsed = now - (gameStateRef.current.countdownStartTime || now);
@@ -783,6 +798,18 @@ function App() {
                 />
               </div>
 
+              <div className="flex items-center justify-between">
+                <Label htmlFor="minimap-toggle">Show Minimap</Label>
+                <Switch
+                  id="minimap-toggle"
+                  checked={showMinimap ?? true}
+                  onCheckedChange={(checked) => {
+                    setShowMinimap(checked);
+                    soundManager.playButtonClick();
+                  }}
+                />
+              </div>
+
               <Button
                 onClick={backToMenu}
                 className="w-full orbitron"
@@ -926,8 +953,9 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
   const obstacles = selectedMapDef.obstacles;
   const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles, isPortraitOrientation());
   
-  // Generate topography lines for this level
+  // Generate topography lines and starfield for this level
   const topographyLines = generateTopographyLines(canvas.width, canvas.height);
+  const stars = generateStarfield(canvas.width, canvas.height);
 
   return {
     mode: 'countdown',
@@ -981,6 +1009,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     },
     matchTimeLimit: 300,
     topographyLines,
+    stars,
     isPortrait: isPortraitOrientation(),
   };
 }
@@ -1112,8 +1141,9 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
   const obstacles = selectedMapDef.obstacles;
   const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles, isPortraitOrientation());
   
-  // Generate topography lines for this level
+  // Generate topography lines and starfield for this level
   const topographyLines = generateTopographyLines(canvas.width, canvas.height);
+  const stars = generateStarfield(canvas.width, canvas.height);
 
   return {
     mode: 'countdown',
@@ -1174,6 +1204,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     },
     matchTimeLimit: 300,
     topographyLines,
+    stars,
     isPortrait: isPortraitOrientation(),
   };
 }

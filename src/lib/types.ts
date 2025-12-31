@@ -282,4 +282,56 @@ export interface GameState {
     startTime: number;
     endPosition?: Vector2;
   }>;
+  
+  // Background stars for visual effect
+  stars?: Array<{
+    x: number;
+    y: number;
+    size: number;
+    brightness: number;
+    twinkleSpeed: number;
+    twinkleOffset: number;
+  }>;
+  
+  // Impact effects for hits and explosions
+  impactEffects?: Array<{
+    id: string;
+    position: Vector2;
+    color: string;
+    startTime: number;
+    duration: number;
+    size: number;
+  }>;
+  
+  // Floating damage numbers
+  damageNumbers?: Array<{
+    id: string;
+    position: Vector2;
+    damage: number;
+    color: string;
+    startTime: number;
+    duration: number;
+  }>;
+  
+  // Performance metrics
+  fps?: number;
+  lastFpsUpdate?: number;
+  frameCount?: number;
+  
+  // Screen shake effect
+  screenShake?: {
+    intensity: number;
+    duration: number;
+    startTime: number;
+  };
+  
+  // Tooltip system
+  tooltip?: {
+    text: string[];
+    position: Vector2;
+    visible: boolean;
+  };
+  
+  // Minimap settings
+  showMinimap?: boolean;
 }
