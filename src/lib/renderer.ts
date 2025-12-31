@@ -667,8 +667,20 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
     const screenPos = positionToPixels(unit.position);
     const color = state.players[unit.owner].color;
     
-    // Draw particles first (behind the unit)
-    if (unit.particles && unit.particles.length > 0) {
+    // Calculate distance from camera center for LOD
+    const cameraCenter = { x: ctx.canvas.width / 2, y: ctx.canvas.height / 2 };
+    const distFromCenter = Math.sqrt(
+      Math.pow(screenPos.x - cameraCenter.x, 2) + 
+      Math.pow(screenPos.y - cameraCenter.y, 2)
+    );
+    const maxDist = Math.sqrt(Math.pow(ctx.canvas.width / 2, 2) + Math.pow(ctx.canvas.height / 2, 2));
+    const distanceRatio = distFromCenter / maxDist;
+    
+    // LOD: Simplify distant units
+    const useLOD = distanceRatio > 0.7;
+    
+    // Draw particles first (behind the unit) - skip for LOD
+    if (!useLOD && unit.particles && unit.particles.length > 0) {
       drawParticles(ctx, unit);
     }
 
