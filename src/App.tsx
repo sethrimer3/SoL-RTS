@@ -982,6 +982,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     },
     matchTimeLimit: 300,
     topographyLines,
+    isPortrait: isPortraitOrientation(),
   };
 }
 
@@ -1037,6 +1038,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
       startTime: Date.now(),
       phase: 'bases-sliding',
     },
+    isPortrait: isPortraitOrientation(),
   };
 }
 
@@ -1099,6 +1101,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
       startTime: Date.now(),
       phase: 'bases-sliding',
     },
+    isPortrait: isPortraitOrientation(),
   };
 }
 
@@ -1172,6 +1175,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     },
     matchTimeLimit: 300,
     topographyLines,
+    isPortrait: isPortraitOrientation(),
   };
 }
 
