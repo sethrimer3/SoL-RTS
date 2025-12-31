@@ -1301,6 +1301,45 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.textAlign = 'left';
   }
   
+  // Draw control group indicators at bottom left
+  if (state.controlGroups) {
+    ctx.textAlign = 'left';
+    ctx.font = '12px Space Mono, monospace';
+    
+    let yOffset = ctx.canvas.height - 10;
+    for (let i = 8; i >= 1; i--) {
+      const group = state.controlGroups[i];
+      if (group && group.size > 0) {
+        // Filter to living units
+        const livingUnits = Array.from(group).filter(id => 
+          state.units.some(u => u.id === id && u.hp > 0)
+        );
+        
+        if (livingUnits.length > 0) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.fillText(`${i}: ${livingUnits.length}`, 10, yOffset);
+          
+          // Draw small colored bar indicating unit types
+          const barWidth = 40;
+          const barHeight = 4;
+          const barX = 35;
+          const barY = yOffset - 8;
+          
+          // Count unit types in group
+          const unitTypes = livingUnits.map(id => {
+            const unit = state.units.find(u => u.id === id);
+            return unit ? unit.type : null;
+          }).filter(t => t !== null);
+          
+          ctx.fillStyle = state.players[0].color;
+          ctx.fillRect(barX, barY, barWidth, barHeight);
+          
+          yOffset -= 15;
+        }
+      }
+    }
+  }
+  
   // Draw tooltip if visible
   if (state.tooltip && state.tooltip.visible && state.tooltip.text.length > 0) {
     drawTooltip(ctx, state.tooltip.text, state.tooltip.position);

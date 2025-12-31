@@ -1127,16 +1127,31 @@ function App() {
                       ? 'Time limit reached! Your base took more damage.'
                       : 'Your base was destroyed.'}
               </p>
-              <Button 
-                onClick={() => returnToMenu(
-                  true, 
-                  gameState.winner === -1 ? 'draw' : gameState.winner === 0 ? 'victory' : 'defeat'
-                )} 
-                className="w-full orbitron animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700" 
-                variant="default"
-              >
-                Return to Menu
-              </Button>
+              <div className="flex gap-2">
+                {gameState.vsMode === 'ai' && (
+                  <Button 
+                    onClick={() => {
+                      returnToMenu(true, gameState.winner === -1 ? 'draw' : gameState.winner === 0 ? 'victory' : 'defeat');
+                      // Start a new game after a brief delay
+                      setTimeout(() => startGame('ai', gameState.settings.selectedMap), 100);
+                    }} 
+                    className="flex-1 orbitron animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700" 
+                    variant="default"
+                  >
+                    Quick Rematch
+                  </Button>
+                )}
+                <Button 
+                  onClick={() => returnToMenu(
+                    true, 
+                    gameState.winner === -1 ? 'draw' : gameState.winner === 0 ? 'victory' : 'defeat'
+                  )} 
+                  className="flex-1 orbitron animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700" 
+                  variant={gameState.vsMode === 'ai' ? 'outline' : 'default'}
+                >
+                  Return to Menu
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
