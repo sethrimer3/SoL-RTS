@@ -11,6 +11,7 @@ import {
 } from './types';
 import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract } from './gameUtils';
 import { Obstacle } from './maps';
+import { MOTION_TRAIL_DURATION } from './simulation';
 
 // FPS Counter constants
 const FPS_GOOD_THRESHOLD = 55;
@@ -28,7 +29,6 @@ const MINIMAP_OBSTACLE_MIN_SIZE = 2;
 
 // Culling constants
 const OFFSCREEN_CULLING_MARGIN = 50; // pixels margin for culling off-screen objects
-const TRAIL_FADE_DURATION = 0.5; // seconds for motion trail fade
 
 // Helper function to get bright highlight color for team
 function getTeamHighlightColor(owner: number): string {
@@ -38,7 +38,7 @@ function getTeamHighlightColor(owner: number): string {
 }
 
 // Helper function to check if an object is visible on screen
-function isOnScreen(position: Vector2, canvas: HTMLCanvasElement, margin: number = 100): boolean {
+function isOnScreen(position: Vector2, canvas: HTMLCanvasElement, margin: number = OFFSCREEN_CULLING_MARGIN): boolean {
   const screenPos = positionToPixels(position);
   return screenPos.x >= -margin && 
          screenPos.x <= canvas.width + margin && 
@@ -1315,7 +1315,7 @@ function drawMotionTrails(ctx: CanvasRenderingContext2D, state: GameState): void
     // Draw trail from oldest to newest
     for (let i = 0; i < trail.positions.length - 1; i++) {
       const age = (now - trail.positions[i].timestamp) / 1000;
-      const alpha = Math.max(0, 1 - age / TRAIL_FADE_DURATION);
+      const alpha = Math.max(0, 1 - age / MOTION_TRAIL_DURATION);
       const width = 2 * alpha;
       
       if (alpha <= 0) continue;
