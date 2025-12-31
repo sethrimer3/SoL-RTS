@@ -597,7 +597,8 @@ function drawParticles(ctx: CanvasRenderingContext2D, unit: Unit): void {
         const trailPos2 = positionToPixels(particle.trail[i + 1]);
         
         // Calculate opacity based on position in trail (fade towards end)
-        const alpha = 1 - (i / particle.trail.length);
+        // Safe division: trail.length is guaranteed to be > 1 from the outer check
+        const alpha = 1 - (i / Math.max(particle.trail.length, 1));
         ctx.globalAlpha = alpha * 0.7;
         ctx.lineWidth = 2 * alpha;
         ctx.shadowColor = particle.color;

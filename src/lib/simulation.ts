@@ -20,7 +20,7 @@ import { soundManager } from './sound';
 
 // Particle physics constants
 const PARTICLE_ATTRACTION_STRENGTH = 6.0; // How strongly particles are attracted to their unit
-const PARTICLE_DAMPING = 0.92; // Velocity damping to prevent infinite acceleration
+const PARTICLE_DAMPING = 0.92; // Velocity damping factor - reduces velocity to prevent excessive speeds
 const PARTICLE_ORBIT_DISTANCE = 0.8; // Desired orbit distance from unit center
 const PARTICLE_MIN_VELOCITY = 2.5; // Minimum velocity to keep particles moving
 const PARTICLE_ORBITAL_SPEED = 2.0; // Speed of orbital rotation around unit
@@ -107,7 +107,7 @@ function updateParticles(unit: Unit, deltaTime: number): void {
     particle.velocity.y *= PARTICLE_DAMPING;
     
     // Ensure minimum velocity magnitude for constant motion
-    const currentSpeed = Math.sqrt(particle.velocity.x ** 2 + particle.velocity.y ** 2);
+    const currentSpeed = Math.hypot(particle.velocity.x, particle.velocity.y);
     if (currentSpeed < PARTICLE_MIN_VELOCITY && currentSpeed > PARTICLE_MIN_SPEED_THRESHOLD) {
       const scale = PARTICLE_MIN_VELOCITY / currentSpeed;
       particle.velocity.x *= scale;
