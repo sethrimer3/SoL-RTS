@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useKV } from './hooks/useKV';
+import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { GameState, COLORS, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS } from './lib/types';
 import { generateId, generateTopographyLines, generateStarfield, isPortraitOrientation } from './lib/gameUtils';
 import { updateGame } from './lib/simulation';
@@ -560,6 +561,38 @@ function App() {
     setCurrentLobby(null);
     toast.info('Left the lobby');
   };
+  
+  // Keyboard controls for desktop
+  useKeyboardControls({
+    onEscape: () => {
+      if (gameState.mode === 'game') {
+        // Deselect all units
+        gameStateRef.current.selectedUnits.clear();
+        gameStateRef.current.bases.forEach(b => b.isSelected = false);
+        setRenderTrigger(prev => prev + 1);
+      } else if (gameState.mode !== 'menu') {
+        backToMenu();
+      }
+    },
+    onSelectAll: () => {
+      if (gameState.mode === 'game') {
+        // Select all player units
+        gameStateRef.current.selectedUnits.clear();
+        gameStateRef.current.units
+          .filter(u => u.owner === 0)
+          .forEach(u => gameStateRef.current.selectedUnits.add(u.id));
+        setRenderTrigger(prev => prev + 1);
+        soundManager.playButtonClick();
+      }
+    },
+    onDeselect: () => {
+      if (gameState.mode === 'game') {
+        gameStateRef.current.selectedUnits.clear();
+        gameStateRef.current.bases.forEach(b => b.isSelected = false);
+        setRenderTrigger(prev => prev + 1);
+      }
+    },
+  }, gameState.mode === 'game' || gameState.mode !== 'menu');
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background" onClick={handleCanvasSurrenderReset}>
@@ -587,12 +620,14 @@ function App() {
       )}
 
       {gameState.mode === 'countdown' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="text-center">
-            <h2 className="orbitron text-3xl font-bold mb-8 text-primary">
+            <h2 className="orbitron text-3xl font-bold mb-8 text-primary animate-in slide-in-from-top duration-500">
               {getMapById(gameState.settings.selectedMap)?.name || 'Map Preview'}
             </h2>
-            <div className="orbitron text-8xl font-black text-foreground animate-pulse">
+            <div className="orbitron text-8xl font-black text-foreground animate-pulse" style={{
+              textShadow: '0 0 30px currentColor, 0 0 60px currentColor'
+            }}>
               {Math.ceil(3 - (Date.now() - (gameState.countdownStartTime || Date.now())) / 1000)}
             </div>
           </div>
@@ -601,7 +636,10 @@ function App() {
 
       {gameState.mode === 'game' && gameState.matchStartAnimation?.phase === 'go' && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="orbitron text-9xl font-black text-primary animate-bounce">
+          <div className="orbitron text-9xl font-black text-primary animate-bounce" style={{
+            textShadow: '0 0 40px currentColor, 0 0 80px currentColor',
+            animation: 'bounce 0.5s ease-out'
+          }}>
             GO!
           </div>
         </div>
@@ -613,22 +651,35 @@ function App() {
             Build 1
           </div>
           <div className="flex flex-col gap-4 w-80 max-w-[90vw]">
-            <h1 className="orbitron text-4xl font-bold text-center text-primary mb-4 tracking-wider uppercase">
+            <h1 className="orbitron text-4xl font-bold text-center text-primary mb-4 tracking-wider uppercase animate-in fade-in zoom-in-95 duration-700" style={{
+              textShadow: '0 0 20px currentColor'
+            }}>
               Speed of Light RTS
             </h1>
 
             <Button
               onClick={goToLevelSelection}
-              className="h-14 text-lg orbitron uppercase tracking-wider"
+              className="h-14 text-lg orbitron uppercase tracking-wider transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/50"
               variant="default"
             >
               <Robot className="mr-2" size={24} />
               Vs. AI
             </Button>
+            
+            <Button
+              onClick={() => {
+                soundManager.playButtonClick();
+                startGame('ai', selectedMap || 'open');
+              }}
+              className="h-12 text-base orbitron uppercase tracking-wider transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/50"
+              variant="secondary"
+            >
+              Quick Match
+            </Button>
 
             <Button
               onClick={goToOnlineMode}
-              className="h-14 text-lg orbitron uppercase tracking-wider"
+              className="h-14 text-lg orbitron uppercase tracking-wider transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/50"
               variant="default"
             >
               <WifiHigh className="mr-2" size={24} />
@@ -637,7 +688,7 @@ function App() {
 
             <Button
               onClick={goToMapSelection}
-              className="h-14 text-lg orbitron uppercase tracking-wider"
+              className="h-14 text-lg orbitron uppercase tracking-wider transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/30"
               variant="outline"
             >
               <MapPin className="mr-2" size={24} />
@@ -646,7 +697,7 @@ function App() {
 
             <Button
               onClick={goToUnitSelection}
-              className="h-14 text-lg orbitron uppercase tracking-wider"
+              className="h-14 text-lg orbitron uppercase tracking-wider transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/30"
               variant="outline"
             >
               <ListChecks className="mr-2" size={24} />
@@ -655,7 +706,7 @@ function App() {
 
             <Button
               onClick={goToSettings}
-              className="h-14 text-lg orbitron uppercase tracking-wider"
+              className="h-14 text-lg orbitron uppercase tracking-wider transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/30"
               variant="outline"
             >
               <GearSix className="mr-2" size={24} />
@@ -664,7 +715,7 @@ function App() {
 
             <Button
               onClick={goToStatistics}
-              className="h-14 text-lg orbitron uppercase tracking-wider"
+              className="h-14 text-lg orbitron uppercase tracking-wider transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/30"
               variant="outline"
             >
               <ChartBar className="mr-2" size={24} />
@@ -878,15 +929,15 @@ function App() {
       )}
 
       {gameState.mode === 'victory' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-          <Card className="w-96 max-w-full">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-500">
+          <Card className="w-96 max-w-full animate-in zoom-in-95 slide-in-from-bottom-4 duration-700">
             <CardHeader>
-              <CardTitle className="orbitron text-3xl text-center">
+              <CardTitle className="orbitron text-3xl text-center animate-in slide-in-from-top-2 duration-500 delay-300">
                 {gameState.winner === -1 ? 'Draw!' : gameState.winner === 0 ? 'Victory!' : 'Defeat'}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-center mb-6">
+            <CardContent className="space-y-4">
+              <p className="text-center animate-in fade-in slide-in-from-bottom-2 duration-500 delay-500">
                 {gameState.winner === -1 
                   ? 'Time limit reached! Both players dealt equal damage.' 
                   : gameState.winner === 0 
@@ -902,7 +953,7 @@ function App() {
                   true, 
                   gameState.winner === -1 ? 'draw' : gameState.winner === 0 ? 'victory' : 'defeat'
                 )} 
-                className="w-full orbitron" 
+                className="w-full orbitron animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700" 
                 variant="default"
               >
                 Return to Menu
