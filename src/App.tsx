@@ -123,10 +123,9 @@ function App() {
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
                         ('ontouchstart' in window) || 
                         (window.innerWidth < 768);
-      const isPortrait = window.innerHeight > window.innerWidth;
       
       gameStateRef.current.isMobile = isMobile;
-      gameStateRef.current.isPortrait = isPortrait;
+      gameStateRef.current.isPortrait = isPortraitOrientation();
     };
 
     const resizeCanvas = () => {
