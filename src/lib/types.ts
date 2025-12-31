@@ -317,4 +317,18 @@ export interface GameState {
   fps?: number;
   lastFpsUpdate?: number;
   frameCount?: number;
+  
+  // Screen shake effect
+  screenShake?: {
+    intensity: number;
+    duration: number;
+    startTime: number;
+  };
+  
+  // Tooltip system
+  tooltip?: {
+    text: string[];
+    position: Vector2;
+    visible: boolean;
+  };
 }

@@ -22,6 +22,24 @@ function getTeamHighlightColor(owner: number): string {
 export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canvas: HTMLCanvasElement, selectionRect?: { x1: number; y1: number; x2: number; y2: number } | null): void {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Apply screen shake if active
+  let shakeX = 0;
+  let shakeY = 0;
+  if (state.screenShake) {
+    const elapsed = (Date.now() - state.screenShake.startTime) / 1000;
+    if (elapsed < state.screenShake.duration) {
+      const progress = elapsed / state.screenShake.duration;
+      const intensity = state.screenShake.intensity * (1 - progress); // Decay over time
+      shakeX = (Math.random() - 0.5) * intensity;
+      shakeY = (Math.random() - 0.5) * intensity;
+      ctx.save();
+      ctx.translate(shakeX, shakeY);
+    } else {
+      // Shake expired
+      delete state.screenShake;
+    }
+  }
+
   drawBackground(ctx, canvas, state);
 
   if (state.mode === 'game' || state.mode === 'countdown') {
@@ -41,6 +59,11 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       drawVisualFeedback(ctx, state);
       drawHUD(ctx, state);
     }
+  }
+  
+  // Restore context if shake was applied
+  if (state.screenShake && (Date.now() - state.screenShake.startTime) / 1000 < state.screenShake.duration) {
+    ctx.restore();
   }
 }
 
