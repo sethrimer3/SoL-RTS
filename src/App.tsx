@@ -706,6 +706,41 @@ function App() {
         setRenderTrigger(prev => prev + 1);
       }
     },
+    onNumberKey: (num: number) => {
+      if (gameState.mode === 'game') {
+        // Ctrl/Cmd + number = assign selected units to control group
+        // Just number = select control group
+        const isAssigning = window.event && (
+          (window.event as KeyboardEvent).ctrlKey || 
+          (window.event as KeyboardEvent).metaKey
+        );
+        
+        if (isAssigning) {
+          // Assign current selection to control group
+          gameStateRef.current.controlGroups[num] = new Set(gameStateRef.current.selectedUnits);
+          toast.success(`Control group ${num} assigned (${gameStateRef.current.selectedUnits.size} units)`);
+          soundManager.playButtonClick();
+        } else {
+          // Select control group
+          const group = gameStateRef.current.controlGroups[num];
+          if (group && group.size > 0) {
+            // Filter out dead units
+            const livingUnits = Array.from(group).filter(id => 
+              gameStateRef.current.units.some(u => u.id === id && u.hp > 0)
+            );
+            
+            if (livingUnits.length > 0) {
+              gameStateRef.current.selectedUnits = new Set(livingUnits);
+              gameStateRef.current.bases.forEach(b => b.isSelected = false);
+              soundManager.playUnitSelect();
+              setRenderTrigger(prev => prev + 1);
+            } else {
+              toast.info(`Control group ${num} is empty`);
+            }
+          }
+        }
+      }
+    },
   }, gameState.mode === 'game' || gameState.mode !== 'menu');
 
   return (
@@ -1123,6 +1158,8 @@ function createInitialState(): GameState {
       { photons: 0, incomeRate: 1, color: COLORS.enemyDefault },
     ],
     selectedUnits: new Set(),
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
     elapsedTime: 0,
     lastIncomeTime: 0,
     winner: null,
@@ -1186,6 +1223,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
       { photons: 50, incomeRate: 1, color: settings.enemyColor },
     ],
     selectedUnits: new Set(),
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
     elapsedTime: 0,
     lastIncomeTime: 0,
     winner: null,
@@ -1252,6 +1290,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
       { photons: 50, incomeRate: 1, color: settings.enemyColor },
     ],
     selectedUnits: new Set(),
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
     elapsedTime: 0,
     lastIncomeTime: 0,
     winner: null,
@@ -1308,6 +1347,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
       { photons: 50, incomeRate: 1, color: isHost ? lobby.guestColor || COLORS.enemyDefault : lobby.hostColor },
     ],
     selectedUnits: new Set(),
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
     elapsedTime: 0,
     lastIncomeTime: 0,
     winner: null,
@@ -1376,6 +1416,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
       { photons: 50, incomeRate: 1, color: isHost ? lobby.guestColor || COLORS.enemyDefault : lobby.hostColor },
     ],
     selectedUnits: new Set(),
+    controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set() },
     elapsedTime: 0,
     lastIncomeTime: 0,
     winner: null,

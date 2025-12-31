@@ -9,9 +9,10 @@ export interface KeyboardActions {
   onStop?: () => void; // S
   onAttackMove?: () => void; // A
   onPause?: () => void; // P
+  onNumberKey?: (number: number) => void; // 1-8 for control groups
 }
 
-const GAME_CONTROL_KEYS = ['Escape', ' ', 'Enter', 'a', 'A', 'd', 'D', 's', 'S', 'p', 'P'];
+const GAME_CONTROL_KEYS = ['Escape', ' ', 'Enter', 'a', 'A', 'd', 'D', 's', 'S', 'p', 'P', '1', '2', '3', '4', '5', '6', '7', '8'];
 
 export function useKeyboardControls(actions: KeyboardActions, enabled: boolean = true) {
   useEffect(() => {
@@ -28,6 +29,12 @@ export function useKeyboardControls(actions: KeyboardActions, enabled: boolean =
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         actions.onSelectAll?.();
         e.preventDefault();
+        return;
+      }
+
+      // Handle number keys for unit groups
+      if (e.key >= '1' && e.key <= '8') {
+        actions.onNumberKey?.(parseInt(e.key));
         return;
       }
 

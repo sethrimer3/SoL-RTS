@@ -690,8 +690,25 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
     } else {
       const radius = metersToPixels(UNIT_SIZE_METERS / 2);
 
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 12;
+      // Health-based glow intensity
+      const healthPercent = unit.hp / unit.maxHp;
+      let glowIntensity = 12;
+      let glowColor = color;
+      
+      // Low health warning glow (pulsing red)
+      if (healthPercent < 0.3) {
+        const pulse = Math.sin(Date.now() / 300) * 0.5 + 0.5;
+        glowIntensity = 15 + pulse * 5;
+        glowColor = 'oklch(0.62 0.28 25)'; // Red glow for low health
+      } else if (healthPercent < 0.6) {
+        glowIntensity = 10;
+      } else {
+        // Full health has stronger glow
+        glowIntensity = 12 + (healthPercent - 0.6) * 10; // Up to 16 at full health
+      }
+
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = glowIntensity;
 
       ctx.beginPath();
       ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
@@ -699,7 +716,7 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
       
       // Add extra glow for marines
       if (unit.type === 'marine') {
-        ctx.shadowBlur = 18;
+        ctx.shadowBlur = glowIntensity * 1.5;
         ctx.globalAlpha = 0.6;
         ctx.beginPath();
         ctx.arc(screenPos.x, screenPos.y, radius * 1.2, 0, Math.PI * 2);

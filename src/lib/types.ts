@@ -233,6 +233,7 @@ export interface GameState {
   }[];
   
   selectedUnits: Set<string>;
+  controlGroups: Record<number, Set<string>>; // Number keys 1-8 to unit IDs
   
   elapsedTime: number;
   lastIncomeTime: number;
