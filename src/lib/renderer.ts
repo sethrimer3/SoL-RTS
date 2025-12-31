@@ -391,28 +391,42 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, state: GameState): void 
     const screenPos = positionToPixels(projectile.position);
     
     ctx.save();
-    ctx.fillStyle = projectile.color;
-    ctx.shadowColor = projectile.color;
-    ctx.shadowBlur = 10;
     
-    // Draw projectile with glow
-    ctx.beginPath();
-    ctx.arc(screenPos.x, screenPos.y, 3, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Draw energy trail
-    const trailLength = 8;
+    // Draw energy trail with gradient and glow
+    const trailLength = 12;
     const direction = normalize(projectile.velocity);
     const trailStart = subtract(projectile.position, scale(direction, trailLength / 20));
     const trailScreenPos = positionToPixels(trailStart);
     
-    ctx.globalAlpha = 0.5;
-    ctx.strokeStyle = projectile.color;
-    ctx.lineWidth = 2;
+    // Create gradient for trail
+    const gradient = ctx.createLinearGradient(trailScreenPos.x, trailScreenPos.y, screenPos.x, screenPos.y);
+    gradient.addColorStop(0, 'transparent');
+    gradient.addColorStop(1, projectile.color);
+    
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = projectile.color;
+    ctx.shadowBlur = 15;
+    
     ctx.beginPath();
     ctx.moveTo(trailScreenPos.x, trailScreenPos.y);
     ctx.lineTo(screenPos.x, screenPos.y);
     ctx.stroke();
+    
+    // Draw projectile core with enhanced glow
+    ctx.fillStyle = projectile.color;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw bright center
+    ctx.fillStyle = 'oklch(0.95 0.15 ' + (projectile.owner === 0 ? '240' : '25') + ')';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, 2, 0, Math.PI * 2);
+    ctx.fill();
     
     ctx.restore();
   });
@@ -552,13 +566,48 @@ function drawParticles(ctx: CanvasRenderingContext2D, unit: Unit): void {
   unit.particles.forEach((particle) => {
     const screenPos = positionToPixels(particle.position);
     
-    // Draw particle with glow effect
     ctx.save();
+    
+    // Draw trail first (behind the particle)
+    if (particle.trail && particle.trail.length > 1) {
+      ctx.strokeStyle = particle.color;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      // Draw trail with fading opacity and glow
+      for (let i = 0; i < particle.trail.length - 1; i++) {
+        const trailPos1 = positionToPixels(particle.trail[i]);
+        const trailPos2 = positionToPixels(particle.trail[i + 1]);
+        
+        // Calculate opacity based on position in trail (fade towards end)
+        const alpha = 1 - (i / particle.trail.length);
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.lineWidth = 2 * alpha;
+        ctx.shadowColor = particle.color;
+        ctx.shadowBlur = 5 * alpha;
+        
+        ctx.beginPath();
+        ctx.moveTo(trailPos1.x, trailPos1.y);
+        ctx.lineTo(trailPos2.x, trailPos2.y);
+        ctx.stroke();
+      }
+    }
+    
+    ctx.globalAlpha = 1.0;
+    ctx.shadowBlur = 0;
+    
+    // Draw particle with enhanced glow effect
     ctx.fillStyle = particle.color;
     ctx.shadowColor = particle.color;
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 12;
     
-    // Draw small circle for particle
+    // Draw main particle circle
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw brighter inner core with stronger glow
+    ctx.shadowBlur = 20;
     ctx.beginPath();
     ctx.arc(screenPos.x, screenPos.y, 2, 0, Math.PI * 2);
     ctx.fill();

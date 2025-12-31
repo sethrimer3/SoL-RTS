@@ -22,6 +22,9 @@ import { soundManager } from './sound';
 const PARTICLE_ATTRACTION_STRENGTH = 5.0; // How strongly particles are attracted to their unit
 const PARTICLE_DAMPING = 0.95; // Velocity damping to prevent infinite acceleration
 const PARTICLE_ORBIT_DISTANCE = 0.8; // Desired orbit distance from unit center
+const PARTICLE_MIN_VELOCITY = 2.0; // Minimum velocity to keep particles moving
+const PARTICLE_ORBITAL_SPEED = 1.5; // Speed of orbital rotation around unit
+const PARTICLE_TRAIL_LENGTH = 5; // Number of trail positions to keep
 
 // Projectile constants
 const PROJECTILE_SPEED = 15; // meters per second
@@ -47,6 +50,8 @@ function createParticlesForUnit(unit: Unit, count: number): Particle[] {
       },
       velocity: { x: 0, y: 0 },
       color: unitColor,
+      trail: [], // Initialize empty trail
+      angle: angle, // Store initial angle for orbital motion
     });
   }
   
@@ -58,6 +63,12 @@ function updateParticles(unit: Unit, deltaTime: number): void {
   if (!unit.particles || unit.particles.length === 0) return;
   
   unit.particles.forEach((particle) => {
+    // Store current position in trail
+    particle.trail.unshift({ ...particle.position });
+    if (particle.trail.length > PARTICLE_TRAIL_LENGTH) {
+      particle.trail.pop();
+    }
+    
     // Calculate attraction force towards unit
     const toUnit = subtract(unit.position, particle.position);
     const dist = distance(particle.position, unit.position);
@@ -76,9 +87,34 @@ function updateParticles(unit: Unit, deltaTime: number): void {
       particle.velocity.y += force.y * deltaTime;
     }
     
+    // Add orbital/swirling motion component
+    // Update particle angle to create circular motion around unit
+    particle.angle += PARTICLE_ORBITAL_SPEED * deltaTime;
+    
+    // Calculate tangential velocity for orbital motion
+    const tangentX = -Math.sin(particle.angle);
+    const tangentY = Math.cos(particle.angle);
+    
+    // Add orbital velocity component
+    particle.velocity.x += tangentX * PARTICLE_MIN_VELOCITY * deltaTime * 0.5;
+    particle.velocity.y += tangentY * PARTICLE_MIN_VELOCITY * deltaTime * 0.5;
+    
     // Apply damping to prevent excessive velocity
     particle.velocity.x *= PARTICLE_DAMPING;
     particle.velocity.y *= PARTICLE_DAMPING;
+    
+    // Ensure minimum velocity magnitude for constant motion
+    const currentSpeed = Math.sqrt(particle.velocity.x ** 2 + particle.velocity.y ** 2);
+    if (currentSpeed < PARTICLE_MIN_VELOCITY && currentSpeed > 0.01) {
+      const scale = PARTICLE_MIN_VELOCITY / currentSpeed;
+      particle.velocity.x *= scale;
+      particle.velocity.y *= scale;
+    } else if (currentSpeed < 0.01) {
+      // If particle is nearly stationary, give it a random velocity
+      const randomAngle = Math.random() * Math.PI * 2;
+      particle.velocity.x = Math.cos(randomAngle) * PARTICLE_MIN_VELOCITY;
+      particle.velocity.y = Math.sin(randomAngle) * PARTICLE_MIN_VELOCITY;
+    }
     
     // Update position based on velocity
     particle.position.x += particle.velocity.x * deltaTime;
@@ -851,7 +887,7 @@ export function spawnUnit(state: GameState, owner: number, type: UnitType, spawn
   
   // Initialize particles for marines
   if (type === 'marine') {
-    unit.particles = createParticlesForUnit(unit, 10);
+    unit.particles = createParticlesForUnit(unit, 12); // Increased from 10 to 12 for more visible effect
   }
 
   state.units.push(unit);

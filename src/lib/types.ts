@@ -34,6 +34,8 @@ export interface Particle {
   position: Vector2;
   velocity: Vector2;
   color: string;
+  trail: Vector2[]; // Trail positions for rendering
+  angle: number; // Orbital angle for swirling motion
 }
 
 // Projectile for ranged attacks
