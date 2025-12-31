@@ -338,6 +338,55 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
         ctx.restore();
 
         lastPos = node.position;
+      } else if (node.type === 'attack-move') {
+        // Draw attack-move nodes with cross-hair symbol
+        const screenPos = positionToPixels(node.position);
+
+        // Draw path line to this position
+        if (lastPos) {
+          const lastScreenPos = positionToPixels(lastPos);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.4;
+          ctx.setLineDash([5, 5]);
+          ctx.beginPath();
+          ctx.moveTo(lastScreenPos.x, lastScreenPos.y);
+          ctx.lineTo(screenPos.x, screenPos.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        // Draw cross-hair symbol
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 8;
+        ctx.globalAlpha = 0.8;
+        
+        // Outer circle
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(screenPos.x, screenPos.y, 8, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Cross lines
+        ctx.beginPath();
+        ctx.moveTo(screenPos.x - 10, screenPos.y);
+        ctx.lineTo(screenPos.x + 10, screenPos.y);
+        ctx.moveTo(screenPos.x, screenPos.y - 10);
+        ctx.lineTo(screenPos.x, screenPos.y + 10);
+        ctx.stroke();
+        
+        // Center dot with pulse
+        const pulse = Math.sin(time * 3 + i * 0.3) * 0.5 + 0.5;
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(screenPos.x, screenPos.y, 3 + pulse * 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.7;
+
+        lastPos = node.position;
       }
     });
 

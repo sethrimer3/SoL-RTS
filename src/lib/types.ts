@@ -55,7 +55,8 @@ export interface Projectile {
 
 export type CommandNode = 
   | { type: 'move'; position: Vector2 }
-  | { type: 'ability'; position: Vector2; direction: Vector2 };
+  | { type: 'ability'; position: Vector2; direction: Vector2 }
+  | { type: 'attack-move'; position: Vector2 };
 
 export interface Unit {
   id: string;
