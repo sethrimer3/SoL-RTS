@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useKV } from './hooks/useKV';
 import { GameState, COLORS, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS } from './lib/types';
-import { generateId, generateTopographyLines } from './lib/gameUtils';
+import { generateId, generateTopographyLines, isPortraitOrientation } from './lib/gameUtils';
 import { updateGame } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
@@ -123,10 +123,9 @@ function App() {
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
                         ('ontouchstart' in window) || 
                         (window.innerWidth < 768);
-      const isPortrait = window.innerHeight > window.innerWidth;
       
       gameStateRef.current.isMobile = isMobile;
-      gameStateRef.current.isPortrait = isPortrait;
+      gameStateRef.current.isPortrait = isPortraitOrientation();
     };
 
     const resizeCanvas = () => {
@@ -925,7 +924,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
 
   const selectedMapDef = getMapById(settings.selectedMap) || getMapById('open')!;
   const obstacles = selectedMapDef.obstacles;
-  const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles);
+  const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles, isPortraitOrientation());
   
   // Generate topography lines for this level
   const topographyLines = generateTopographyLines(canvas.width, canvas.height);
@@ -982,6 +981,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     },
     matchTimeLimit: 300,
     topographyLines,
+    isPortrait: isPortraitOrientation(),
   };
 }
 
@@ -991,7 +991,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
 
   const selectedMapDef = getMapById(settings.selectedMap) || getMapById('open')!;
   const obstacles = selectedMapDef.obstacles;
-  const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles);
+  const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles, isPortraitOrientation());
 
   return {
     mode: 'game',
@@ -1037,6 +1037,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
       startTime: Date.now(),
       phase: 'bases-sliding',
     },
+    isPortrait: isPortraitOrientation(),
   };
 }
 
@@ -1046,7 +1047,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
 
   const selectedMapDef = getMapById(lobby.mapId) || getMapById('open')!;
   const obstacles = selectedMapDef.obstacles;
-  const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles);
+  const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles, isPortraitOrientation());
 
   return {
     mode: 'game',
@@ -1099,6 +1100,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
       startTime: Date.now(),
       phase: 'bases-sliding',
     },
+    isPortrait: isPortraitOrientation(),
   };
 }
 
@@ -1108,7 +1110,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
 
   const selectedMapDef = getMapById(lobby.mapId) || getMapById('open')!;
   const obstacles = selectedMapDef.obstacles;
-  const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles);
+  const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles, isPortraitOrientation());
   
   // Generate topography lines for this level
   const topographyLines = generateTopographyLines(canvas.width, canvas.height);
@@ -1172,6 +1174,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     },
     matchTimeLimit: 300,
     topographyLines,
+    isPortrait: isPortraitOrientation(),
   };
 }
 
