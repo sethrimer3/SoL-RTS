@@ -28,6 +28,9 @@ export const COLORS = {
 
 export type Vector2 = { x: number; y: number };
 
+// Unit modifiers that affect how units interact with each other
+export type UnitModifier = 'ranged' | 'melee' | 'flying' | 'small' | 'healing';
+
 // Particle physics for visual effects
 export interface Particle {
   id: string;
@@ -66,6 +69,7 @@ export interface Unit {
   position: Vector2;
   hp: number;
   maxHp: number;
+  armor: number; // Reduces damage from ranged attacks
   displayHp?: number; // Smoothly interpolated health for display
   commandQueue: CommandNode[];
   damageMultiplier: number;
@@ -132,6 +136,7 @@ export interface Base {
   position: Vector2;
   hp: number;
   maxHp: number;
+  armor: number; // Reduces damage from ranged attacks
   movementTarget: Vector2 | null;
   isSelected: boolean;
   laserCooldown: number;
@@ -145,6 +150,7 @@ export type UnitType = 'marine' | 'warrior' | 'snaker' | 'tank' | 'scout' | 'art
 export interface UnitDefinition {
   name: string;
   hp: number;
+  armor: number; // Reduces damage from ranged attacks
   moveSpeed: number;
   attackType: 'ranged' | 'melee' | 'none';
   attackRange: number;
@@ -154,12 +160,14 @@ export interface UnitDefinition {
   abilityName: string;
   abilityCooldown: number;
   canDamageStructures: boolean;
+  modifiers: UnitModifier[]; // Unit modifiers (ranged, melee, flying, small, healing)
 }
 
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   marine: {
     name: 'Ranged Marine',
     hp: 40,
+    armor: 2,
     moveSpeed: 4,
     attackType: 'ranged',
     attackRange: 8,
@@ -169,10 +177,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Burst Fire',
     abilityCooldown: 5,
     canDamageStructures: true,
+    modifiers: ['ranged'],
   },
   warrior: {
     name: 'Melee Warrior',
     hp: 120,
+    armor: 5,
     moveSpeed: 3,
     attackType: 'melee',
     attackRange: 1,
@@ -182,10 +192,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Execute Dash',
     abilityCooldown: 8,
     canDamageStructures: true,
+    modifiers: ['melee'],
   },
   snaker: {
     name: 'Snaker',
     hp: 70,
+    armor: 1,
     moveSpeed: 4.5,
     attackType: 'none',
     attackRange: 0,
@@ -195,10 +207,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Line Jump',
     abilityCooldown: 6,
     canDamageStructures: false,
+    modifiers: ['small'],
   },
   tank: {
     name: 'Heavy Tank',
     hp: 200,
+    armor: 8,
     moveSpeed: 2,
     attackType: 'ranged',
     attackRange: 6,
@@ -208,10 +222,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Shield Dome',
     abilityCooldown: 12,
     canDamageStructures: true,
+    modifiers: ['ranged'],
   },
   scout: {
     name: 'Scout',
     hp: 30,
+    armor: 1,
     moveSpeed: 6,
     attackType: 'ranged',
     attackRange: 5,
@@ -221,10 +237,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Cloak',
     abilityCooldown: 15,
     canDamageStructures: false,
+    modifiers: ['ranged', 'small'],
   },
   artillery: {
     name: 'Artillery',
     hp: 50,
+    armor: 2,
     moveSpeed: 2.5,
     attackType: 'ranged',
     attackRange: 15,
@@ -234,10 +252,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Bombardment',
     abilityCooldown: 10,
     canDamageStructures: true,
+    modifiers: ['ranged'],
   },
   medic: {
     name: 'Medic',
     hp: 60,
+    armor: 2,
     moveSpeed: 3.5,
     attackType: 'none',
     attackRange: 0,
@@ -247,10 +267,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Heal Pulse',
     abilityCooldown: 7,
     canDamageStructures: false,
+    modifiers: ['healing'],
   },
   interceptor: {
     name: 'Interceptor',
     hp: 55,
+    armor: 1,
     moveSpeed: 5.5,
     attackType: 'ranged',
     attackRange: 10,
@@ -260,10 +282,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Missile Barrage',
     abilityCooldown: 8,
     canDamageStructures: true,
+    modifiers: ['ranged', 'flying'],
   },
   berserker: {
     name: 'Berserker',
     hp: 150,
+    armor: 4,
     moveSpeed: 3.5,
     attackType: 'melee',
     attackRange: 1.2,
@@ -273,10 +297,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Rage',
     abilityCooldown: 10,
     canDamageStructures: true,
+    modifiers: ['melee'],
   },
   assassin: {
     name: 'Assassin',
     hp: 80,
+    armor: 2,
     moveSpeed: 5,
     attackType: 'melee',
     attackRange: 1,
@@ -286,10 +312,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Shadow Strike',
     abilityCooldown: 7,
     canDamageStructures: false,
+    modifiers: ['melee'],
   },
   juggernaut: {
     name: 'Juggernaut',
     hp: 250,
+    armor: 10,
     moveSpeed: 2,
     attackType: 'melee',
     attackRange: 1.5,
@@ -299,10 +327,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Ground Slam',
     abilityCooldown: 12,
     canDamageStructures: true,
+    modifiers: ['melee'],
   },
   striker: {
     name: 'Striker',
     hp: 100,
+    armor: 3,
     moveSpeed: 4,
     attackType: 'melee',
     attackRange: 1,
@@ -312,10 +342,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Whirlwind',
     abilityCooldown: 8,
     canDamageStructures: true,
+    modifiers: ['melee'],
   },
   flare: {
     name: 'Flare',
     hp: 50,
+    armor: 1,
     moveSpeed: 5,
     attackType: 'ranged',
     attackRange: 7,
@@ -325,10 +357,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Solar Beam',
     abilityCooldown: 6,
     canDamageStructures: true,
+    modifiers: ['ranged', 'small'],
   },
   nova: {
     name: 'Nova',
     hp: 110,
+    armor: 4,
     moveSpeed: 3.5,
     attackType: 'melee',
     attackRange: 1.2,
@@ -338,10 +372,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Stellar Burst',
     abilityCooldown: 7,
     canDamageStructures: true,
+    modifiers: ['melee'],
   },
   eclipse: {
     name: 'Eclipse',
     hp: 80,
+    armor: 2,
     moveSpeed: 4.5,
     attackType: 'ranged',
     attackRange: 9,
@@ -351,10 +387,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Shadow Veil',
     abilityCooldown: 10,
     canDamageStructures: false,
+    modifiers: ['ranged'],
   },
   corona: {
     name: 'Corona',
     hp: 180,
+    armor: 6,
     moveSpeed: 2.5,
     attackType: 'ranged',
     attackRange: 6,
@@ -364,10 +402,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Radiation Wave',
     abilityCooldown: 9,
     canDamageStructures: true,
+    modifiers: ['ranged'],
   },
   supernova: {
     name: 'Supernova',
     hp: 60,
+    armor: 2,
     moveSpeed: 3,
     attackType: 'ranged',
     attackRange: 12,
@@ -377,6 +417,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilityName: 'Cosmic Explosion',
     abilityCooldown: 12,
     canDamageStructures: true,
+    modifiers: ['ranged'],
   },
 };
 
