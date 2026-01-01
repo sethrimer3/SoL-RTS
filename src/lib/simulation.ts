@@ -18,6 +18,35 @@ import { distance, normalize, scale, add, subtract, generateId } from './gameUti
 import { checkObstacleCollision } from './maps';
 import { soundManager } from './sound';
 import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash } from './visualEffects';
+import { ObjectPool } from './objectPool';
+
+// Object pool for projectiles - reuse projectiles instead of creating/destroying
+const projectilePool = new ObjectPool<Projectile>(
+  () => ({
+    id: generateId(),
+    position: { x: 0, y: 0 },
+    velocity: { x: 0, y: 0 },
+    target: { x: 0, y: 0 },
+    damage: 0,
+    owner: 0,
+    color: '',
+    lifetime: PROJECTILE_LIFETIME,
+    createdAt: Date.now(),
+    sourceUnit: '',
+  }),
+  (projectile) => {
+    // Reset projectile state when returned to pool
+    projectile.position.x = 0;
+    projectile.position.y = 0;
+    projectile.velocity.x = 0;
+    projectile.velocity.y = 0;
+    projectile.damage = 0;
+    projectile.createdAt = Date.now();
+    delete projectile.targetUnit;
+  },
+  100, // Initial pool size
+  500  // Max pool size
+);
 
 // Unit collision constants
 const UNIT_COLLISION_RADIUS = UNIT_SIZE_METERS / 2; // Minimum distance between unit centers
@@ -207,19 +236,22 @@ function createProjectile(state: GameState, sourceUnit: Unit, target: Vector2, t
   const damage = def.attackDamage * sourceUnit.damageMultiplier;
   const color = state.players[sourceUnit.owner].color;
   
-  return {
-    id: generateId(),
-    position: { ...sourceUnit.position },
-    velocity: scale(direction, PROJECTILE_SPEED),
-    target,
-    damage,
-    owner: sourceUnit.owner,
-    color,
-    lifetime: PROJECTILE_LIFETIME,
-    createdAt: Date.now(),
-    sourceUnit: sourceUnit.id,
-    targetUnit: targetUnit?.id,
-  };
+  // Acquire projectile from pool and initialize it
+  const projectile = projectilePool.acquire();
+  projectile.id = generateId();
+  projectile.position.x = sourceUnit.position.x;
+  projectile.position.y = sourceUnit.position.y;
+  projectile.velocity = scale(direction, PROJECTILE_SPEED);
+  projectile.target = target;
+  projectile.damage = damage;
+  projectile.owner = sourceUnit.owner;
+  projectile.color = color;
+  projectile.lifetime = PROJECTILE_LIFETIME;
+  projectile.createdAt = Date.now();
+  projectile.sourceUnit = sourceUnit.id;
+  projectile.targetUnit = targetUnit?.id;
+  
+  return projectile;
 }
 
 // Create an impact effect
@@ -611,7 +643,9 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
     }
   });
   
-  // Remove collided/expired projectiles
+  // Remove collided/expired projectiles and return them to pool
+  const removedProjectiles = state.projectiles.filter((p) => projectilesToRemove.has(p.id));
+  projectilePool.releaseAll(removedProjectiles);
   state.projectiles = state.projectiles.filter((p) => !projectilesToRemove.has(p.id));
 }
 

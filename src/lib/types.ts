@@ -356,6 +356,9 @@ export interface GameState {
     startTime: number;
   };
   
+  // Hovered unit for showing range indicators
+  hoveredUnit?: Unit | null;
+  
   // Tooltip system
   tooltip?: {
     text: string[];

@@ -8,6 +8,7 @@ import {
   UNIT_DEFINITIONS,
   Projectile,
   LASER_RANGE,
+  ABILITY_MAX_RANGE,
 } from './types';
 import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract } from './gameUtils';
 import { Obstacle } from './maps';
@@ -92,6 +93,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       drawImpactEffects(ctx, state);
       drawDamageNumbers(ctx, state);
       drawSelectionIndicators(ctx, state);
+      drawAbilityRangeIndicators(ctx, state);
       if (selectionRect) {
         drawSelectionRect(ctx, selectionRect, state);
       }
@@ -1381,6 +1383,56 @@ function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState
       ctx.stroke();
     }
 
+    ctx.restore();
+  });
+}
+
+function drawAbilityRangeIndicators(ctx: CanvasRenderingContext2D, state: GameState): void {
+  // Only draw for selected player units
+  const selectedPlayerUnits = Array.from(state.selectedUnits)
+    .map(id => state.units.find(u => u.id === id))
+    .filter(u => u && u.owner === 0);
+
+  if (selectedPlayerUnits.length === 0) return;
+
+  const time = Date.now() / 1000;
+
+  selectedPlayerUnits.forEach(unit => {
+    if (!unit) return;
+
+    const def = UNIT_DEFINITIONS[unit.type];
+    const screenPos = positionToPixels(unit.position);
+    
+    // Draw attack range
+    if (def.attackRange > 0) {
+      const attackRangePixels = metersToPixels(def.attackRange);
+      
+      ctx.save();
+      ctx.strokeStyle = state.players[unit.owner].color;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.2 + Math.sin(time * 2) * 0.1;
+      ctx.setLineDash([4, 4]);
+      ctx.lineDashOffset = time * 10;
+      
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, attackRangePixels, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Draw ability range (max ability range)
+    const abilityRangePixels = metersToPixels(ABILITY_MAX_RANGE);
+    
+    ctx.save();
+    ctx.strokeStyle = COLORS.telegraph;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.15 + Math.sin(time * 3) * 0.05;
+    ctx.setLineDash([6, 6]);
+    ctx.lineDashOffset = -time * 15;
+    
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, abilityRangePixels, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
   });
 }
