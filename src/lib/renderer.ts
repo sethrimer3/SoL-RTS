@@ -10,11 +10,23 @@ import {
   LASER_RANGE,
   ABILITY_MAX_RANGE,
   FACTION_DEFINITIONS,
+  UnitModifier,
 } from './types';
 import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract } from './gameUtils';
 import { Obstacle } from './maps';
 import { MOTION_TRAIL_DURATION, QUEUE_FADE_DURATION } from './simulation';
 import { getFormationName } from './formations';
+
+// Helper function to get modifier icon emoji
+function getModifierIcon(modifier: UnitModifier): string {
+  switch (modifier) {
+    case 'melee': return '⚔';
+    case 'ranged': return '🏹';
+    case 'flying': return '✈';
+    case 'small': return '🐜';
+    case 'healing': return '⚕';
+  }
+}
 
 // FPS Counter constants
 const FPS_GOOD_THRESHOLD = 55;
@@ -1203,13 +1215,37 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
 
     drawUnitHealthBar(ctx, unit, screenPos, color, state.settings.showNumericHP);
 
+    // Draw modifier icons above the unit
+    const unitDef = UNIT_DEFINITIONS[unit.type];
+    if (unitDef.modifiers && unitDef.modifiers.length > 0) {
+      const iconSize = 12;
+      const iconSpacing = 14;
+      const totalWidth = unitDef.modifiers.length * iconSpacing - 2;
+      const startX = screenPos.x - totalWidth / 2;
+      const iconY = screenPos.y - metersToPixels(UNIT_SIZE_METERS / 2) - 30;
+      
+      ctx.save();
+      ctx.font = `${iconSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'black';
+      ctx.shadowBlur = 3;
+      
+      unitDef.modifiers.forEach((modifier, idx) => {
+        const icon = getModifierIcon(modifier);
+        const x = startX + idx * iconSpacing;
+        ctx.fillText(icon, x, iconY);
+      });
+      
+      ctx.restore();
+    }
+
     ctx.fillStyle = COLORS.white;
     ctx.font = '10px Space Mono, monospace';
     ctx.textAlign = 'center';
     ctx.fillText(`${unit.damageMultiplier.toFixed(1)}x`, screenPos.x, screenPos.y + 20);
     
     // Draw ability cooldown indicator with enhanced visuals
-    const unitDef = UNIT_DEFINITIONS[unit.type];
     if (unitDef.abilityName && unitDef.abilityCooldown > 0) {
       const cooldownPercent = unit.abilityCooldown / unitDef.abilityCooldown;
       const radius = metersToPixels(UNIT_SIZE_METERS / 2) + 2;
