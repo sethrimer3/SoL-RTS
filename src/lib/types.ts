@@ -132,7 +132,7 @@ export interface Base {
   laserCooldown: number;
   laserBeam?: { endTime: number; direction: Vector2 }; // Visual effect for laser
   faction: FactionType;
-  shieldActive?: { endTime: number }; // Shield ability for mobile faction
+  shieldActive?: { endTime: number }; // Shield ability for aurum faction
 }
 
 export type UnitType = 'marine' | 'warrior' | 'snaker' | 'tank' | 'scout' | 'artillery' | 'medic' | 'interceptor' | 'berserker' | 'assassin' | 'juggernaut' | 'striker' | 'flare' | 'nova' | 'eclipse' | 'corona' | 'supernova';
