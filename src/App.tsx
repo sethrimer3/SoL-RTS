@@ -28,6 +28,10 @@ import { MultiplayerManager, LobbyData } from './lib/multiplayer';
 import { createRealtimeStore } from './lib/realtimeStore';
 import { PlayerStatistics, MatchStats, createEmptyStatistics, updateStatistics, calculateMMRChange } from './lib/statistics';
 import { soundManager } from './lib/sound';
+import { MultiplayerSync, initializeMultiplayerSync, updateMultiplayerSync } from './lib/multiplayerGame';
+
+// Matchmaking configuration
+const MATCHMAKING_AUTO_START_DELAY_MS = 2000; // Delay before auto-starting matchmaking game
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,6 +40,7 @@ function App() {
   const animationFrameRef = useRef<number | undefined>(undefined);
   const lastTimeRef = useRef<number>(Date.now());
   const multiplayerManagerRef = useRef<MultiplayerManager | null>(null);
+  const multiplayerSyncRef = useRef<MultiplayerSync | null>(null);
   const lobbyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [multiplayerLobbies, setMultiplayerLobbies] = useState<LobbyData[]>([]);
   const [currentLobby, setCurrentLobby] = useState<LobbyData | null>(null);
@@ -212,6 +217,18 @@ function App() {
 
         if (!gameStateRef.current.matchStartAnimation || (gameStateRef.current.matchStartAnimation.phase === 'go')) {
           updateGame(gameStateRef.current, deltaTime);
+          
+          // Update multiplayer synchronization for online games
+          if (gameStateRef.current.vsMode === 'online' && multiplayerManagerRef.current && multiplayerSyncRef.current) {
+            const localPlayerIndex = multiplayerManagerRef.current.getIsHost() ? 0 : 1;
+            updateMultiplayerSync(
+              gameStateRef.current,
+              multiplayerManagerRef.current,
+              multiplayerSyncRef.current,
+              localPlayerIndex
+            ).catch(err => console.warn('Multiplayer sync error:', err));
+          }
+          
           updateAI(gameStateRef.current, deltaTime);
           
           // Update camera and visual effects
@@ -423,6 +440,19 @@ function App() {
     if (!currentLobby || !canvasRef.current) return;
     const isHost = multiplayerManagerRef.current?.getIsHost() || false;
     gameStateRef.current = createOnlineCountdownState(currentLobby, isHost, canvasRef.current);
+    
+    // Set multiplayer manager in game state for input handlers to use
+    gameStateRef.current.multiplayerManager = multiplayerManagerRef.current;
+    
+    // Initialize network status
+    gameStateRef.current.networkStatus = {
+      connected: true,
+      lastSync: Date.now(),
+    };
+    
+    // Initialize multiplayer synchronization
+    multiplayerSyncRef.current = initializeMultiplayerSync();
+    
     setRenderTrigger(prev => prev + 1);
   };
 
@@ -549,10 +579,109 @@ function App() {
     setRenderTrigger(prev => prev + 1);
   };
 
-  const goToMatchmaking = () => {
+  const goToMatchmaking = async () => {
     soundManager.playButtonClick();
-    toast.info('Matchmaking coming soon!');
-    // TODO: Implement matchmaking logic
+    
+    if (!multiplayerManagerRef.current) {
+      toast.error('Multiplayer not available');
+      return;
+    }
+    
+    toast.info('Searching for opponent...');
+    
+    try {
+      // Get available lobbies
+      const lobbies = await multiplayerManagerRef.current.getAvailableLobbies();
+      
+      if (lobbies.length > 0) {
+        // Join the first available lobby
+        const lobby = lobbies[0];
+        const playerName = `Player_${userId.slice(-4)}`;
+        
+        const success = await multiplayerManagerRef.current.joinGame(
+          lobby.gameId,
+          playerName,
+          enemyColor || COLORS.enemyDefault
+        );
+        
+        if (success) {
+          const updatedLobby = await multiplayerManagerRef.current.getLobby(lobby.gameId);
+          setCurrentLobby(updatedLobby);
+          gameStateRef.current.mode = 'multiplayerLobby';
+          toast.success('Opponent found! Waiting for host to start...');
+          
+          // Start checking for game start
+          lobbyCheckIntervalRef.current = setInterval(async () => {
+            const updatedLobby = await multiplayerManagerRef.current?.getLobby(lobby.gameId);
+            if (updatedLobby) {
+              setCurrentLobby(updatedLobby);
+              if (updatedLobby.status === 'playing') {
+                if (lobbyCheckIntervalRef.current) {
+                  clearInterval(lobbyCheckIntervalRef.current);
+                  lobbyCheckIntervalRef.current = null;
+                }
+              }
+            }
+          }, 1000);
+        } else {
+          toast.error('Failed to join game. Trying again...');
+          // Try creating a new game instead
+          await createMatchmakingLobby();
+        }
+      } else {
+        // No lobbies available, create a new one
+        await createMatchmakingLobby();
+      }
+      
+      setRenderTrigger(prev => prev + 1);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Matchmaking failed';
+      toast.error(message);
+    }
+  };
+  
+  const createMatchmakingLobby = async () => {
+    if (!multiplayerManagerRef.current) return;
+    
+    const playerName = `Player_${userId.slice(-4)}`;
+    
+    try {
+      const gameId = await multiplayerManagerRef.current.createGame(
+        playerName,
+        playerColor || COLORS.playerDefault,
+        selectedMap || 'open',
+        enabledUnits || ['marine', 'warrior', 'snaker']
+      );
+      
+      const lobby = await multiplayerManagerRef.current.getLobby(gameId);
+      setCurrentLobby(lobby);
+      gameStateRef.current.mode = 'multiplayerLobby';
+      toast.success('Waiting for opponent...');
+      
+      // Start checking for opponent joining
+      lobbyCheckIntervalRef.current = setInterval(async () => {
+        const updatedLobby = await multiplayerManagerRef.current?.getLobby(gameId);
+        if (updatedLobby) {
+          setCurrentLobby(updatedLobby);
+          if (updatedLobby.guestId) {
+            toast.success('Opponent found! Starting game...');
+            // Auto-start the game after a configured delay
+            setTimeout(async () => {
+              await multiplayerManagerRef.current?.startGame();
+            }, MATCHMAKING_AUTO_START_DELAY_MS);
+          }
+          if (updatedLobby.status === 'playing') {
+            if (lobbyCheckIntervalRef.current) {
+              clearInterval(lobbyCheckIntervalRef.current);
+              lobbyCheckIntervalRef.current = null;
+            }
+          }
+        }
+      }, 1000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create matchmaking lobby';
+      toast.error(message);
+    }
   };
 
   const backToMenu = () => {

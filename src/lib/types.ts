@@ -541,4 +541,14 @@ export interface GameState {
     dragVector: Vector2; // Direction and distance of the drag in world space
     screenStartPos: Vector2; // Screen position where drag started (for display purposes)
   };
+  
+  // Multiplayer manager for online games (typed as any to avoid circular dependency with multiplayer.ts)
+  multiplayerManager?: import('./multiplayer').MultiplayerManager;
+  
+  // Network status for online games
+  networkStatus?: {
+    connected: boolean;
+    lastSync: number;
+    latency?: number;
+  };
 }
