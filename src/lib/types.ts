@@ -66,6 +66,7 @@ export interface Unit {
   position: Vector2;
   hp: number;
   maxHp: number;
+  displayHp?: number; // Smoothly interpolated health for display
   commandQueue: CommandNode[];
   damageMultiplier: number;
   distanceTraveled: number;

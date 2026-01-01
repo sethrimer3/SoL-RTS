@@ -660,6 +660,19 @@ function updateUnits(state: GameState, deltaTime: number): void {
       unit.abilityCooldown = Math.max(0, unit.abilityCooldown - deltaTime);
     }
 
+    // Smoothly interpolate display health towards actual health
+    if (unit.displayHp === undefined) {
+      unit.displayHp = unit.hp;
+    } else {
+      const healthDiff = unit.hp - unit.displayHp;
+      // Fast interpolation for smooth health bar updates (20% per frame)
+      unit.displayHp += healthDiff * 0.2;
+      // Snap to actual health if very close
+      if (Math.abs(healthDiff) < 0.5) {
+        unit.displayHp = unit.hp;
+      }
+    }
+
     updateAbilityEffects(unit, state, deltaTime);
     
     // Update particle physics for all units

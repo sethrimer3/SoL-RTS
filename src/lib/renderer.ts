@@ -706,7 +706,10 @@ function drawUnitHealthBar(ctx: CanvasRenderingContext2D, unit: Unit, screenPos:
   const barHeight = 4;
   const barX = screenPos.x - barWidth / 2;
   const barY = screenPos.y - 18;
-  const hpPercent = unit.hp / unit.maxHp;
+  
+  // Use display HP for smooth interpolation
+  const displayHp = unit.displayHp !== undefined ? unit.displayHp : unit.hp;
+  const hpPercent = displayHp / unit.maxHp;
   
   ctx.save();
   
@@ -746,14 +749,25 @@ function drawUnitHealthBar(ctx: CanvasRenderingContext2D, unit: Unit, screenPos:
 }
 
 function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
+  const time = Date.now() / 1000;
+  
   state.units.forEach((unit) => {
     // Skip units that are off-screen for performance
     if (!isOnScreen(unit.position, ctx.canvas, OFFSCREEN_CULLING_MARGIN)) {
       return;
     }
     
-    const screenPos = positionToPixels(unit.position);
+    let screenPos = positionToPixels(unit.position);
     const color = state.players[unit.owner].color;
+    
+    // Add subtle idle animation for selected units with no commands
+    const isSelected = state.selectedUnits.has(unit.id);
+    const isIdle = unit.commandQueue.length === 0;
+    if (isSelected && isIdle) {
+      // Gentle bobbing motion - 2 pixels up and down
+      const bobOffset = Math.sin(time * 2 + unit.position.x + unit.position.y) * 2;
+      screenPos = { x: screenPos.x, y: screenPos.y + bobOffset };
+    }
     
     // Calculate distance from camera center for LOD
     const cameraCenter = { x: ctx.canvas.width / 2, y: ctx.canvas.height / 2 };
@@ -1377,8 +1391,25 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.textAlign = 'left';
 
   const p1 = state.players[0];
-  ctx.fillStyle = p1.color;
-  ctx.fillText(`Photons: ${Math.floor(p1.photons)} (+${p1.incomeRate}/s)`, 10, 20);
+  
+  // Enhanced photon display with glow and pulse
+  const time = Date.now() / 1000;
+  const pulse = Math.sin(time * 3) * 0.3 + 0.7; // Pulsing between 0.4 and 1.0
+  
+  ctx.save();
+  ctx.shadowColor = COLORS.photon;
+  ctx.shadowBlur = 10 + pulse * 5;
+  ctx.fillStyle = COLORS.photon;
+  ctx.fillText(`⚡ ${Math.floor(p1.photons)}`, 10, 20);
+  ctx.restore();
+  
+  // Income rate with subtle glow
+  ctx.save();
+  ctx.fillStyle = 'oklch(0.75 0.15 95)';
+  ctx.shadowColor = COLORS.photon;
+  ctx.shadowBlur = 5;
+  ctx.fillText(`+${p1.incomeRate}/s`, 100, 20);
+  ctx.restore();
 
   ctx.fillStyle = COLORS.white;
   ctx.fillText(`Time: ${Math.floor(state.elapsedTime)}s`, 10, 40);
