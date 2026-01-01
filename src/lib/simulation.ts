@@ -644,9 +644,20 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
   });
   
   // Remove collided/expired projectiles and return them to pool
-  const removedProjectiles = state.projectiles.filter((p) => projectilesToRemove.has(p.id));
+  const remainingProjectiles: Projectile[] = [];
+  const removedProjectiles: Projectile[] = [];
+  
+  state.projectiles.forEach((p) => {
+    if (projectilesToRemove.has(p.id)) {
+      removedProjectiles.push(p);
+    } else {
+      remainingProjectiles.push(p);
+    }
+  });
+  
+  // Return removed projectiles to pool
   projectilePool.releaseAll(removedProjectiles);
-  state.projectiles = state.projectiles.filter((p) => !projectilesToRemove.has(p.id));
+  state.projectiles = remainingProjectiles;
 }
 
 export function updateGame(state: GameState, deltaTime: number): void {

@@ -194,7 +194,7 @@ export function createLaserParticles(
     state.explosionParticles = [];
   }
 
-  const particleCount = Math.floor(length * 3); // 3 particles per meter
+  const particleCount = Math.min(Math.floor(length * 3), 50); // Limit to 50 particles max
   
   for (let i = 0; i < particleCount; i++) {
     const progress = i / particleCount;

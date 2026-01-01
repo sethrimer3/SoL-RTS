@@ -47,15 +47,16 @@ function getTeamHighlightColor(owner: number): string {
 
 // Helper function to add alpha to color
 function addAlphaToColor(color: string, alpha: number): string {
-  // Simple approach: check if color already has alpha, if not add it
+  // Handle OKLCH colors with optional alpha
   if (color.includes(' / ')) {
     // Replace existing alpha
     return color.replace(/ \/ [0-9.]+\)/, ` / ${alpha})`);
   } else if (color.endsWith(')')) {
-    // Add alpha before closing parenthesis
+    // Add alpha before closing parenthesis for OKLCH/RGB colors
     return color.slice(0, -1) + ` / ${alpha})`;
   }
-  // Fallback: return with global alpha
+  // For other color formats, return as-is and let canvas handle it with globalAlpha
+  console.warn('Unexpected color format for alpha manipulation:', color);
   return color;
 }
 
@@ -1515,7 +1516,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.shadowColor = COLORS.photon;
   ctx.shadowBlur = 10 + pulse * 5;
   ctx.fillStyle = COLORS.photon;
-  ctx.fillText(`⚡ ${Math.floor(p1.photons)}`, 10, 20);
+  ctx.fillText(`Photons: ${Math.floor(p1.photons)}`, 10, 20);
   ctx.restore();
   
   // Income rate with subtle glow
