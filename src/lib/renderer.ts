@@ -408,6 +408,55 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
         ctx.globalAlpha = 0.7;
 
         lastPos = node.position;
+      } else if (node.type === 'patrol') {
+        // Draw patrol path with bidirectional arrow
+        const screenPos = positionToPixels(node.position);
+        const returnScreenPos = positionToPixels(node.returnPosition);
+        
+        // Draw bidirectional dashed path
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.5;
+        ctx.setLineDash([8, 4]);
+        ctx.lineDashOffset = time * 20; // Animated dashes
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        
+        ctx.beginPath();
+        ctx.moveTo(screenPos.x, screenPos.y);
+        ctx.lineTo(returnScreenPos.x, returnScreenPos.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.shadowBlur = 0;
+        
+        // Draw patrol markers at both ends with pulsing
+        const pulse = Math.sin(time * 2.5) * 0.3 + 0.7;
+        ctx.globalAlpha = 0.7 * pulse;
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 12;
+        
+        // Draw diamond shapes for patrol points
+        const drawPatrolMarker = (x: number, y: number) => {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.beginPath();
+          ctx.moveTo(0, -6);
+          ctx.lineTo(6, 0);
+          ctx.lineTo(0, 6);
+          ctx.lineTo(-6, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        };
+        
+        drawPatrolMarker(screenPos.x, screenPos.y);
+        drawPatrolMarker(returnScreenPos.x, returnScreenPos.y);
+        
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.7;
+        
+        lastPos = node.position;
       }
     });
 

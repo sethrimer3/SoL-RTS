@@ -5,6 +5,11 @@
 import { GameState, Vector2, Unit } from './types';
 import { generateId } from './gameUtils';
 
+// Performance limits
+const MAX_EXPLOSION_PARTICLES = 500; // Maximum particles to prevent performance issues
+const MAX_HIT_SPARKS = 200;
+const MAX_CELEBRATION_PARTICLES = 150;
+
 // Spawn effect constants
 const SPAWN_EFFECT_DURATION = 0.8; // seconds
 const SPAWN_EFFECT_PARTICLE_COUNT = 20;
@@ -80,6 +85,13 @@ export function createParticleBurst(
     state.explosionParticles = [];
   }
 
+  // Check particle limit and skip if at max
+  if (state.explosionParticles.length >= MAX_EXPLOSION_PARTICLES) {
+    // Remove oldest particles to make room
+    const toRemove = Math.min(count, state.explosionParticles.length - MAX_EXPLOSION_PARTICLES + count);
+    state.explosionParticles.splice(0, toRemove);
+  }
+
   for (let i = 0; i < count; i++) {
     const angle = (i / count) * Math.PI * 2;
     const velocity = {
@@ -115,6 +127,12 @@ export function createHitSparks(
 ): void {
   if (!state.hitSparks) {
     state.hitSparks = [];
+  }
+
+  // Check particle limit
+  if (state.hitSparks.length >= MAX_HIT_SPARKS) {
+    const toRemove = Math.min(count, state.hitSparks.length - MAX_HIT_SPARKS + count);
+    state.hitSparks.splice(0, toRemove);
   }
 
   for (let i = 0; i < count; i++) {
