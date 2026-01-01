@@ -23,6 +23,24 @@ const FPS_COLOR_GOOD = 'oklch(0.70 0.20 140)';
 const FPS_COLOR_OK = 'oklch(0.85 0.20 95)';
 const FPS_COLOR_BAD = 'oklch(0.62 0.28 25)';
 
+// Helper function to draw a star shape
+function drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, outerRadius: number, innerRadius: number, points: number) {
+  const step = Math.PI / points;
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    const angle = i * step - Math.PI / 2;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  ctx.closePath();
+}
+
 // Minimap constants
 const MINIMAP_SIZE_RATIO = 0.2;
 const MINIMAP_PADDING = 10;
@@ -560,6 +578,9 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
         ctx.beginPath();
         ctx.arc(screenPos.x, screenPos.y, size / 2, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (factionDef.baseShape === 'star') {
+        drawStar(ctx, screenPos.x, screenPos.y, size / 2, size / 4, 5);
+        ctx.stroke();
       } else {
         ctx.strokeRect(screenPos.x - size / 2, screenPos.y - size / 2, size, size);
       }
@@ -569,6 +590,9 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
       if (factionDef.baseShape === 'circle') {
         ctx.beginPath();
         ctx.arc(screenPos.x, screenPos.y, size * 0.65, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (factionDef.baseShape === 'star') {
+        drawStar(ctx, screenPos.x, screenPos.y, size * 0.65, size * 0.33, 5);
         ctx.stroke();
       } else {
         const expanded = size * 1.3;
@@ -584,6 +608,9 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
         ctx.beginPath();
         ctx.arc(screenPos.x, screenPos.y, size / 2, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (factionDef.baseShape === 'star') {
+        drawStar(ctx, screenPos.x, screenPos.y, size / 2, size / 4, 5);
+        ctx.stroke();
       } else {
         ctx.strokeRect(screenPos.x - size / 2, screenPos.y - size / 2, size, size);
       }
@@ -595,6 +622,9 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.beginPath();
       ctx.arc(screenPos.x, screenPos.y, size / 2, 0, Math.PI * 2);
       ctx.fill();
+    } else if (factionDef.baseShape === 'star') {
+      drawStar(ctx, screenPos.x, screenPos.y, size / 2, size / 4, 5);
+      ctx.fill();
     } else {
       ctx.fillRect(screenPos.x - size / 2, screenPos.y - size / 2, size, size);
     }
@@ -602,6 +632,9 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
     if (factionDef.baseShape === 'circle') {
       ctx.beginPath();
       ctx.arc(screenPos.x, screenPos.y, size / 2, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (factionDef.baseShape === 'star') {
+      drawStar(ctx, screenPos.x, screenPos.y, size / 2, size / 4, 5);
       ctx.stroke();
     } else {
       ctx.strokeRect(screenPos.x - size / 2, screenPos.y - size / 2, size, size);

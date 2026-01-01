@@ -124,6 +124,54 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
           <polygon points="16,10 11,9 11,11" fill="white" opacity="0.9" />
         </svg>
       );
+    } else if (unitType === 'flare') {
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="7" fill={color} opacity="0.8" />
+          <polygon points="10,3 11,9 10,10 9,9" fill="white" opacity="0.9" />
+          <polygon points="17,10 11,11 10,10 11,9" fill="white" opacity="0.9" />
+          <polygon points="10,17 9,11 10,10 11,11" fill="white" opacity="0.9" />
+          <polygon points="3,10 9,9 10,10 9,11" fill="white" opacity="0.9" />
+        </svg>
+      );
+    } else if (unitType === 'nova') {
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="8" fill={color} opacity="0.9" />
+          <circle cx="10" cy="10" r="4" fill="white" opacity="0.9" />
+          <circle cx="10" cy="10" r="6" fill="none" stroke="white" strokeWidth="1" opacity="0.5" />
+        </svg>
+      );
+    } else if (unitType === 'eclipse') {
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="7" fill={color} opacity="0.8" />
+          <circle cx="12" cy="8" r="6" fill="black" opacity="0.6" />
+          <circle cx="8" cy="12" r="3" fill="white" opacity="0.4" />
+        </svg>
+      );
+    } else if (unitType === 'corona') {
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="8" fill={color} opacity="0.9" stroke={color} strokeWidth="2" />
+          <circle cx="10" cy="10" r="5" fill="white" opacity="0.8" />
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => {
+            const rad = (angle * Math.PI) / 180;
+            const x1 = 10 + Math.cos(rad) * 6;
+            const y1 = 10 + Math.sin(rad) * 6;
+            const x2 = 10 + Math.cos(rad) * 9;
+            const y2 = 10 + Math.sin(rad) * 9;
+            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="white" strokeWidth="1.5" opacity="0.7" />;
+          })}
+        </svg>
+      );
+    } else if (unitType === 'supernova') {
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="9" fill={color} opacity="0.9" />
+          <polygon points="10,2 11,9 13,7 12,10 18,10 11,11 13,13 10,12 10,18 9,11 7,13 8,10 2,10 9,9 7,7 10,8" fill="white" opacity="0.9" />
+        </svg>
+      );
     }
     
     return null;
@@ -140,8 +188,8 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
           {/* Faction Selection */}
           <div className="space-y-2">
             <p className="text-sm font-medium">Select Faction:</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(['standard', 'mobile'] as FactionType[]).map((faction) => (
+            <div className="grid grid-cols-3 gap-2">
+              {(['radiant', 'aurum', 'solari'] as FactionType[]).map((faction) => (
                 <button
                   key={faction}
                   onClick={() => {
@@ -164,7 +212,7 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
                       }
                     }
                   }}
-                  className={`p-4 border-2 rounded-lg transition-all ${
+                  className={`p-4 border-2 rounded-lg transition-all flex flex-col items-center gap-2 ${
                     playerFaction === faction ? 'ring-4 ring-primary scale-105' : 'hover:scale-105'
                   }`}
                   style={{
@@ -172,10 +220,15 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
                     backgroundColor: playerFaction === faction ? `${playerColor || COLORS.playerDefault}40` : `${playerColor || COLORS.playerDefault}20`,
                   }}
                 >
+                  <img 
+                    src={`/ASSETS/sprites/factions/${faction}/${faction}Logo.png`}
+                    alt={`${FACTION_DEFINITIONS[faction].name} logo`}
+                    className="w-16 h-16 object-contain"
+                  />
                   <div className="text-center">
-                    <div className="text-lg font-bold orbitron">{FACTION_DEFINITIONS[faction].name}</div>
+                    <div className="text-base font-bold orbitron">{FACTION_DEFINITIONS[faction].name}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {FACTION_DEFINITIONS[faction].ability === 'laser' ? 'Giant Laser' : 'Shield Defense'}
+                      {FACTION_DEFINITIONS[faction].ability === 'laser' ? 'Giant Laser' : FACTION_DEFINITIONS[faction].ability === 'shield' ? 'Shield Defense' : 'Energy Pulse'}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {FACTION_DEFINITIONS[faction].availableUnits.length} unit{FACTION_DEFINITIONS[faction].availableUnits.length !== 1 ? 's' : ''}
@@ -194,6 +247,9 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
                   borderColor: playerColor || COLORS.playerDefault,
                   backgroundColor: `${playerColor || COLORS.playerDefault}20`,
                   borderRadius: FACTION_DEFINITIONS[playerFaction].baseShape === 'circle' ? '50%' : '0',
+                  clipPath: FACTION_DEFINITIONS[playerFaction].baseShape === 'star' 
+                    ? 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' 
+                    : undefined,
                 }}
               >
                 <div className="absolute inset-0 flex items-center justify-center">

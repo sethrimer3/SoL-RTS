@@ -87,30 +87,37 @@ export interface Unit {
   targetRotation?: number; // Target rotation angle for smooth interpolation
 }
 
-export type FactionType = 'standard' | 'mobile';
+export type FactionType = 'radiant' | 'aurum' | 'solari';
 
 export interface FactionDefinition {
   name: string;
   baseMoveSpeed: number;
-  baseShape: 'square' | 'circle';
-  ability: 'laser' | 'shield';
+  baseShape: 'square' | 'circle' | 'star';
+  ability: 'laser' | 'shield' | 'pulse';
   availableUnits: UnitType[];
 }
 
 export const FACTION_DEFINITIONS: Record<FactionType, FactionDefinition> = {
-  standard: {
-    name: 'Standard Force',
+  radiant: {
+    name: 'Radiant',
     baseMoveSpeed: 1.5,
     baseShape: 'square',
     ability: 'laser',
     availableUnits: ['marine', 'warrior', 'tank', 'scout', 'artillery', 'medic', 'interceptor'],
   },
-  mobile: {
-    name: 'Mobile Force',
+  aurum: {
+    name: 'Aurum',
     baseMoveSpeed: 3.0,
     baseShape: 'circle',
     ability: 'shield',
     availableUnits: ['snaker', 'berserker', 'assassin', 'juggernaut', 'striker'],
+  },
+  solari: {
+    name: 'Solari',
+    baseMoveSpeed: 2.0,
+    baseShape: 'star',
+    ability: 'pulse',
+    availableUnits: ['flare', 'nova', 'eclipse', 'corona', 'supernova'],
   },
 };
 
@@ -125,10 +132,10 @@ export interface Base {
   laserCooldown: number;
   laserBeam?: { endTime: number; direction: Vector2 }; // Visual effect for laser
   faction: FactionType;
-  shieldActive?: { endTime: number }; // Shield ability for mobile faction
+  shieldActive?: { endTime: number }; // Shield ability for aurum faction
 }
 
-export type UnitType = 'marine' | 'warrior' | 'snaker' | 'tank' | 'scout' | 'artillery' | 'medic' | 'interceptor' | 'berserker' | 'assassin' | 'juggernaut' | 'striker';
+export type UnitType = 'marine' | 'warrior' | 'snaker' | 'tank' | 'scout' | 'artillery' | 'medic' | 'interceptor' | 'berserker' | 'assassin' | 'juggernaut' | 'striker' | 'flare' | 'nova' | 'eclipse' | 'corona' | 'supernova';
 
 export interface UnitDefinition {
   name: string;
@@ -299,6 +306,71 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     cost: 45,
     abilityName: 'Whirlwind',
     abilityCooldown: 8,
+    canDamageStructures: true,
+  },
+  flare: {
+    name: 'Flare',
+    hp: 50,
+    moveSpeed: 5,
+    attackType: 'ranged',
+    attackRange: 7,
+    attackDamage: 7,
+    attackRate: 2.5,
+    cost: 30,
+    abilityName: 'Solar Beam',
+    abilityCooldown: 6,
+    canDamageStructures: true,
+  },
+  nova: {
+    name: 'Nova',
+    hp: 110,
+    moveSpeed: 3.5,
+    attackType: 'melee',
+    attackRange: 1.2,
+    attackDamage: 22,
+    attackRate: 1,
+    cost: 45,
+    abilityName: 'Stellar Burst',
+    abilityCooldown: 7,
+    canDamageStructures: true,
+  },
+  eclipse: {
+    name: 'Eclipse',
+    hp: 80,
+    moveSpeed: 4.5,
+    attackType: 'ranged',
+    attackRange: 9,
+    attackDamage: 5,
+    attackRate: 3,
+    cost: 35,
+    abilityName: 'Shadow Veil',
+    abilityCooldown: 10,
+    canDamageStructures: false,
+  },
+  corona: {
+    name: 'Corona',
+    hp: 180,
+    moveSpeed: 2.5,
+    attackType: 'ranged',
+    attackRange: 6,
+    attackDamage: 10,
+    attackRate: 1,
+    cost: 55,
+    abilityName: 'Radiation Wave',
+    abilityCooldown: 9,
+    canDamageStructures: true,
+  },
+  supernova: {
+    name: 'Supernova',
+    hp: 60,
+    moveSpeed: 3,
+    attackType: 'ranged',
+    attackRange: 12,
+    attackDamage: 15,
+    attackRate: 0.7,
+    cost: 65,
+    abilityName: 'Cosmic Explosion',
+    abilityCooldown: 12,
     canDamageStructures: true,
   },
 };
