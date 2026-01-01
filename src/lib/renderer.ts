@@ -1731,20 +1731,33 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.fillStyle = fpsColor;
     ctx.fillText(`${state.fps} FPS`, ctx.canvas.width - 10, 20);
     
+    // Draw network status for online games
+    if (state.vsMode === 'online' && state.networkStatus) {
+      ctx.font = '12px Space Mono, monospace';
+      const netStatus = state.networkStatus;
+      const statusColor = netStatus.connected ? 'oklch(0.70 0.20 140)' : 'oklch(0.62 0.28 25)';
+      ctx.fillStyle = statusColor;
+      const statusText = netStatus.connected 
+        ? `Online ${netStatus.latency ? `(${netStatus.latency}ms)` : ''}`
+        : 'Disconnected';
+      ctx.fillText(statusText, ctx.canvas.width - 10, 35);
+    }
+    
     // Draw detailed performance stats if enabled
     if (state.performanceProfiling?.enabled) {
+      const yOffset = state.vsMode === 'online' && state.networkStatus ? 15 : 0;
       ctx.font = '12px Space Mono, monospace';
       ctx.fillStyle = COLORS.white;
       const prof = state.performanceProfiling;
-      ctx.fillText(`Frame: ${prof.avgFrameTime.toFixed(2)}ms`, ctx.canvas.width - 10, 40);
-      ctx.fillText(`Update: ${prof.updateTime.toFixed(2)}ms`, ctx.canvas.width - 10, 55);
-      ctx.fillText(`Render: ${prof.renderTime.toFixed(2)}ms`, ctx.canvas.width - 10, 70);
+      ctx.fillText(`Frame: ${prof.avgFrameTime.toFixed(2)}ms`, ctx.canvas.width - 10, 40 + yOffset);
+      ctx.fillText(`Update: ${prof.updateTime.toFixed(2)}ms`, ctx.canvas.width - 10, 55 + yOffset);
+      ctx.fillText(`Render: ${prof.renderTime.toFixed(2)}ms`, ctx.canvas.width - 10, 70 + yOffset);
       
       // Draw frame time graph
       const graphWidth = 120;
       const graphHeight = 30;
       const graphX = ctx.canvas.width - graphWidth - 10;
-      const graphY = 80;
+      const graphY = 80 + yOffset;
       
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.strokeRect(graphX, graphY, graphWidth, graphHeight);

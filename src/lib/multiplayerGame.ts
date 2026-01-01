@@ -188,13 +188,44 @@ export function applyOpponentCommands(
             if (command.baseId && command.direction) {
               const base = state.bases.find(b => b.id === command.baseId && b.owner === opponentIndex);
               if (base && base.laserCooldown === 0) {
-                // Import fireLaser function from input.ts or implement laser logic here
-                // For now, we'll set up the laser beam visual
+                // Set up the laser beam visual
                 base.laserBeam = {
                   endTime: Date.now() + 500,
                   direction: command.direction,
                 };
                 base.laserCooldown = 10; // LASER_COOLDOWN
+                
+                // Apply laser damage (same logic as in input.ts fireLaser)
+                const LASER_RANGE = 20;
+                const LASER_WIDTH = 0.5;
+                const LASER_DAMAGE_UNIT = 200;
+                const LASER_DAMAGE_BASE = 300;
+                
+                state.units.forEach((unit) => {
+                  if (unit.owner === base.owner) return;
+
+                  const toUnit = { x: unit.position.x - base.position.x, y: unit.position.y - base.position.y };
+                  const projectedDist = toUnit.x * command.direction!.x + toUnit.y * command.direction!.y;
+                  const perpDist = Math.abs(toUnit.x * command.direction!.y - toUnit.y * command.direction!.x);
+
+                  if (projectedDist > 0 && projectedDist < LASER_RANGE && perpDist < LASER_WIDTH / 2) {
+                    unit.hp -= LASER_DAMAGE_UNIT;
+                  }
+                });
+
+                state.bases.forEach((targetBase) => {
+                  if (targetBase.owner === base.owner) return;
+
+                  const toBase = { x: targetBase.position.x - base.position.x, y: targetBase.position.y - base.position.y };
+                  const projectedDist = toBase.x * command.direction!.x + toBase.y * command.direction!.y;
+                  const perpDist = Math.abs(toBase.x * command.direction!.y - toBase.y * command.direction!.x);
+
+                  const BASE_SIZE_METERS = 3;
+                  const baseRadius = BASE_SIZE_METERS / 2;
+                  if (projectedDist > 0 && projectedDist < LASER_RANGE && perpDist < LASER_WIDTH / 2 + baseRadius) {
+                    targetBase.hp -= LASER_DAMAGE_BASE;
+                  }
+                });
               }
             }
             break;
@@ -228,6 +259,16 @@ export async function updateMultiplayerSync(
     return;
   }
   
+  // Initialize network status if not present
+  if (!state.networkStatus) {
+    state.networkStatus = {
+      connected: true,
+      lastSync: now,
+    };
+  }
+  
+  const syncStart = now;
+  
   try {
     const newCommands = await manager.getCommands(sync.lastCommandCheck);
     
@@ -242,8 +283,14 @@ export async function updateMultiplayerSync(
     }
     
     sync.lastCommandCheck = now;
+    
+    // Update network status
+    state.networkStatus.connected = true;
+    state.networkStatus.lastSync = now;
+    state.networkStatus.latency = Date.now() - syncStart;
   } catch (error) {
     console.warn('Error fetching opponent commands:', error);
+    state.networkStatus.connected = false;
   }
 }
 

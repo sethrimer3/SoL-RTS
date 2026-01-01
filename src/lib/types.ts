@@ -544,4 +544,11 @@ export interface GameState {
   
   // Multiplayer manager for online games
   multiplayerManager?: any; // MultiplayerManager - using any to avoid circular dependency
+  
+  // Network status for online games
+  networkStatus?: {
+    connected: boolean;
+    lastSync: number;
+    latency?: number;
+  };
 }

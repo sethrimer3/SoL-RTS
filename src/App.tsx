@@ -441,6 +441,12 @@ function App() {
     // Set multiplayer manager in game state for input handlers to use
     gameStateRef.current.multiplayerManager = multiplayerManagerRef.current;
     
+    // Initialize network status
+    gameStateRef.current.networkStatus = {
+      connected: true,
+      lastSync: Date.now(),
+    };
+    
     // Initialize multiplayer synchronization
     multiplayerSyncRef.current = initializeMultiplayerSync();
     
