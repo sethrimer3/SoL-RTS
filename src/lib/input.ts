@@ -18,6 +18,7 @@ import {
 import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels } from './gameUtils';
 import { spawnUnit } from './simulation';
 import { soundManager } from './sound';
+import { applyFormation } from './formations';
 
 interface TouchState {
   startPos: { x: number; y: number };
@@ -449,12 +450,31 @@ function handleAbilityDrag(state: GameState, dragVector: { x: number; y: number 
 }
 
 function addMovementCommand(state: GameState, worldPos: { x: number; y: number }): void {
-  state.units.forEach((unit) => {
-    if (!state.selectedUnits.has(unit.id)) return;
-    if (unit.commandQueue.length >= QUEUE_MAX_LENGTH) return;
-
-    unit.commandQueue.push({ type: 'move', position: worldPos });
-  });
+  const selectedUnitsArray = state.units.filter(unit => state.selectedUnits.has(unit.id));
+  
+  if (selectedUnitsArray.length === 0) return;
+  
+  // Apply formation if enabled
+  if (state.currentFormation !== 'none' && selectedUnitsArray.length > 1) {
+    const formationPositions = applyFormation(
+      selectedUnitsArray,
+      worldPos,
+      state.currentFormation,
+      2.0 // spacing in meters
+    );
+    
+    // Assign formation positions to units
+    selectedUnitsArray.forEach((unit, index) => {
+      if (unit.commandQueue.length >= QUEUE_MAX_LENGTH) return;
+      unit.commandQueue.push({ type: 'move', position: formationPositions[index] });
+    });
+  } else {
+    // No formation or single unit - all move to same point
+    selectedUnitsArray.forEach((unit) => {
+      if (unit.commandQueue.length >= QUEUE_MAX_LENGTH) return;
+      unit.commandQueue.push({ type: 'move', position: worldPos });
+    });
+  }
 }
 
 export function handleMouseDown(e: MouseEvent, state: GameState, canvas: HTMLCanvasElement): void {

@@ -237,6 +237,7 @@ export interface GameState {
   
   selectedUnits: Set<string>;
   controlGroups: Record<number, Set<string>>; // Number keys 1-8 to unit IDs
+  currentFormation: import('./formations').FormationType; // Current formation type for movement commands
   
   elapsedTime: number;
   lastIncomeTime: number;

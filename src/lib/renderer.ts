@@ -1314,6 +1314,19 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.fillStyle = COLORS.white;
   ctx.fillText(`Time: ${Math.floor(state.elapsedTime)}s`, 10, 40);
   
+  // Draw current formation indicator
+  if (state.currentFormation && state.currentFormation !== 'none') {
+    const formationName = require('./formations').getFormationName(state.currentFormation);
+    ctx.fillStyle = COLORS.telegraph;
+    ctx.fillText(`Formation: ${formationName}`, 10, 60);
+  } else if (state.elapsedTime < 15) {
+    // Show hint for first 15 seconds
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '12px Space Grotesk, sans-serif';
+    ctx.fillText('Press F to cycle formations', 10, 60);
+    ctx.font = '14px Space Grotesk, sans-serif';
+  }
+  
   if (state.matchTimeLimit) {
     const timeRemaining = Math.max(0, state.matchTimeLimit - state.elapsedTime);
     const mins = Math.floor(timeRemaining / 60);
