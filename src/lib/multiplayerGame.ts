@@ -266,6 +266,7 @@ export async function updateMultiplayerSync(
   }
   
   const syncStart = now;
+  const wasConnected = state.networkStatus.connected;
   
   try {
     const newCommands = await manager.getCommands(sync.lastCommandCheck);
@@ -282,13 +283,24 @@ export async function updateMultiplayerSync(
     
     sync.lastCommandCheck = now;
     
-    // Update network status
+    // Update network status - successfully connected
+    if (!wasConnected) {
+      // Reconnected after being disconnected
+      console.log('Reconnected to multiplayer backend');
+    }
     state.networkStatus.connected = true;
     state.networkStatus.lastSync = now;
     state.networkStatus.latency = Date.now() - syncStart;
   } catch (error) {
     console.warn('Error fetching opponent commands:', error);
+    
+    // Mark as disconnected
     state.networkStatus.connected = false;
+    
+    // Log disconnection on first occurrence
+    if (wasConnected) {
+      console.error('Lost connection to multiplayer backend');
+    }
   }
 }
 
