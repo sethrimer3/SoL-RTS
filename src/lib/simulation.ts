@@ -11,6 +11,7 @@ import {
   QUEUE_BONUS_PER_NODE,
   BASE_SIZE_METERS,
   UNIT_SIZE_METERS,
+  ABILITY_MAX_RANGE,
   Particle,
   Projectile,
   FACTION_DEFINITIONS,
@@ -19,7 +20,7 @@ import {
 import { distance, normalize, scale, add, subtract, generateId } from './gameUtils';
 import { checkObstacleCollision } from './maps';
 import { soundManager } from './sound';
-import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash } from './visualEffects';
+import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash, createLaserParticles } from './visualEffects';
 import { ObjectPool } from './objectPool';
 
 // Projectile constants - must be declared before object pool
