@@ -776,28 +776,53 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.shadowColor = glowColor;
       ctx.shadowBlur = glowIntensity;
 
+      // Apply rotation if available
+      const rotation = unit.rotation || 0;
+      ctx.save();
+      ctx.translate(screenPos.x, screenPos.y);
+      ctx.rotate(rotation);
+      
+      // Draw unit as circle with directional indicator
       ctx.beginPath();
-      ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Draw directional indicator (small line pointing forward)
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(radius * 0.7, 0);
+      ctx.stroke();
+      
+      ctx.restore();
       
       // Add extra glow for marines
       if (unit.type === 'marine') {
+        ctx.save();
+        ctx.shadowColor = glowColor;
         ctx.shadowBlur = glowIntensity * 1.5;
         ctx.globalAlpha = 0.6;
         ctx.beginPath();
         ctx.arc(screenPos.x, screenPos.y, radius * 1.2, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1.0;
+        ctx.restore();
       }
 
       if (unit.type === 'warrior') {
+        ctx.save();
+        ctx.translate(screenPos.x, screenPos.y);
+        ctx.rotate(rotation);
         ctx.lineWidth = 2;
+        ctx.strokeStyle = color;
         ctx.beginPath();
-        ctx.moveTo(screenPos.x - radius, screenPos.y - radius);
-        ctx.lineTo(screenPos.x + radius, screenPos.y + radius);
-        ctx.moveTo(screenPos.x + radius, screenPos.y - radius);
-        ctx.lineTo(screenPos.x - radius, screenPos.y + radius);
+        ctx.moveTo(-radius, -radius);
+        ctx.lineTo(radius, radius);
+        ctx.moveTo(radius, -radius);
+        ctx.lineTo(-radius, radius);
         ctx.stroke();
+        ctx.restore();
       }
     }
 

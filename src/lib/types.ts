@@ -81,6 +81,8 @@ export interface Unit {
   meleeAttackEffect?: { endTime: number; targetPos: Vector2 }; // Visual effect for melee attacks
   attackCooldown?: number; // Time until next attack
   selectionRing?: { startTime: number }; // Selection ring animation
+  rotation?: number; // Current rotation angle in radians (0 = facing right)
+  targetRotation?: number; // Target rotation angle for smooth interpolation
 }
 
 export interface Base {
