@@ -83,6 +83,7 @@ export interface Unit {
   bombardmentActive?: { endTime: number; targetPos: Vector2; impactTime: number };
   healPulseActive?: { endTime: number; radius: number };
   missileBarrageActive?: { endTime: number; missiles: Array<{ position: Vector2; target: Vector2; damage: number }> };
+  laserBeam?: { endTime: number; direction: Vector2; range: number }; // Unit laser ability effect
   particles?: Particle[]; // Particles attracted to the unit
   meleeAttackEffect?: { endTime: number; targetPos: Vector2 }; // Visual effect for melee attacks
   attackCooldown?: number; // Time until next attack
@@ -458,6 +459,7 @@ export interface GameState {
     enableGlowEffects?: boolean; // Enable/disable glow/shadow effects
     enableParticleEffects?: boolean; // Enable/disable particle effects
     enableMotionBlur?: boolean; // Enable/disable motion blur trails
+    mirrorAbilityCasting?: boolean; // Mirror ability casting along both X and Y axes
   };
 
   surrenderClicks: number;
