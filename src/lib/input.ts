@@ -451,16 +451,8 @@ function handleAbilityDrag(state: GameState, dragVector: { x: number; y: number 
     if (!state.selectedUnits.has(unit.id)) return;
     if (unit.commandQueue.length >= QUEUE_MAX_LENGTH) return;
 
-    // Find the last move command in the queue to use as the starting point
-    let startPosition = unit.position;
-    for (let i = unit.commandQueue.length - 1; i >= 0; i--) {
-      const node = unit.commandQueue[i];
-      if (node.type === 'move' || node.type === 'attack-move') {
-        startPosition = node.position;
-        break;
-      }
-    }
-
+    // Use the command origin helper for consistency
+    const startPosition = getCommandOrigin(unit);
     const abilityPos = add(startPosition, clampedVector);
 
     const pathToAbility: CommandNode = { type: 'move', position: abilityPos };
@@ -488,6 +480,20 @@ function getCommandOrigin(unit: Unit): Vector2 {
   return unit.position;
 }
 
+// Helper function to safely normalize a vector, handling zero-length vectors
+function safeNormalize(vector: Vector2): Vector2 {
+  const len = distance({ x: 0, y: 0 }, vector);
+  return len > 0 ? normalize(vector) : { x: 0, y: 0 };
+}
+
+// Helper function to clamp a vector to max range
+function clampVectorToRange(vector: Vector2, maxRange: number): Vector2 {
+  const len = distance({ x: 0, y: 0 }, vector);
+  const clampedLen = Math.min(len, maxRange);
+  const direction = safeNormalize(vector);
+  return scale(direction, clampedLen);
+}
+
 // Helper function to update the ability cast preview during drag
 function updateAbilityCastPreview(state: GameState, screenDx: number, screenDy: number, screenStartPos: { x: number; y: number }): void {
   // Get the first selected unit to determine the command origin
@@ -508,10 +514,7 @@ function updateAbilityCastPreview(state: GameState, screenDx: number, screenDy: 
   };
   
   // Clamp to max range
-  const dragLen = distance({ x: 0, y: 0 }, dragVectorWorld);
-  const clampedLen = Math.min(dragLen, ABILITY_MAX_RANGE);
-  const direction = dragLen > 0 ? normalize(dragVectorWorld) : { x: 0, y: 0 };
-  const clampedVector = scale(direction, clampedLen);
+  const clampedVector = clampVectorToRange(dragVectorWorld, ABILITY_MAX_RANGE);
   
   state.abilityCastPreview = {
     commandOrigin,
@@ -522,10 +525,7 @@ function updateAbilityCastPreview(state: GameState, screenDx: number, screenDy: 
 
 // Helper function to execute ability drag from vector-based input
 function handleVectorBasedAbilityDrag(state: GameState, dragVector: { x: number; y: number }): void {
-  const dragLen = distance({ x: 0, y: 0 }, dragVector);
-  const clampedLen = Math.min(dragLen, ABILITY_MAX_RANGE);
-  const direction = dragLen > 0 ? normalize(dragVector) : { x: 0, y: 0 };
-  const clampedVector = scale(direction, clampedLen);
+  const clampedVector = clampVectorToRange(dragVector, ABILITY_MAX_RANGE);
 
   state.units.forEach((unit) => {
     if (!state.selectedUnits.has(unit.id)) return;
