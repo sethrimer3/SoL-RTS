@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Label } from './components/ui/label';
 import { Switch } from './components/ui/switch';
 import { Slider } from './components/ui/slider';
-import { GameController, Robot, ListChecks, GearSix, ArrowLeft, Flag, MapPin, WifiHigh, ChartBar, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
+import { GameController, Robot, ListChecks, GearSix, ArrowLeft, Flag, MapPin, WifiHigh, ChartBar, SpeakerHigh, SpeakerSlash, Info } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { UnitSelectionScreen } from './components/UnitSelectionScreen';
 import { MapSelectionScreen } from './components/MapSelectionScreen';
@@ -23,6 +23,7 @@ import { LevelSelectionScreen } from './components/LevelSelectionScreen';
 import { OnlineModeScreen } from './components/OnlineModeScreen';
 import { MultiplayerLobbyScreen } from './components/MultiplayerLobbyScreen';
 import { StatisticsScreen } from './components/StatisticsScreen';
+import { ModifierHelpScreen } from './components/ModifierHelpScreen';
 import { getMapById, getValidBasePositions, createBoundaryObstacles } from './lib/maps';
 import { MultiplayerManager, LobbyData } from './lib/multiplayer';
 import { createRealtimeStore } from './lib/realtimeStore';
@@ -702,6 +703,12 @@ function App() {
     setRenderTrigger(prev => prev + 1);
   };
 
+  const goToModifierHelp = () => {
+    soundManager.playButtonClick();
+    gameStateRef.current.mode = 'modifierHelp';
+    setRenderTrigger(prev => prev + 1);
+  };
+
   const handleMapSelect = (mapId: string) => {
     setSelectedMap(mapId);
     toast.success(`Map changed to ${getMapById(mapId)?.name || mapId}`);
@@ -1054,6 +1061,15 @@ function App() {
               <ChartBar className="mr-2" size={24} />
               Statistics
             </Button>
+
+            <Button
+              onClick={goToModifierHelp}
+              className="h-14 text-lg orbitron uppercase tracking-wider transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/30"
+              variant="outline"
+            >
+              <Info className="mr-2" size={24} />
+              Unit Guide
+            </Button>
           </div>
         </div>
       )}
@@ -1334,6 +1350,12 @@ function App() {
         />
       )}
 
+      {gameState.mode === 'modifierHelp' && (
+        <ModifierHelpScreen
+          onBack={backToMenu}
+        />
+      )}
+
       {gameState.mode === 'victory' && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-500">
           <Card className="w-96 max-w-full animate-in zoom-in-95 slide-in-from-bottom-4 duration-700">
@@ -1453,6 +1475,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
         position: basePositions.player,
         hp: 1000,
         maxHp: 1000,
+        armor: 15,
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
@@ -1464,6 +1487,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
         position: basePositions.enemy,
         hp: 1000,
         maxHp: 1000,
+        armor: 15,
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
@@ -1529,6 +1553,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
         position: basePositions.player,
         hp: 1000,
         maxHp: 1000,
+        armor: 15,
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
@@ -1540,6 +1565,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
         position: basePositions.enemy,
         hp: 1000,
         maxHp: 1000,
+        armor: 15,
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
@@ -1595,6 +1621,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
         position: basePositions.player,
         hp: 1000,
         maxHp: 1000,
+        armor: 15,
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
@@ -1606,6 +1633,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
         position: basePositions.enemy,
         hp: 1000,
         maxHp: 1000,
+        armor: 15,
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
@@ -1675,6 +1703,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
         position: basePositions.player,
         hp: 1000,
         maxHp: 1000,
+        armor: 15,
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
@@ -1686,6 +1715,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
         position: basePositions.enemy,
         hp: 1000,
         maxHp: 1000,
+        armor: 15,
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,

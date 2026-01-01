@@ -14,6 +14,7 @@ import {
   Particle,
   Projectile,
   FACTION_DEFINITIONS,
+  UnitModifier,
 } from './types';
 import { distance, normalize, scale, add, subtract, generateId } from './gameUtils';
 import { checkObstacleCollision } from './maps';
@@ -26,6 +27,20 @@ const PROJECTILE_SPEED = 15; // meters per second
 const PROJECTILE_LIFETIME = 2.0; // seconds before projectile disappears
 const MELEE_EFFECT_DURATION = 0.2; // seconds for melee attack visual
 const LASER_BEAM_DURATION = 0.5; // seconds for laser beam visual
+
+// Helper function to calculate damage with armor
+// Ranged attacks are reduced by armor, melee attacks ignore armor
+function calculateDamageWithArmor(baseDamage: number, armor: number, isMelee: boolean, targetModifiers: UnitModifier[] = []): number {
+  if (isMelee) {
+    // Melee attacks ignore armor
+    return baseDamage;
+  } else {
+    // Ranged attacks are reduced by armor
+    // Armor reduces damage by a percentage: reduction = armor / (armor + 100)
+    const armorReduction = armor / (armor + 100);
+    return baseDamage * (1 - armorReduction);
+  }
+}
 
 // Object pool for projectiles - reuse projectiles instead of creating/destroying
 const projectilePool = new ObjectPool<Projectile>(
@@ -726,12 +741,14 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
         if (projectile.targetUnit) {
           const target = state.units.find((u) => u.id === projectile.targetUnit);
           if (target && target.hp > 0) {
-            target.hp -= projectile.damage;
-            createDamageNumber(state, projectile.position, projectile.damage, projectile.color);
+            const def = UNIT_DEFINITIONS[target.type];
+            const finalDamage = calculateDamageWithArmor(projectile.damage, target.armor, false, def.modifiers);
+            target.hp -= finalDamage;
+            createDamageNumber(state, projectile.position, finalDamage, projectile.color);
             createHitSparks(state, projectile.position, projectile.color, 6);
             
             if (state.matchStats && projectile.owner === 0) {
-              state.matchStats.damageDealtByPlayer += projectile.damage;
+              state.matchStats.damageDealtByPlayer += finalDamage;
             }
           }
         } else {
@@ -741,12 +758,14 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
           
           for (const enemy of enemies) {
             if (distance(enemy.position, projectile.position) < UNIT_SIZE_METERS / 2) {
-              enemy.hp -= projectile.damage;
-              createDamageNumber(state, projectile.position, projectile.damage, projectile.color);
+              const def = UNIT_DEFINITIONS[enemy.type];
+              const finalDamage = calculateDamageWithArmor(projectile.damage, enemy.armor, false, def.modifiers);
+              enemy.hp -= finalDamage;
+              createDamageNumber(state, projectile.position, finalDamage, projectile.color);
               createHitSparks(state, projectile.position, projectile.color, 6);
               
               if (state.matchStats && projectile.owner === 0) {
-                state.matchStats.damageDealtByPlayer += projectile.damage;
+                state.matchStats.damageDealtByPlayer += finalDamage;
               }
               hitEnemy = true;
               break; // Only hit one unit
@@ -760,18 +779,19 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
               if (distance(base.position, projectile.position) < BASE_SIZE_METERS / 2) {
                 // Check if base has active shield (mobile faction)
                 if (!base.shieldActive || Date.now() >= base.shieldActive.endTime) {
-                  base.hp -= projectile.damage;
+                  const finalDamage = calculateDamageWithArmor(projectile.damage, base.armor, false);
+                  base.hp -= finalDamage;
                   createHitSparks(state, projectile.position, projectile.color, 8);
                   
                   if (state.matchStats) {
                     if (base.owner === 0) {
-                      state.matchStats.damageToPlayerBase += projectile.damage;
+                      state.matchStats.damageToPlayerBase += finalDamage;
                     } else {
-                      state.matchStats.damageToEnemyBase += projectile.damage;
+                      state.matchStats.damageToEnemyBase += finalDamage;
                     }
                     
                     if (projectile.owner === 0) {
-                      state.matchStats.damageDealtByPlayer += projectile.damage;
+                      state.matchStats.damageDealtByPlayer += finalDamage;
                     }
                   }
                 } else {
@@ -970,6 +990,12 @@ function updateUnits(state: GameState, deltaTime: number): void {
       
       state.units.forEach((enemy) => {
         if (enemy.owner !== unit.owner && enemy.hp > 0) {
+          const enemyDef = UNIT_DEFINITIONS[enemy.type];
+          // Flying units can only be hit by ability attacks, not normal attacks
+          if (enemyDef.modifiers.includes('flying')) {
+            return; // Skip flying units for normal attacks
+          }
+          
           const dist = distance(unit.position, enemy.position);
           if (dist <= def.attackRange && dist < minDist) {
             targetEnemy = enemy;
@@ -1133,11 +1159,20 @@ function updateAbilityEffects(unit: Unit, state: GameState, deltaTime: number): 
       const enemies = state.units.filter((u) => u.owner !== unit.owner);
       enemies.forEach((enemy) => {
         if (distance(enemy.position, unit.bombardmentActive!.targetPos) <= 3) {
-          const damage = 40 * unit.damageMultiplier * deltaTime;
-          enemy.hp -= damage;
+          let damage = 40 * unit.damageMultiplier * deltaTime;
+          const def = UNIT_DEFINITIONS[enemy.type];
+          
+          // Small units take double damage from splash attacks
+          if (def.modifiers.includes('small')) {
+            damage *= 2;
+          }
+          
+          // Bombardment is a ranged attack, so it respects armor
+          const finalDamage = calculateDamageWithArmor(damage, enemy.armor, false, def.modifiers);
+          enemy.hp -= finalDamage;
           
           if (state.matchStats && unit.owner === 0) {
-            state.matchStats.damageDealtByPlayer += damage;
+            state.matchStats.damageDealtByPlayer += finalDamage;
           }
         }
       });
@@ -1148,10 +1183,12 @@ function updateAbilityEffects(unit: Unit, state: GameState, deltaTime: number): 
           // Check if base has active shield (mobile faction)
           if (!base.shieldActive || Date.now() >= base.shieldActive.endTime) {
             const damage = 80 * unit.damageMultiplier * deltaTime;
-            base.hp -= damage;
+            // Bombardment is a ranged attack, so it respects armor
+            const finalDamage = calculateDamageWithArmor(damage, base.armor, false);
+            base.hp -= finalDamage;
             
             if (state.matchStats && unit.owner === 0) {
-              state.matchStats.damageDealtByPlayer += damage;
+              state.matchStats.damageDealtByPlayer += finalDamage;
             }
           }
         }
@@ -1175,10 +1212,12 @@ function updateAbilityEffects(unit: Unit, state: GameState, deltaTime: number): 
         const enemies = state.units.filter((u) => u.owner !== unit.owner);
         const target = enemies.find((e) => distance(e.position, missile.target) < 0.5);
         if (target) {
-          target.hp -= missile.damage;
+          const def = UNIT_DEFINITIONS[target.type];
+          const finalDamage = calculateDamageWithArmor(missile.damage, target.armor, false, def.modifiers);
+          target.hp -= finalDamage;
           
           if (state.matchStats && unit.owner === 0) {
-            state.matchStats.damageDealtByPlayer += missile.damage;
+            state.matchStats.damageDealtByPlayer += finalDamage;
           }
         }
       });
@@ -1478,7 +1517,17 @@ function updateCombat(state: GameState, deltaTime: number): void {
     }
 
     // Find target
-    const enemies = state.units.filter((u) => u.owner !== unit.owner && !u.cloaked);
+    const enemies = state.units.filter((u) => {
+      if (u.owner === unit.owner || u.cloaked) return false;
+      
+      const enemyDef = UNIT_DEFINITIONS[u.type];
+      // Flying units can only be hit by ability attacks, not normal attacks
+      if (enemyDef.modifiers.includes('flying')) {
+        return false;
+      }
+      
+      return true;
+    });
     const enemyBases = state.bases.filter((b) => b.owner !== unit.owner);
 
     let target: Unit | Base | null = null;
@@ -1739,6 +1788,7 @@ export function spawnUnit(state: GameState, owner: number, type: UnitType, spawn
     position: spawnPos,
     hp: def.hp,
     maxHp: def.hp,
+    armor: def.armor,
     commandQueue: [{ type: 'move', position: rallyPos }],
     damageMultiplier: 1.0,
     distanceTraveled: 0,
