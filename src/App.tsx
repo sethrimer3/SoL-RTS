@@ -59,8 +59,8 @@ function App() {
   const [showMinimap, setShowMinimap] = useKV<boolean>('show-minimap', true);
   const [showPerformance, setShowPerformance] = useKV<boolean>('show-performance', false);
   const [enableCameraControls, setEnableCameraControls] = useKV<boolean>('enable-camera-controls', true);
-  const [playerFaction, setPlayerFaction] = useKV<FactionType>('player-faction', 'standard');
-  const [enemyFaction, setEnemyFaction] = useKV<FactionType>('enemy-faction', 'standard');
+  const [playerFaction, setPlayerFaction] = useKV<FactionType>('player-faction', 'radiant');
+  const [enemyFaction, setEnemyFaction] = useKV<FactionType>('enemy-faction', 'radiant');
 
   const gameState = gameStateRef.current;
   const lastVictoryStateRef = useRef<boolean>(false);
@@ -112,8 +112,8 @@ function App() {
       unitSlots: (unitSlots || { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' }) as Record<'left' | 'up' | 'down' | 'right', UnitType>,
       selectedMap: selectedMap || 'open',
       showNumericHP: showNumericHP ?? true,
-      playerFaction: playerFaction || 'standard',
-      enemyFaction: enemyFaction || 'standard',
+      playerFaction: playerFaction || 'radiant',
+      enemyFaction: enemyFaction || 'radiant',
     };
     gameStateRef.current.showMinimap = showMinimap ?? true;
     gameStateRef.current.players = gameStateRef.current.players.map((p, i) => ({
@@ -973,11 +973,16 @@ function App() {
             Build 1
           </div>
           <div className="flex flex-col gap-4 w-80 max-w-[90vw]">
-            <h1 className="orbitron text-4xl font-bold text-center text-primary mb-4 tracking-wider uppercase animate-in fade-in zoom-in-95 duration-700 neon-glow" style={{
-              textShadow: '0 0 20px currentColor'
-            }}>
-              Speed of Light RTS
-            </h1>
+            <div className="flex justify-center mb-4 animate-in fade-in zoom-in-95 duration-700">
+              <img 
+                src="/ASSETS/sprites/menus/mainMenuTitle.png" 
+                alt="Speed of Light RTS"
+                className="w-full max-w-md neon-glow"
+                style={{
+                  filter: 'drop-shadow(0 0 20px currentColor)'
+                }}
+              />
+            </div>
 
             <Button
               onClick={goToLevelSelection}
@@ -1233,7 +1238,7 @@ function App() {
           onSlotChange={handleSlotChange}
           onBack={backToMenu}
           playerColor={playerColor || COLORS.playerDefault}
-          playerFaction={playerFaction || 'standard'}
+          playerFaction={playerFaction || 'radiant'}
           onFactionChange={setPlayerFaction}
         />
       )}
@@ -1362,8 +1367,8 @@ function createInitialState(): GameState {
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: 'open',
       showNumericHP: true,
-      playerFaction: 'standard',
-      enemyFaction: 'standard',
+      playerFaction: 'radiant',
+      enemyFaction: 'radiant',
     },
     surrenderClicks: 0,
     lastSurrenderClickTime: 0,
@@ -1405,7 +1410,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
-        faction: settings.playerFaction || 'standard',
+        faction: settings.playerFaction || 'radiant',
       },
       {
         id: generateId(),
@@ -1416,7 +1421,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
-        faction: settings.enemyFaction || 'standard',
+        faction: settings.enemyFaction || 'radiant',
       },
     ],
     players: [
@@ -1481,7 +1486,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
-        faction: settings.playerFaction || 'standard',
+        faction: settings.playerFaction || 'radiant',
       },
       {
         id: generateId(),
@@ -1492,7 +1497,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
-        faction: settings.enemyFaction || 'standard',
+        faction: settings.enemyFaction || 'radiant',
       },
     ],
     players: [
@@ -1547,7 +1552,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
-        faction: 'standard',
+        faction: 'radiant',
       },
       {
         id: generateId(),
@@ -1558,7 +1563,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
-        faction: 'standard',
+        faction: 'radiant',
       },
     ],
     players: [
@@ -1579,8 +1584,8 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: lobby.mapId,
       showNumericHP: true,
-      playerFaction: 'standard',
-      enemyFaction: 'standard',
+      playerFaction: 'radiant',
+      enemyFaction: 'radiant',
     },
     surrenderClicks: 0,
     lastSurrenderClickTime: 0,
@@ -1627,7 +1632,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
-        faction: 'standard',
+        faction: 'radiant',
       },
       {
         id: generateId(),
@@ -1638,7 +1643,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
         movementTarget: null,
         isSelected: false,
         laserCooldown: 0,
-        faction: 'standard',
+        faction: 'radiant',
       },
     ],
     players: [
@@ -1659,8 +1664,8 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: lobby.mapId,
       showNumericHP: true,
-      playerFaction: 'standard',
-      enemyFaction: 'standard',
+      playerFaction: 'radiant',
+      enemyFaction: 'radiant',
     },
     surrenderClicks: 0,
     lastSurrenderClickTime: 0,
