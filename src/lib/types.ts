@@ -11,6 +11,12 @@ export const LASER_DAMAGE_UNIT = 200;
 export const LASER_DAMAGE_BASE = 300;
 export const LASER_COOLDOWN = 10;
 
+// Unit ability laser constants
+export const ABILITY_LASER_DAMAGE = 10;
+export const ABILITY_LASER_WIDTH = 0.5;
+export const ABILITY_LASER_DURATION = 1000; // milliseconds
+export const ABILITY_LASER_BASE_DAMAGE_MULTIPLIER = 0.5;
+
 export const PROMOTION_DISTANCE_THRESHOLD = 10;
 export const PROMOTION_MULTIPLIER = 1.1;
 export const QUEUE_BONUS_PER_NODE = 0.1;
@@ -83,6 +89,7 @@ export interface Unit {
   bombardmentActive?: { endTime: number; targetPos: Vector2; impactTime: number };
   healPulseActive?: { endTime: number; radius: number };
   missileBarrageActive?: { endTime: number; missiles: Array<{ position: Vector2; target: Vector2; damage: number }> };
+  laserBeam?: { endTime: number; direction: Vector2; range: number }; // Unit laser ability effect
   particles?: Particle[]; // Particles attracted to the unit
   meleeAttackEffect?: { endTime: number; targetPos: Vector2 }; // Visual effect for melee attacks
   attackCooldown?: number; // Time until next attack
@@ -458,6 +465,7 @@ export interface GameState {
     enableGlowEffects?: boolean; // Enable/disable glow/shadow effects
     enableParticleEffects?: boolean; // Enable/disable particle effects
     enableMotionBlur?: boolean; // Enable/disable motion blur trails
+    mirrorAbilityCasting?: boolean; // Mirror ability casting along both X and Y axes
   };
 
   surrenderClicks: number;

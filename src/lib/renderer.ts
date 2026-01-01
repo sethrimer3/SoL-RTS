@@ -9,6 +9,7 @@ import {
   Projectile,
   LASER_RANGE,
   ABILITY_MAX_RANGE,
+  ABILITY_LASER_DURATION,
   FACTION_DEFINITIONS,
   UnitModifier,
 } from './types';
@@ -1207,6 +1208,10 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
       drawBombardment(ctx, unit, color, state);
     }
     
+    if (unit.laserBeam && Date.now() < unit.laserBeam.endTime) {
+      drawUnitLaserBeam(ctx, unit, color);
+    }
+    
     if (unit.meleeAttackEffect) {
       drawMeleeAttack(ctx, unit, screenPos, color);
     }
@@ -1652,6 +1657,45 @@ function drawMeleeAttack(ctx: CanvasRenderingContext2D, unit: Unit, unitScreenPo
   ctx.beginPath();
   ctx.arc(targetScreenPos.x, targetScreenPos.y, burstRadius, 0, Math.PI * 2);
   ctx.fill();
+  
+  ctx.restore();
+}
+
+function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: string): void {
+  if (!unit.laserBeam) return;
+  
+  const direction = unit.laserBeam.direction;
+  const range = unit.laserBeam.range;
+  const unitScreen = positionToPixels(unit.position);
+  const endPos = add(unit.position, scale(direction, range));
+  const endScreen = positionToPixels(endPos);
+  
+  const timeLeft = unit.laserBeam.endTime - Date.now();
+  const fadeProgress = 1 - Math.min(1, timeLeft / ABILITY_LASER_DURATION);
+  
+  ctx.save();
+  
+  // Draw outer glow
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 8;
+  ctx.globalAlpha = (1 - fadeProgress) * 0.3;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 20;
+  
+  ctx.beginPath();
+  ctx.moveTo(unitScreen.x, unitScreen.y);
+  ctx.lineTo(endScreen.x, endScreen.y);
+  ctx.stroke();
+  
+  // Draw core beam
+  ctx.lineWidth = 3;
+  ctx.globalAlpha = (1 - fadeProgress) * 0.9;
+  ctx.shadowBlur = 10;
+  
+  ctx.beginPath();
+  ctx.moveTo(unitScreen.x, unitScreen.y);
+  ctx.lineTo(endScreen.x, endScreen.y);
+  ctx.stroke();
   
   ctx.restore();
 }

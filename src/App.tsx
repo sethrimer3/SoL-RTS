@@ -65,6 +65,7 @@ function App() {
   const [enableGlowEffects, setEnableGlowEffects] = useKV<boolean>('enable-glow-effects', true);
   const [enableParticleEffects, setEnableParticleEffects] = useKV<boolean>('enable-particle-effects', true);
   const [enableMotionBlur, setEnableMotionBlur] = useKV<boolean>('enable-motion-blur', true);
+  const [mirrorAbilityCasting, setMirrorAbilityCasting] = useKV<boolean>('mirror-ability-casting', false);
 
   const gameState = gameStateRef.current;
   const lastVictoryStateRef = useRef<boolean>(false);
@@ -123,13 +124,14 @@ function App() {
       enableGlowEffects: enableGlowEffects ?? true,
       enableParticleEffects: enableParticleEffects ?? true,
       enableMotionBlur: enableMotionBlur ?? true,
+      mirrorAbilityCasting: mirrorAbilityCasting ?? false,
     };
     gameStateRef.current.showMinimap = showMinimap ?? true;
     gameStateRef.current.players = gameStateRef.current.players.map((p, i) => ({
       ...p,
       color: i === 0 ? (playerColor || COLORS.playerDefault) : (enemyColor || COLORS.enemyDefault),
     }));
-  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP, showMinimap, playerFaction, enemyFaction]);
+  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP, showMinimap, playerFaction, enemyFaction, enableGlowEffects, enableParticleEffects, enableMotionBlur, mirrorAbilityCasting]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -1271,6 +1273,22 @@ function App() {
                   checked={enableMotionBlur ?? true}
                   onCheckedChange={(checked) => {
                     setEnableMotionBlur(checked);
+                    soundManager.playButtonClick();
+                  }}
+                />
+              </div>
+
+              <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                <p><strong>Controls:</strong></p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="mirror-ability-toggle">Mirror Ability Casting</Label>
+                <Switch
+                  id="mirror-ability-toggle"
+                  checked={mirrorAbilityCasting ?? false}
+                  onCheckedChange={(checked) => {
+                    setMirrorAbilityCasting(checked);
                     soundManager.playButtonClick();
                   }}
                 />

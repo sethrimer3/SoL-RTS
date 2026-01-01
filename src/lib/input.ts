@@ -204,10 +204,18 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
     } else if (touchState.isDragging && state.selectedUnits.size > 0 && !touchState.touchedBase && !touchState.touchedMovementDot) {
       // Use vector-based ability drag: convert screen drag to world vector
       const dragVectorPixels = { x: dx, y: dy };
-      const dragVectorWorld = {
+      let dragVectorWorld = {
         x: dragVectorPixels.x / PIXELS_PER_METER,
-        y: -dragVectorPixels.y / PIXELS_PER_METER // Invert Y because screen Y goes down
+        y: dragVectorPixels.y / PIXELS_PER_METER
       };
+      
+      // Apply mirroring if the setting is enabled (mirror both X and Y)
+      if (state.settings.mirrorAbilityCasting) {
+        dragVectorWorld = {
+          x: -dragVectorWorld.x,
+          y: -dragVectorWorld.y
+        };
+      }
 
       if (distance({ x: 0, y: 0 }, dragVectorWorld) > 0.5) {
         handleVectorBasedAbilityDrag(state, dragVectorWorld);
@@ -547,12 +555,19 @@ function updateAbilityCastPreview(state: GameState, screenDx: number, screenDy: 
   const commandOrigin = getCommandOrigin(selectedUnit);
   
   // Convert screen drag distance to world space vector
-  // Note: We use the drag delta in pixels directly and convert to meters
   const dragVectorPixels = { x: screenDx, y: screenDy };
-  const dragVectorWorld = {
+  let dragVectorWorld = {
     x: dragVectorPixels.x / PIXELS_PER_METER,
-    y: -dragVectorPixels.y / PIXELS_PER_METER // Invert Y because screen Y goes down
+    y: dragVectorPixels.y / PIXELS_PER_METER
   };
+  
+  // Apply mirroring if the setting is enabled (mirror both X and Y)
+  if (state.settings.mirrorAbilityCasting) {
+    dragVectorWorld = {
+      x: -dragVectorWorld.x,
+      y: -dragVectorWorld.y
+    };
+  }
   
   // Clamp to max range
   const clampedVector = clampVectorToRange(dragVectorWorld, ABILITY_MAX_RANGE);
@@ -809,10 +824,18 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
   } else if (mouseState.isDragging && state.selectedUnits.size > 0 && !mouseState.touchedBase && !mouseState.touchedMovementDot) {
     // Use vector-based ability drag: convert screen drag to world vector
     const dragVectorPixels = { x: dx, y: dy };
-    const dragVectorWorld = {
+    let dragVectorWorld = {
       x: dragVectorPixels.x / PIXELS_PER_METER,
-      y: -dragVectorPixels.y / PIXELS_PER_METER // Invert Y because screen Y goes down
+      y: dragVectorPixels.y / PIXELS_PER_METER
     };
+    
+    // Apply mirroring if the setting is enabled (mirror both X and Y)
+    if (state.settings.mirrorAbilityCasting) {
+      dragVectorWorld = {
+        x: -dragVectorWorld.x,
+        y: -dragVectorWorld.y
+      };
+    }
 
     if (distance({ x: 0, y: 0 }, dragVectorWorld) > 0.5) {
       handleVectorBasedAbilityDrag(state, dragVectorWorld);

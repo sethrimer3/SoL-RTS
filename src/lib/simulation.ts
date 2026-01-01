@@ -11,6 +11,11 @@ import {
   QUEUE_BONUS_PER_NODE,
   BASE_SIZE_METERS,
   UNIT_SIZE_METERS,
+  ABILITY_MAX_RANGE,
+  ABILITY_LASER_DAMAGE,
+  ABILITY_LASER_WIDTH,
+  ABILITY_LASER_DURATION,
+  ABILITY_LASER_BASE_DAMAGE_MULTIPLIER,
   Particle,
   Projectile,
   FACTION_DEFINITIONS,
@@ -19,7 +24,7 @@ import {
 import { distance, normalize, scale, add, subtract, generateId } from './gameUtils';
 import { checkObstacleCollision } from './maps';
 import { soundManager } from './sound';
-import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash } from './visualEffects';
+import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash, createLaserParticles } from './visualEffects';
 import { ObjectPool } from './objectPool';
 
 // Projectile constants - must be declared before object pool
@@ -1373,14 +1378,17 @@ function executeAbility(state: GameState, unit: Unit, node: CommandNode): void {
 
   soundManager.playAbility();
 
+  // Execute generic laser ability for all units
+  executeGenericLaser(state, unit, node.direction);
+  unit.abilityCooldown = def.abilityCooldown;
+  
+  // Keep existing specific abilities as additional effects
   if (unit.type === 'marine') {
     createAbilityEffect(state, unit, node.position, 'burst-fire');
     executeBurstFire(state, unit, node.direction);
-    unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'warrior') {
     createAbilityEffect(state, unit, node.position, 'execute-dash');
     executeExecuteDash(state, unit, node.position);
-    unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'snaker') {
     createAbilityEffect(state, unit, node.position, 'line-jump');
     unit.lineJumpTelegraph = {
@@ -1388,28 +1396,81 @@ function executeAbility(state: GameState, unit: Unit, node: CommandNode): void {
       endPos: add(unit.position, scale(normalize(node.direction), Math.min(distance({ x: 0, y: 0 }, node.direction), 10))),
       direction: normalize(node.direction),
     };
-    unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'tank') {
     createAbilityEffect(state, unit, node.position, 'shield-dome');
     executeShieldDome(state, unit);
-    unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'scout') {
     createAbilityEffect(state, unit, node.position, 'cloak');
     executeCloak(state, unit);
-    unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'artillery') {
     createAbilityEffect(state, unit, node.position, 'bombardment');
     executeArtilleryBombardment(state, unit, node.position);
-    unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'medic') {
     createAbilityEffect(state, unit, node.position, 'heal-pulse');
     executeHealPulse(state, unit);
-    unit.abilityCooldown = def.abilityCooldown;
   } else if (unit.type === 'interceptor') {
     createAbilityEffect(state, unit, node.position, 'missile-barrage');
     executeMissileBarrage(state, unit, node.direction);
-    unit.abilityCooldown = def.abilityCooldown;
   }
+}
+
+function executeGenericLaser(state: GameState, unit: Unit, direction: { x: number; y: number }): void {
+  // Calculate laser range based on the drag distance
+  const dragDistance = distance({ x: 0, y: 0 }, direction);
+  const laserRange = Math.min(dragDistance, ABILITY_MAX_RANGE);
+  
+  const dir = normalize(direction);
+  
+  // Store laser beam for visual effect
+  unit.laserBeam = {
+    endTime: Date.now() + ABILITY_LASER_DURATION,
+    direction: { ...dir },
+    range: laserRange
+  };
+  
+  // Create laser particle effects
+  const laserColor = state.players[unit.owner].color;
+  createLaserParticles(state, unit.position, dir, laserRange, laserColor);
+  
+  // Deal damage to enemies hit by the laser
+  const enemies = state.units.filter((u) => u.owner !== unit.owner);
+  const enemyBases = state.bases.filter((b) => b.owner !== unit.owner);
+  
+  const damage = ABILITY_LASER_DAMAGE * unit.damageMultiplier;
+  const laserWidthHalf = ABILITY_LASER_WIDTH / 2;
+  
+  // Check units in the laser path (using perpendicular distance from laser line)
+  enemies.forEach((enemy) => {
+    const toEnemy = subtract(enemy.position, unit.position);
+    const projectedDist = toEnemy.x * dir.x + toEnemy.y * dir.y;
+    const perpDist = Math.abs(toEnemy.x * dir.y - toEnemy.y * dir.x); // 2D cross product for perpendicular distance
+    
+    if (projectedDist > 0 && projectedDist < laserRange && perpDist < laserWidthHalf) {
+      enemy.hp -= damage;
+      createHitSparks(state, enemy.position, laserColor, 6);
+      
+      if (state.matchStats && unit.owner === 0) {
+        state.matchStats.damageDealtByPlayer += damage;
+      }
+    }
+  });
+  
+  // Check bases in the laser path
+  enemyBases.forEach((base) => {
+    const toBase = subtract(base.position, unit.position);
+    const projectedDist = toBase.x * dir.x + toBase.y * dir.y;
+    const perpDist = Math.abs(toBase.x * dir.y - toBase.y * dir.x);
+    
+    const baseRadius = BASE_SIZE_METERS / 2;
+    if (projectedDist > 0 && projectedDist < laserRange && perpDist < laserWidthHalf + baseRadius) {
+      const baseDamage = damage * ABILITY_LASER_BASE_DAMAGE_MULTIPLIER;
+      base.hp -= baseDamage;
+      
+      if (state.matchStats && unit.owner === 0) {
+        state.matchStats.damageDealtByPlayer += baseDamage;
+      }
+    }
+  });
 }
 
 function executeBurstFire(state: GameState, unit: Unit, direction: { x: number; y: number }): void {
