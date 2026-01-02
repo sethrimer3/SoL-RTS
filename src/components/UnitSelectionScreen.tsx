@@ -285,7 +285,7 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
 
             <button
               onClick={() => handleSlotClick('up')}
-              className={`absolute left-1/2 top-4 -translate-x-1/2 w-20 h-20 border-2 rounded-lg flex flex-col items-center justify-center gap-1 transition-all hover:scale-105`}
+              className={`absolute left-1/2 top-2 -translate-x-1/2 w-20 h-20 border-2 rounded-lg flex flex-col items-center justify-center gap-1 transition-all hover:scale-105`}
               style={{
                 borderColor: playerColor || COLORS.playerDefault,
                 backgroundColor: `${playerColor || COLORS.playerDefault}20`,
@@ -298,7 +298,7 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
 
             <button
               onClick={() => handleSlotClick('left')}
-              className={`absolute left-4 top-1/2 -translate-y-1/2 w-20 h-20 border-2 rounded-lg flex flex-col items-center justify-center gap-1 transition-all hover:scale-105`}
+              className={`absolute left-2 top-1/2 -translate-y-1/2 w-20 h-20 border-2 rounded-lg flex flex-col items-center justify-center gap-1 transition-all hover:scale-105`}
               style={{
                 borderColor: playerColor || COLORS.playerDefault,
                 backgroundColor: `${playerColor || COLORS.playerDefault}20`,
@@ -311,7 +311,7 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
 
             <button
               onClick={() => handleSlotClick('down')}
-              className={`absolute left-1/2 bottom-4 -translate-x-1/2 w-20 h-20 border-2 rounded-lg flex flex-col items-center justify-center gap-1 transition-all hover:scale-105`}
+              className={`absolute left-1/2 bottom-2 -translate-x-1/2 w-20 h-20 border-2 rounded-lg flex flex-col items-center justify-center gap-1 transition-all hover:scale-105`}
               style={{
                 borderColor: playerColor || COLORS.playerDefault,
                 backgroundColor: `${playerColor || COLORS.playerDefault}20`,
@@ -324,7 +324,7 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
 
             <button
               onClick={() => handleSlotClick('right')}
-              className={`absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 border-2 rounded-lg flex flex-col items-center justify-center gap-1 transition-all hover:scale-105`}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 w-20 h-20 border-2 rounded-lg flex flex-col items-center justify-center gap-1 transition-all hover:scale-105`}
               style={{
                 borderColor: playerColor || COLORS.playerDefault,
                 backgroundColor: `${playerColor || COLORS.playerDefault}20`,
