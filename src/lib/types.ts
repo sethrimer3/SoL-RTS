@@ -717,7 +717,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
 };
 
 export interface GameState {
-  mode: 'menu' | 'game' | 'settings' | 'unitSelection' | 'victory' | 'mapSelection' | 'multiplayerLobby' | 'countdown' | 'statistics' | 'levelSelection' | 'onlineMode' | 'modifierHelp';
+  mode: 'menu' | 'game' | 'settings' | 'unitSelection' | 'victory' | 'mapSelection' | 'multiplayerLobby' | 'countdown' | 'statistics' | 'levelSelection' | 'onlineMode' | 'modifierHelp' | 'unitInformation';
   vsMode: 'ai' | 'player' | 'online' | null;
   
   units: Unit[];
