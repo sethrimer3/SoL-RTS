@@ -2040,7 +2040,7 @@ function executeRage(state: GameState, unit: Unit): void {
   
   // Reset buff after 6 seconds
   setTimeout(() => {
-    unit.damageMultiplier = Math.max(originalMultiplier, unit.damageMultiplier - 0.8);
+    unit.damageMultiplier = originalMultiplier;
   }, 6000);
 }
 
@@ -2097,12 +2097,13 @@ function executeGroundSlam(state: GameState, unit: Unit): void {
       enemy.hp -= damage;
       createHitSparks(state, enemy.position, state.players[unit.owner].color, 6);
       
-      // Slow enemy temporarily
+      // Slow enemy temporarily - store original speed to restore properly
       const def = UNIT_DEFINITIONS[enemy.type];
+      const originalSpeed = enemy.currentSpeed;
       enemy.currentSpeed = def.moveSpeed * 0.2;
       
       setTimeout(() => {
-        enemy.currentSpeed = undefined;
+        enemy.currentSpeed = originalSpeed;
       }, 3000);
       
       if (state.matchStats && unit.owner === 0) {
@@ -2249,10 +2250,13 @@ function executeRadiationWave(state: GameState, unit: Unit, direction: { x: numb
 
 // Supernova - Cosmic Explosion: Massive delayed explosion at target location
 function executeCosmicExplosion(state: GameState, unit: Unit, targetPos: { x: number; y: number }): void {
+  const EXPLOSION_DELAY = 2000; // milliseconds
+  const EXPLOSION_DURATION = 2500; // milliseconds
+  
   unit.bombardmentActive = {
-    endTime: Date.now() + 2500,
+    endTime: Date.now() + EXPLOSION_DURATION,
     targetPos,
-    impactTime: Date.now() + 2000,
+    impactTime: Date.now() + EXPLOSION_DELAY,
   };
   
   setTimeout(() => {
@@ -2285,7 +2289,7 @@ function executeCosmicExplosion(state: GameState, unit: Unit, targetPos: { x: nu
     
     createEnergyPulse(state, targetPos, state.players[unit.owner].color, 5, 1.0);
     createScreenFlash(state, state.players[unit.owner].color, 0.4, 0.3);
-  }, 2000);
+  }, EXPLOSION_DELAY);
 }
 
 // Guardian - Protect Allies: Grant temporary shield to nearby allies
@@ -2417,7 +2421,7 @@ function executeSolarBlessing(state: GameState, unit: Unit): void {
       createEnergyPulse(state, ally.position, state.players[unit.owner].color, 2, 0.3);
       
       setTimeout(() => {
-        ally.damageMultiplier = Math.max(originalMultiplier, ally.damageMultiplier - 0.2);
+        ally.damageMultiplier = originalMultiplier;
       }, 4000);
     }
   });
