@@ -1504,7 +1504,7 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
   const arenaHeight = window.innerHeight / 20;
 
   // Randomly select factions for both players
-  const factions: FactionType[] = ['radiant', 'umbra', 'aurum'];
+  const factions: FactionType[] = ['radiant', 'solari', 'aurum'];
   const player1Faction = factions[Math.floor(Math.random() * factions.length)];
   const player2Faction = factions[Math.floor(Math.random() * factions.length)];
 
