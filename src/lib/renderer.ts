@@ -1611,8 +1611,8 @@ function drawShieldDome(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { 
   ctx.lineWidth = 1.5;
   
   const hexSize = radius * 0.25;
-  const hexCols = Math.ceil(radius * 2 / (hexSize * Math.sqrt(3)));
-  const hexRows = Math.ceil(radius * 2 / (hexSize * 1.5));
+  const hexCols = Math.min(Math.ceil(radius * 2 / (hexSize * Math.sqrt(3))), 8); // Limit to 8 columns
+  const hexRows = Math.min(Math.ceil(radius * 2 / (hexSize * 1.5)), 8); // Limit to 8 rows
   
   for (let row = -hexRows; row <= hexRows; row++) {
     for (let col = -hexCols; col <= hexCols; col++) {
@@ -1743,13 +1743,13 @@ function drawMissileBarrage(ctx: CanvasRenderingContext2D, unit: Unit, screenPos
     
     // Draw missile trail
     if (progress > 0.1) {
-      const trailLength = 5;
+      const trailLength = 3; // Reduced from 5 for better performance
       const trailProgress = Math.max(0, progress - 0.1);
       
       // Pre-calculate direction vector and step
       const dx = missile.target.x - missile.position.x;
       const dy = missile.target.y - missile.position.y;
-      const stepSize = 0.02;
+      const stepSize = 0.03; // Increased step for fewer calculations
       
       ctx.globalAlpha = 0.3;
       ctx.strokeStyle = color;

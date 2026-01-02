@@ -491,8 +491,15 @@ export function createAbilityCharge(
     state.explosionParticles = [];
   }
 
-  // Create converging particles that spiral into the position
   const particleCount = 12;
+  
+  // Check particle limit and skip if at max
+  if (state.explosionParticles.length >= MAX_EXPLOSION_PARTICLES) {
+    const toRemove = Math.max(0, state.explosionParticles.length + particleCount - MAX_EXPLOSION_PARTICLES);
+    state.explosionParticles.splice(0, toRemove);
+  }
+
+  // Create converging particles that spiral into the position
   for (let i = 0; i < particleCount; i++) {
     const angle = (i / particleCount) * Math.PI * 2;
     const startDistance = 3; // Start 3 meters away
@@ -536,6 +543,12 @@ export function createTrailEffect(
 ): void {
   if (!state.explosionParticles) {
     state.explosionParticles = [];
+  }
+
+  // Check particle limit before adding
+  if (state.explosionParticles.length >= MAX_EXPLOSION_PARTICLES) {
+    // Skip creating trail if at limit (trails are less critical than other effects)
+    return;
   }
 
   // Create a trail particle behind the projectile
@@ -600,6 +613,13 @@ export function createHealSparkles(
   }
 
   const sparkleCount = 15;
+  
+  // Check particle limit before adding sparkles
+  if (state.explosionParticles.length >= MAX_EXPLOSION_PARTICLES) {
+    const toRemove = Math.max(0, state.explosionParticles.length + sparkleCount - MAX_EXPLOSION_PARTICLES);
+    state.explosionParticles.splice(0, toRemove);
+  }
+  
   const now = Date.now();
   
   for (let i = 0; i < sparkleCount; i++) {
