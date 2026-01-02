@@ -2029,18 +2029,18 @@ function executeStellarConvergence(state: GameState, unit: Unit, targetPos: { x:
   }, 2500);
 }
 
-// Berserker - Rage: Temporary damage boost and attack speed increase
+// Berserker - Rage: Temporary damage boost
 function executeRage(state: GameState, unit: Unit): void {
-  // Boost damage and attack speed temporarily
+  // Store original damage multiplier to reset correctly
+  const originalMultiplier = unit.damageMultiplier;
   unit.damageMultiplier += 0.8;
-  const originalAttackCooldown = unit.attackCooldown || 0;
   
   createEnergyPulse(state, unit.position, state.players[unit.owner].color, 2, 0.5);
   createHitSparks(state, unit.position, state.players[unit.owner].color, 10);
   
   // Reset buff after 6 seconds
   setTimeout(() => {
-    unit.damageMultiplier = Math.max(1, unit.damageMultiplier - 0.8);
+    unit.damageMultiplier = Math.max(originalMultiplier, unit.damageMultiplier - 0.8);
   }, 6000);
 }
 
@@ -2063,7 +2063,13 @@ function executeShadowStrike(state: GameState, unit: Unit, targetPos: { x: numbe
   });
   
   createEnergyPulse(state, unit.position, state.players[unit.owner].color, 2, 0.3);
-  unit.position = { ...nearest.position };
+  
+  // Position assassin next to target, not on top of it
+  const direction = normalize(subtract(nearest.position, unit.position));
+  unit.position = {
+    x: nearest.position.x - direction.x * 1.2,
+    y: nearest.position.y - direction.y * 1.2,
+  };
   
   const damage = 45 * unit.damageMultiplier;
   nearest.hp -= damage;
@@ -2405,12 +2411,13 @@ function executeSolarBlessing(state: GameState, unit: Unit): void {
   allies.forEach((ally) => {
     if (distance(ally.position, unit.position) <= healRadius) {
       ally.hp = Math.min(ally.hp + healAmount, ally.maxHp);
-      // Small damage boost
+      // Small damage boost - store original to reset correctly
+      const originalMultiplier = ally.damageMultiplier;
       ally.damageMultiplier += 0.2;
       createEnergyPulse(state, ally.position, state.players[unit.owner].color, 2, 0.3);
       
       setTimeout(() => {
-        ally.damageMultiplier = Math.max(1, ally.damageMultiplier - 0.2);
+        ally.damageMultiplier = Math.max(originalMultiplier, ally.damageMultiplier - 0.2);
       }, 4000);
     }
   });
