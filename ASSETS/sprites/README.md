@@ -14,21 +14,14 @@ This directory contains all sprite assets for the game.
 
 The following sprites use upward-facing orientation:
 
-1. **Beta Tower Bullet Particle** (`projectiles/particles/particle1.png`)
-   - Used for beta tower projectiles
-   - Sprite faces upward (0° = up)
-
-2. **Gamma Tower Bullet Particle** (`projectiles/particles/particle1.png`)
-   - Used for gamma tower projectiles
-   - Sprite faces upward (0° = up)
-
-3. **Delta Tower Ships** (unit sprites)
-   - Delta tower ship units
-   - Sprite faces upward (0° = up)
-
-4. **Epsilon Projectile** (`projectiles/throw/throw1.png`)
+1. **Epsilon Projectile** (`projectiles/throw/throw1.png`)
    - Used for epsilon unit projectiles
    - Sprite faces upward (0° = up)
+
+2. **Tower Bullet Particles** (`projectiles/particles/particle1.png`)
+   - Used for beta tower, gamma tower, and delta tower projectiles
+   - Sprite faces upward (0° = up)
+   - Shared sprite asset used across multiple tower types
 
 ## Rendering Guidelines
 
