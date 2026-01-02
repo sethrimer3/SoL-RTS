@@ -15,6 +15,7 @@ import {
   UNIT_SIZE_METERS,
   UNIT_DEFINITIONS,
   PIXELS_PER_METER,
+  Vector2,
 } from './types';
 import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels } from './gameUtils';
 import { spawnUnit } from './simulation';

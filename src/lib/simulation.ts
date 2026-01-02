@@ -20,6 +20,7 @@ import {
   Projectile,
   FACTION_DEFINITIONS,
   UnitModifier,
+  QUEUE_MAX_LENGTH,
 } from './types';
 import { distance, normalize, scale, add, subtract, generateId } from './gameUtils';
 import { checkObstacleCollision } from './maps';
