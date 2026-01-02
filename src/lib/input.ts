@@ -15,6 +15,7 @@ import {
   UNIT_SIZE_METERS,
   UNIT_DEFINITIONS,
   PIXELS_PER_METER,
+  Vector2,
 } from './types';
 import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels } from './gameUtils';
 import { spawnUnit } from './simulation';
@@ -601,6 +602,9 @@ function handleVectorBasedAbilityDrag(state: GameState, dragVector: { x: number;
     }
 
     unit.commandQueue.push(abilityNode);
+    
+    // Start draw animation for new command
+    startQueueDrawAnimation(unit);
   });
   
   // Send command to multiplayer backend for online games
@@ -630,6 +634,12 @@ function getPatrolReturnPosition(unit: Unit): Vector2 {
   return unit.position;
 }
 
+// Helper function to start queue draw animation
+function startQueueDrawAnimation(unit: Unit): void {
+  unit.queueDrawStartTime = Date.now();
+  unit.queueDrawReverse = false;
+}
+
 function addMovementCommand(state: GameState, worldPos: { x: number; y: number }, isPatrol: boolean = false): void {
   const selectedUnitsArray = state.units.filter(unit => state.selectedUnits.has(unit.id));
   
@@ -654,6 +664,9 @@ function addMovementCommand(state: GameState, worldPos: { x: number; y: number }
       } else {
         unit.commandQueue.push({ type: 'move', position: formationPositions[index] });
       }
+      
+      // Start draw animation for new command
+      startQueueDrawAnimation(unit);
     });
   } else {
     // No formation or single unit - all move to same point
@@ -666,6 +679,9 @@ function addMovementCommand(state: GameState, worldPos: { x: number; y: number }
       } else {
         unit.commandQueue.push({ type: 'move', position: worldPos });
       }
+      
+      // Start draw animation for new command
+      startQueueDrawAnimation(unit);
     });
   }
   
