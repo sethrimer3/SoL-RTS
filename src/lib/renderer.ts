@@ -1591,6 +1591,7 @@ function drawShieldDome(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { 
   const radius = metersToPixels(unit.shieldActive.radius);
   const time = Date.now() / 1000;
   const pulse = Math.sin(time * 3) * 0.2 + 0.8;
+  const hexRotation = time * 0.5; // Pre-calculate rotation for all hexagons
 
   ctx.save();
   
@@ -1622,10 +1623,10 @@ function drawShieldDome(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { 
       const dist = Math.sqrt((x - screenPos.x) ** 2 + (y - screenPos.y) ** 2);
       if (dist > radius - hexSize) continue;
       
-      // Draw hexagon
+      // Draw hexagon with pre-calculated rotation
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i + time * 0.5; // Slowly rotate hexagons
+        const angle = (Math.PI / 3) * i + hexRotation;
         const hx = x + Math.cos(angle) * hexSize;
         const hy = y + Math.sin(angle) * hexSize;
         if (i === 0) {
@@ -1745,6 +1746,11 @@ function drawMissileBarrage(ctx: CanvasRenderingContext2D, unit: Unit, screenPos
       const trailLength = 5;
       const trailProgress = Math.max(0, progress - 0.1);
       
+      // Pre-calculate direction vector and step
+      const dx = missile.target.x - missile.position.x;
+      const dy = missile.target.y - missile.position.y;
+      const stepSize = 0.02;
+      
       ctx.globalAlpha = 0.3;
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
@@ -1752,9 +1758,10 @@ function drawMissileBarrage(ctx: CanvasRenderingContext2D, unit: Unit, screenPos
       
       ctx.beginPath();
       for (let i = 0; i < trailLength; i++) {
+        const t = trailProgress - i * stepSize;
         const trailPos = {
-          x: missile.position.x + (missile.target.x - missile.position.x) * (trailProgress - i * 0.02),
-          y: missile.position.y + (missile.target.y - missile.position.y) * (trailProgress - i * 0.02),
+          x: missile.position.x + dx * t,
+          y: missile.position.y + dy * t,
         };
         const trailScreenPos = positionToPixels(trailPos);
         

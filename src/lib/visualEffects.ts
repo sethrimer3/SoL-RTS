@@ -564,11 +564,23 @@ export function createImpactRipple(
   color: string,
   size: number = 2.0
 ): void {
-  // Create multiple expanding rings
+  // Create multiple expanding rings with staggered start times
   for (let i = 0; i < 3; i++) {
-    setTimeout(() => {
-      createEnergyPulse(state, position, color, 0.4, size);
-    }, i * 100);
+    if (!state.energyPulses) {
+      state.energyPulses = [];
+    }
+    
+    const pulse = {
+      id: generateId(),
+      position: { ...position },
+      radius: 0,
+      color,
+      startTime: Date.now() + i * 100, // Stagger the start times
+      duration: 0.4,
+      maxRadius: size,
+    };
+    
+    state.energyPulses.push(pulse);
   }
   
   // Add impact particles
@@ -588,6 +600,8 @@ export function createHealSparkles(
   }
 
   const sparkleCount = 15;
+  const now = Date.now();
+  
   for (let i = 0; i < sparkleCount; i++) {
     const angle = Math.random() * Math.PI * 2;
     const distance = Math.random() * radius;
@@ -616,7 +630,7 @@ export function createHealSparkles(
       color,
       size: 0.06 + Math.random() * 0.08,
       lifetime: 0.8 + Math.random() * 0.4,
-      createdAt: Date.now() + Math.random() * 300, // Stagger spawning
+      createdAt: now, // All created at same time
       alpha: 1.0,
       rotation: Math.random() * Math.PI * 2,
       rotationSpeed: (Math.random() - 0.5) * 5,
@@ -650,10 +664,8 @@ export function createAbilityEffect(
       // Create dash trail with enhanced particles
       createEnergyPulse(state, unit.position, color, 0.4, 2);
       createParticleBurst(state, unit.position, color, 20, 10);
-      // Add second delayed burst for impact
-      setTimeout(() => {
-        createImpactRipple(state, position, color, 2.5);
-      }, 200);
+      // Add delayed impact ripple by creating staggered pulses
+      createImpactRipple(state, position, color, 2.5);
       break;
     
     case 'line-jump':
