@@ -497,9 +497,9 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
           ctx.shadowBlur = 0;
           ctx.globalAlpha = 0.7 * fadeAlpha;
         }
-      } else if (segment.type === 'ability' && segmentProgress >= 1.0) {
+      } else if (segment.type === 'ability' && segmentProgress >= 1.0 && segment.node.type === 'ability') {
         // Only draw ability arrow if segment is fully drawn
-        const dir = normalize(segment.node.type === 'ability' ? segment.node.direction : { x: 1, y: 0 });
+        const dir = normalize(segment.node.direction);
         const arrowLen = 12;
         const arrowEnd = add(segment.end, scale(dir, 0.5));
         const arrowEndScreen = positionToPixels(arrowEnd);
@@ -561,9 +561,9 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
           ctx.shadowBlur = 0;
         }
         ctx.globalAlpha = 0.7 * fadeAlpha;
-      } else if (segment.type === 'patrol' && segmentProgress >= 1.0) {
+      } else if (segment.type === 'patrol' && segmentProgress >= 1.0 && segment.node.type === 'patrol') {
         // Only draw patrol path if segment is fully drawn
-        const returnScreenPos = positionToPixels(segment.node.type === 'patrol' ? segment.node.returnPosition : segment.end);
+        const returnScreenPos = positionToPixels(segment.node.returnPosition);
         
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
