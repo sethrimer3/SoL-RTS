@@ -604,8 +604,7 @@ function handleVectorBasedAbilityDrag(state: GameState, dragVector: { x: number;
     unit.commandQueue.push(abilityNode);
     
     // Start draw animation for new command
-    unit.queueDrawStartTime = Date.now();
-    unit.queueDrawReverse = false;
+    startQueueDrawAnimation(unit);
   });
   
   // Send command to multiplayer backend for online games
@@ -635,6 +634,12 @@ function getPatrolReturnPosition(unit: Unit): Vector2 {
   return unit.position;
 }
 
+// Helper function to start queue draw animation
+function startQueueDrawAnimation(unit: Unit): void {
+  unit.queueDrawStartTime = Date.now();
+  unit.queueDrawReverse = false;
+}
+
 function addMovementCommand(state: GameState, worldPos: { x: number; y: number }, isPatrol: boolean = false): void {
   const selectedUnitsArray = state.units.filter(unit => state.selectedUnits.has(unit.id));
   
@@ -661,8 +666,7 @@ function addMovementCommand(state: GameState, worldPos: { x: number; y: number }
       }
       
       // Start draw animation for new command
-      unit.queueDrawStartTime = Date.now();
-      unit.queueDrawReverse = false;
+      startQueueDrawAnimation(unit);
     });
   } else {
     // No formation or single unit - all move to same point
@@ -677,8 +681,7 @@ function addMovementCommand(state: GameState, worldPos: { x: number; y: number }
       }
       
       // Start draw animation for new command
-      unit.queueDrawStartTime = Date.now();
-      unit.queueDrawReverse = false;
+      startQueueDrawAnimation(unit);
     });
   }
   
