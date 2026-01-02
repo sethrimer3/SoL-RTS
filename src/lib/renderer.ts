@@ -81,6 +81,7 @@ const SELECTION_RING_MAX_SIZE = 1.8; // Maximum size multiplier for selection ri
 const GLOW_PULSE_FREQUENCY = 1.5; // Hz for glow pulsing
 const ABILITY_READY_PULSE_INTENSITY = 0.4; // Intensity of ability ready pulse
 const MOTION_BLUR_SPEED_THRESHOLD = 1.5; // Minimum speed for motion blur to appear
+const ABILITY_ARROW_LENGTH = 12; // Arrow length for ability command visualization
 
 // Helper function to get bright highlight color for team
 function getTeamHighlightColor(owner: number): string {
@@ -497,10 +498,11 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
           ctx.shadowBlur = 0;
           ctx.globalAlpha = 0.7 * fadeAlpha;
         }
-      } else if (segment.type === 'ability' && segmentProgress >= 1.0 && segment.node.type === 'ability') {
-        // Only draw ability arrow if segment is fully drawn
+      } else if (segment.type === 'ability' && segmentProgress >= 1.0) {
+        // Only draw ability arrow if segment is fully drawn and node is ability type
+        if (segment.node.type !== 'ability') continue;
+        
         const dir = normalize(segment.node.direction);
-        const arrowLen = 12;
         const arrowEnd = add(segment.end, scale(dir, 0.5));
         const arrowEndScreen = positionToPixels(arrowEnd);
         
@@ -513,7 +515,7 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
         ctx.shadowBlur = 15;
         ctx.globalAlpha = 0.9 * fadeAlpha;
         ctx.beginPath();
-        ctx.moveTo(arrowLen, 0);
+        ctx.moveTo(ABILITY_ARROW_LENGTH, 0);
         ctx.lineTo(0, -6);
         ctx.lineTo(0, 6);
         ctx.closePath();
@@ -561,8 +563,10 @@ function drawCommandQueues(ctx: CanvasRenderingContext2D, state: GameState): voi
           ctx.shadowBlur = 0;
         }
         ctx.globalAlpha = 0.7 * fadeAlpha;
-      } else if (segment.type === 'patrol' && segmentProgress >= 1.0 && segment.node.type === 'patrol') {
-        // Only draw patrol path if segment is fully drawn
+      } else if (segment.type === 'patrol' && segmentProgress >= 1.0) {
+        // Only draw patrol path if segment is fully drawn and node is patrol type
+        if (segment.node.type !== 'patrol') continue;
+        
         const returnScreenPos = positionToPixels(segment.node.returnPosition);
         
         ctx.strokeStyle = color;
