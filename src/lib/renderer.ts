@@ -178,7 +178,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
   
   // Draw background floaters (after background, before border)
   if (state.mode === 'game' || state.mode === 'countdown') {
-    drawBackgroundFloaters(ctx, state, canvas);
+    drawBackgroundFloaters(ctx, state);
   }
   
   // Draw playfield border in game modes
@@ -320,7 +320,7 @@ function drawBackground(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement
  * Draw background floaters with connecting lines
  * Should be called after drawBackground but before drawPlayfieldBorder
  */
-function drawBackgroundFloaters(ctx: CanvasRenderingContext2D, state: GameState, canvas: HTMLCanvasElement): void {
+function drawBackgroundFloaters(ctx: CanvasRenderingContext2D, state: GameState): void {
   // Skip if floaters are undefined or disabled
   if (!state.floaters || state.floaters.length === 0) {
     return;
