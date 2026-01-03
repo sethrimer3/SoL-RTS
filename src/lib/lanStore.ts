@@ -249,6 +249,11 @@ export class LANKVStore implements RealtimeKVStore {
   }
 
   isAvailable(): boolean {
+    // For host, we're available as soon as the peer is connected
+    // For guest, we need both peer and connection to be established
+    if (this.isHostPlayer) {
+      return this.connected && this.peer !== null;
+    }
     return this.connected && this.connection !== null;
   }
 
