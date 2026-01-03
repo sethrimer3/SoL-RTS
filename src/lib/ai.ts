@@ -56,28 +56,42 @@ function performAIActions(state: GameState, aiPlayer: number = 1): void {
 
   if (enemyBase) {
     aiUnits.forEach((unit) => {
-      if (unit.commandQueue.length < 3 && Math.random() < 0.3) {
-        const targetPos = {
-          x: enemyBase.position.x + (Math.random() - 0.5) * 10,
-          y: enemyBase.position.y + (Math.random() - 0.5) * 10,
-        };
-
-        if (unit.commandQueue.length < QUEUE_MAX_LENGTH) {
-          unit.commandQueue.push({ type: 'move', position: targetPos });
+      // In chess mode, add to pending commands instead of immediate queue
+      if (state.settings.chessMode && state.chessMode) {
+        // Only give command if unit doesn't already have a pending command
+        if (!state.chessMode.pendingCommands.has(unit.id) && Math.random() < 0.3) {
+          const targetPos = {
+            x: enemyBase.position.x + (Math.random() - 0.5) * 10,
+            y: enemyBase.position.y + (Math.random() - 0.5) * 10,
+          };
+          
+          state.chessMode.pendingCommands.set(unit.id, [{ type: 'move', position: targetPos }]);
         }
-      }
+      } else {
+        // Normal RTS mode
+        if (unit.commandQueue.length < 3 && Math.random() < 0.3) {
+          const targetPos = {
+            x: enemyBase.position.x + (Math.random() - 0.5) * 10,
+            y: enemyBase.position.y + (Math.random() - 0.5) * 10,
+          };
 
-      if (unit.abilityCooldown === 0 && Math.random() < 0.2 && unit.commandQueue.length < QUEUE_MAX_LENGTH) {
-        const direction = {
-          x: enemyBase.position.x - unit.position.x,
-          y: enemyBase.position.y - unit.position.y,
-        };
-        
-        unit.commandQueue.push({ 
-          type: 'ability', 
-          position: unit.position, 
-          direction 
-        });
+          if (unit.commandQueue.length < QUEUE_MAX_LENGTH) {
+            unit.commandQueue.push({ type: 'move', position: targetPos });
+          }
+        }
+
+        if (unit.abilityCooldown === 0 && Math.random() < 0.2 && unit.commandQueue.length < QUEUE_MAX_LENGTH) {
+          const direction = {
+            x: enemyBase.position.x - unit.position.x,
+            y: enemyBase.position.y - unit.position.y,
+          };
+          
+          unit.commandQueue.push({ 
+            type: 'ability', 
+            position: unit.position, 
+            direction 
+          });
+        }
       }
     });
   }
