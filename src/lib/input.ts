@@ -509,9 +509,30 @@ function handleAbilityDrag(state: GameState, dragVector: { x: number; y: number 
   state.units.forEach((unit) => {
     if (!state.selectedUnits.has(unit.id)) return;
     if (unit.commandQueue.length >= QUEUE_MAX_LENGTH) return;
+    
+    // Check if unit's ability is on cooldown - can only queue if cooldown is 0
+    if (unit.abilityCooldown > 0) return;
 
-    // Use the command origin helper for consistency
+    // Use the command origin helper for consistency (last movement node)
     const startPosition = getCommandOrigin(unit);
+    
+    // Check if there's already an ability queued at this movement node
+    // Find the index of the last movement node
+    let lastMovementNodeIndex = -1;
+    for (let i = unit.commandQueue.length - 1; i >= 0; i--) {
+      const node = unit.commandQueue[i];
+      if (node.type === 'move' || node.type === 'attack-move') {
+        lastMovementNodeIndex = i;
+        break;
+      }
+    }
+    
+    // Check if there's already an ability after the last movement node
+    if (lastMovementNodeIndex !== -1 && lastMovementNodeIndex < unit.commandQueue.length - 1) {
+      // There's already an ability queued at this movement node, don't add another
+      return;
+    }
+    
     const abilityPos = add(startPosition, clampedVector);
 
     const pathToAbility: CommandNode = { type: 'move', position: abilityPos };
@@ -592,9 +613,30 @@ function handleVectorBasedAbilityDrag(state: GameState, dragVector: { x: number;
   // Apply ability command to all selected units
   selectedUnitsArray.forEach((unit) => {
     if (unit.commandQueue.length >= QUEUE_MAX_LENGTH) return;
+    
+    // Check if unit's ability is on cooldown - can only queue if cooldown is 0
+    if (unit.abilityCooldown > 0) return;
 
-    // Use the command origin (last queued position or current position)
+    // Use the command origin (last movement node or current position)
     const startPosition = getCommandOrigin(unit);
+    
+    // Check if there's already an ability queued at this movement node
+    // Find the index of the last movement node
+    let lastMovementNodeIndex = -1;
+    for (let i = unit.commandQueue.length - 1; i >= 0; i--) {
+      const node = unit.commandQueue[i];
+      if (node.type === 'move' || node.type === 'attack-move') {
+        lastMovementNodeIndex = i;
+        break;
+      }
+    }
+    
+    // Check if there's already an ability after the last movement node
+    if (lastMovementNodeIndex !== -1 && lastMovementNodeIndex < unit.commandQueue.length - 1) {
+      // There's already an ability queued at this movement node, don't add another
+      return;
+    }
+    
     const abilityPos = add(startPosition, clampedVector);
 
     const pathToAbility: CommandNode = { type: 'move', position: abilityPos };
