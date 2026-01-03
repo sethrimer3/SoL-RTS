@@ -147,7 +147,7 @@ export function LANModeScreen({
             </Button>
 
             <div className="space-y-2">
-              <Label htmlFor="peerIdInput">Or join with Peer ID</Label>
+              <Label htmlFor="peerIdInput">Or manually enter Peer ID</Label>
               <Input
                 id="peerIdInput"
                 placeholder="Enter host's Peer ID"

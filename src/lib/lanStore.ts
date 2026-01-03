@@ -60,7 +60,7 @@ export class LANKVStore implements RealtimeKVStore {
         
         // Create peer with configuration for better reliability
         this.peer = new Peer(uniqueId, {
-          debug: 2, // Enable verbose logging for debugging
+          debug: 0, // Disable debug logging in production (use 2 for troubleshooting)
           config: {
             iceServers: [
               // Google's public STUN servers
@@ -121,7 +121,7 @@ export class LANKVStore implements RealtimeKVStore {
 
       try {
         this.peer = new Peer({
-          debug: 2, // Enable verbose logging for debugging
+          debug: 0, // Disable debug logging in production (use 2 for troubleshooting)
           config: {
             iceServers: [
               // Google's public STUN servers
