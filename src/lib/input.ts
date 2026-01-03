@@ -523,14 +523,10 @@ function handleAbilityDrag(state: GameState, dragVector: { x: number; y: number 
 
     // Use the command origin helper for consistency (last movement node)
     const startPosition = getCommandOrigin(unit);
-    const abilityPos = add(startPosition, clampedVector);
 
-    const pathToAbility: CommandNode = { type: 'move', position: abilityPos };
-    const abilityNode: CommandNode = { type: 'ability', position: abilityPos, direction: clampedVector };
-
-    if (unit.commandQueue.length === 0 || unit.commandQueue[unit.commandQueue.length - 1].type === 'ability') {
-      unit.commandQueue.push(pathToAbility);
-    }
+    // Ability should be cast from startPosition, not from a far position
+    // The direction vector already indicates where the ability aims
+    const abilityNode: CommandNode = { type: 'ability', position: startPosition, direction: clampedVector };
 
     unit.commandQueue.push(abilityNode);
   });
@@ -617,14 +613,10 @@ function handleVectorBasedAbilityDrag(state: GameState, dragVector: { x: number;
 
     // Use the command origin (last movement node or current position)
     const startPosition = getCommandOrigin(unit);
-    const abilityPos = add(startPosition, clampedVector);
 
-    const pathToAbility: CommandNode = { type: 'move', position: abilityPos };
-    const abilityNode: CommandNode = { type: 'ability', position: abilityPos, direction: clampedVector };
-
-    if (unit.commandQueue.length === 0 || unit.commandQueue[unit.commandQueue.length - 1].type === 'ability') {
-      unit.commandQueue.push(pathToAbility);
-    }
+    // Ability should be cast from startPosition, not from a far position
+    // The direction vector already indicates where the ability aims
+    const abilityNode: CommandNode = { type: 'ability', position: startPosition, direction: clampedVector };
 
     unit.commandQueue.push(abilityNode);
     
@@ -637,8 +629,7 @@ function handleVectorBasedAbilityDrag(state: GameState, dragVector: { x: number;
     const unitIds = selectedUnitsArray.map(u => u.id);
     const firstUnit = selectedUnitsArray[0];
     const startPosition = getCommandOrigin(firstUnit);
-    const abilityPos = add(startPosition, clampedVector);
-    sendAbilityCommand(state.multiplayerManager, unitIds, abilityPos, clampedVector).catch(err => 
+    sendAbilityCommand(state.multiplayerManager, unitIds, startPosition, clampedVector).catch(err => 
       console.warn('Failed to send ability command:', err)
     );
   }
