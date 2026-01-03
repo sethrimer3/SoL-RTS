@@ -16,11 +16,13 @@ import {
   CommandNode,
   ARENA_WIDTH_METERS,
   ARENA_HEIGHT_METERS,
+  Floater,
 } from './types';
 import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract } from './gameUtils';
 import { Obstacle } from './maps';
 import { MOTION_TRAIL_DURATION, QUEUE_FADE_DURATION, QUEUE_DRAW_DURATION, QUEUE_UNDRAW_DURATION } from './simulation';
 import { getFormationName } from './formations';
+import { calculateFloaterConnections } from './floaters';
 
 // Load projectile sprite
 const projectileSprite = new Image();
@@ -88,6 +90,9 @@ const MINIMAP_OBSTACLE_MIN_SIZE = 2;
 
 // Culling constants
 const OFFSCREEN_CULLING_MARGIN = 50; // pixels margin for culling off-screen objects
+
+// Background floater constants
+const FLOATER_BASE_RADIUS_METERS = 0.3; // Base size in meters for floater rendering
 
 // Enhanced visual effect constants
 const SELECTION_RING_EXPANSION_SPEED = 1.5; // Speed of expanding selection ring
@@ -170,6 +175,11 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
   }
 
   drawBackground(ctx, canvas, state);
+  
+  // Draw background floaters (after background, before border)
+  if (state.mode === 'game' || state.mode === 'countdown') {
+    drawBackgroundFloaters(ctx, state);
+  }
   
   // Draw playfield border in game modes
   if (state.mode === 'game' || state.mode === 'countdown') {
@@ -304,26 +314,66 @@ function drawBackground(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement
       ctx.stroke();
     });
   }
+}
 
-  // Draw background floaters with water-like physics
-  if (state?.floaters && state.floaters.length > 0) {
-    state.floaters.forEach(floater => {
-      const alpha = floater.opacity;
-      
-      ctx.fillStyle = floater.color + alpha + ')';
-      ctx.beginPath();
-      ctx.arc(floater.position.x, floater.position.y, floater.size, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Add subtle glow if glow effects are enabled
-      if (state?.settings?.enableGlowEffects) {
-        ctx.shadowColor = floater.color + (alpha * 0.5) + ')';
-        ctx.shadowBlur = floater.size * 2;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-    });
+/**
+ * Draw background floaters with connecting lines
+ * Should be called after drawBackground but before drawPlayfieldBorder
+ */
+function drawBackgroundFloaters(ctx: CanvasRenderingContext2D, state: GameState): void {
+  // Skip if floaters are undefined or disabled
+  if (!state.floaters || state.floaters.length === 0) {
+    return;
   }
+  
+  ctx.save();
+  
+  // Calculate connections between nearby floaters
+  const connections = calculateFloaterConnections(state.floaters);
+  
+  // Draw connections first (lines)
+  connections.forEach(connection => {
+    const fromPixels = positionToPixels(connection.from.position);
+    const toPixels = positionToPixels(connection.to.position);
+    
+    // Alpha based on connection strength (max 0.25 for connections)
+    const alpha = connection.strength * 0.25;
+    
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    // Line width scaled by viewport (~1-2px)
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(fromPixels.x, fromPixels.y);
+    ctx.lineTo(toPixels.x, toPixels.y);
+    ctx.stroke();
+  });
+  
+  // Draw floaters second (hollow circles)
+  state.floaters.forEach(floater => {
+    const screenPos = positionToPixels(floater.position);
+    
+    // Radius scaled by floater.size and viewport (3-8 pixels typical)
+    // Use metersToPixels to properly scale with viewport, with safety checks
+    const scaledRadius = floater.size * metersToPixels(FLOATER_BASE_RADIUS_METERS);
+    const radius = Math.max(3, Math.abs(scaledRadius)); // Ensure minimum 3px and positive
+    
+    // Stroke width proportional to radius (~20% of radius)
+    const strokeWidth = Math.max(0.5, radius * 0.2);
+    
+    // White stroke at low opacity
+    const alpha = floater.opacity * 0.3;
+    if (alpha <= 0) return; // Skip if not visible yet
+    
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.lineWidth = strokeWidth;
+    
+    // Draw hollow circle (stroke only, no fill)
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+  
+  ctx.restore();
 }
 
 function drawPlayfieldBorder(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
