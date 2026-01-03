@@ -343,6 +343,73 @@ function updateStuckDetection(unit: Unit, deltaTime: number): void {
   }
 }
 
+// Pathfinding constants
+const PATHFINDING_LOOKAHEAD_DISTANCE = 2.0; // How far ahead to check for obstacles
+const PATHFINDING_ANGLE_STEP = Math.PI / 6; // 30 degrees - angle increment for trying alternative paths
+const PATHFINDING_MAX_ANGLES = 3; // Try up to 3 angles on each side (30, 60, 90 degrees)
+const PATHFINDING_SIDE_OFFSET = 1.5; // Distance to offset when navigating around obstacles
+
+/**
+ * Finds an alternative path around obstacles using simple angle-based pathfinding.
+ * Tries angles to the left and right of the direct path to find a clear route.
+ * @param unit - The unit trying to move
+ * @param target - The target position
+ * @param obstacles - Array of obstacles to avoid
+ * @param allUnits - All units for collision checking
+ * @returns Alternative direction to move, or null if no path found
+ */
+function findPathAroundObstacle(
+  unit: Unit,
+  target: Vector2,
+  obstacles: import('./maps').Obstacle[],
+  allUnits: Unit[]
+): Vector2 | null {
+  const directDirection = normalize(subtract(target, unit.position));
+  const unitRadius = UNIT_SIZE_METERS / 2;
+  
+  // Check if direct path is clear
+  const lookaheadPos = add(unit.position, scale(directDirection, PATHFINDING_LOOKAHEAD_DISTANCE));
+  if (!checkObstacleCollision(lookaheadPos, unitRadius, obstacles)) {
+    return null; // Direct path is clear, no need for pathfinding
+  }
+  
+  // Try alternative angles to find a clear path
+  // Alternate between left and right to find the shortest path around
+  for (let i = 1; i <= PATHFINDING_MAX_ANGLES; i++) {
+    const angle = PATHFINDING_ANGLE_STEP * i;
+    
+    // Try right side first
+    const rightAngle = Math.atan2(directDirection.y, directDirection.x) + angle;
+    const rightDir = { x: Math.cos(rightAngle), y: Math.sin(rightAngle) };
+    const rightPos = add(unit.position, scale(rightDir, PATHFINDING_LOOKAHEAD_DISTANCE));
+    
+    if (!checkObstacleCollision(rightPos, unitRadius, obstacles)) {
+      // Check that this direction generally moves toward target
+      const toTarget = subtract(target, unit.position);
+      const dotProduct = rightDir.x * toTarget.x + rightDir.y * toTarget.y;
+      if (dotProduct > 0) {
+        return rightDir;
+      }
+    }
+    
+    // Try left side
+    const leftAngle = Math.atan2(directDirection.y, directDirection.x) - angle;
+    const leftDir = { x: Math.cos(leftAngle), y: Math.sin(leftAngle) };
+    const leftPos = add(unit.position, scale(leftDir, PATHFINDING_LOOKAHEAD_DISTANCE));
+    
+    if (!checkObstacleCollision(leftPos, unitRadius, obstacles)) {
+      // Check that this direction generally moves toward target
+      const toTarget = subtract(target, unit.position);
+      const dotProduct = leftDir.x * toTarget.x + leftDir.y * toTarget.y;
+      if (dotProduct > 0) {
+        return leftDir;
+      }
+    }
+  }
+  
+  return null; // No clear path found
+}
+
 // Create particles for a unit
 function createParticlesForUnit(unit: Unit, count: number): Particle[] {
   const particles: Particle[] = [];
@@ -1264,7 +1331,13 @@ function updateUnits(state: GameState, deltaTime: number): void {
         return;
       }
 
-      const direction = normalize(subtract(currentNode.position, unit.position));
+      let direction = normalize(subtract(currentNode.position, unit.position));
+      
+      // Try pathfinding if direct path might be blocked
+      const alternativePath = findPathAroundObstacle(unit, currentNode.position, state.obstacles, state.units);
+      if (alternativePath) {
+        direction = alternativePath;
+      }
       
       // Update unit rotation to face movement direction
       updateUnitRotation(unit, direction, deltaTime);
@@ -1343,7 +1416,13 @@ function updateUnits(state: GameState, deltaTime: number): void {
         return;
       }
 
-      const direction = normalize(subtract(currentNode.position, unit.position));
+      let direction = normalize(subtract(currentNode.position, unit.position));
+
+      // Try pathfinding if direct path might be blocked
+      const alternativePath = findPathAroundObstacle(unit, currentNode.position, state.obstacles, state.units);
+      if (alternativePath) {
+        direction = alternativePath;
+      }
 
       // Update unit rotation to face movement direction
       updateUnitRotation(unit, direction, deltaTime);
@@ -1428,7 +1507,14 @@ function updateUnits(state: GameState, deltaTime: number): void {
       }
 
       const def = UNIT_DEFINITIONS[unit.type];
-      const direction = normalize(subtract(currentNode.position, unit.position));
+      let direction = normalize(subtract(currentNode.position, unit.position));
+      
+      // Try pathfinding if direct path might be blocked
+      const alternativePath = findPathAroundObstacle(unit, currentNode.position, state.obstacles, state.units);
+      if (alternativePath) {
+        direction = alternativePath;
+      }
+      
       const movement = scale(direction, def.moveSpeed * deltaTime);
       
       // Update unit rotation to face movement direction
