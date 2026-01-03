@@ -2385,8 +2385,8 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
     }
   }
   
-  // Draw patrol mode indicator (adjust Y position based on whether chess mode is active)
-  const patrolY = state.settings.chessMode && state.chessMode ? 80 : 80;
+  // Draw patrol mode indicator
+  const patrolY = 80;
   if (state.patrolMode) {
     ctx.fillStyle = COLORS.photon;
     ctx.fillText('PATROL MODE', 10, patrolY);

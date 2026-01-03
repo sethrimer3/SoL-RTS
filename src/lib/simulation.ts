@@ -979,7 +979,9 @@ function executeChessModeCommands(state: GameState): void {
   state.chessMode.pendingCommands.forEach((commands, unitId) => {
     const unit = state.units.find(u => u.id === unitId);
     if (unit && commands.length > 0) {
-      // Clear existing queue and add the pending command
+      // In chess mode, replace the entire queue with the new command
+      // This is intentional: each turn executes exactly 1 new command per unit
+      // Previous commands should be completed during the turn execution phase
       unit.commandQueue = [commands[0]]; // Only execute 1 command per turn as specified
       
       // Mark the start time for queue draw animation
