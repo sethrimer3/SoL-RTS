@@ -170,6 +170,11 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
   }
 
   drawBackground(ctx, canvas, state);
+  
+  // Draw playfield border in game modes
+  if (state.mode === 'game' || state.mode === 'countdown') {
+    drawPlayfieldBorder(ctx, canvas);
+  }
 
   if (state.mode === 'game' || state.mode === 'countdown') {
     drawObstacles(ctx, state);
@@ -325,6 +330,47 @@ function drawBackground(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement
     ctx.lineTo(canvas.width, y);
     ctx.stroke();
   }
+}
+
+function drawPlayfieldBorder(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
+  // Calculate the playfield bounds in pixels
+  const playfieldWidthPixels = metersToPixels(ARENA_WIDTH_METERS);
+  const playfieldHeightPixels = metersToPixels(ARENA_HEIGHT_METERS);
+  
+  // Border thickness is 1 meter
+  const borderThickness = metersToPixels(1);
+  
+  ctx.save();
+  
+  // Draw the main border
+  ctx.fillStyle = COLORS.borderMain;
+  
+  // Top border
+  ctx.fillRect(0, 0, playfieldWidthPixels, borderThickness);
+  
+  // Bottom border
+  ctx.fillRect(0, playfieldHeightPixels - borderThickness, playfieldWidthPixels, borderThickness);
+  
+  // Left border
+  ctx.fillRect(0, 0, borderThickness, playfieldHeightPixels);
+  
+  // Right border
+  ctx.fillRect(playfieldWidthPixels - borderThickness, 0, borderThickness, playfieldHeightPixels);
+  
+  // Add inner highlight for depth effect
+  // The inner rectangle is inset by borderThickness on all sides (2 * borderThickness for width/height)
+  ctx.strokeStyle = COLORS.borderHighlight;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(borderThickness, borderThickness, 
+                 playfieldWidthPixels - borderThickness * 2, 
+                 playfieldHeightPixels - borderThickness * 2);
+  
+  // Add subtle outer shadow for depth effect
+  ctx.strokeStyle = COLORS.borderShadow;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0, 0, playfieldWidthPixels, playfieldHeightPixels);
+  
+  ctx.restore();
 }
 
 function drawObstacles(ctx: CanvasRenderingContext2D, state: GameState): void {
