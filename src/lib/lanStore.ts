@@ -28,12 +28,34 @@ export class LANKVStore implements RealtimeKVStore {
    */
   async initAsHost(): Promise<string> {
     return new Promise((resolve, reject) => {
+      // Set a timeout in case PeerJS hangs
+      const timeout = setTimeout(() => {
+        if (!this.connected) {
+          const error = new Error('Connection to PeerJS server timed out. Please check your internet connection.');
+          console.error('PeerJS initialization timeout');
+          reject(error);
+        }
+      }, 15000); // 15 second timeout
+
       try {
-        // Create peer with a random ID
-        this.peer = new Peer();
+        // Create peer with configuration for better reliability
+        this.peer = new Peer({
+          debug: 2, // Enable verbose logging for debugging
+          config: {
+            iceServers: [
+              // Google's public STUN servers
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+              { urls: 'stun:stun2.l.google.com:19302' },
+              { urls: 'stun:stun3.l.google.com:19302' },
+              { urls: 'stun:stun4.l.google.com:19302' },
+            ],
+          },
+        });
         this.isHostPlayer = true;
 
         this.peer.on('open', (id) => {
+          clearTimeout(timeout);
           this.peerId = id;
           this.connected = true;
           console.log('LAN Host initialized with peer ID:', id);
@@ -47,10 +69,17 @@ export class LANKVStore implements RealtimeKVStore {
         });
 
         this.peer.on('error', (err) => {
+          clearTimeout(timeout);
           console.error('Peer error:', err);
           reject(err);
         });
+
+        this.peer.on('disconnected', () => {
+          console.warn('Peer disconnected from server');
+        });
       } catch (err) {
+        clearTimeout(timeout);
+        console.error('Failed to create peer:', err);
         reject(err);
       }
     });
@@ -61,8 +90,29 @@ export class LANKVStore implements RealtimeKVStore {
    */
   async initAsGuest(hostPeerId: string): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Set a timeout in case connection hangs
+      const timeout = setTimeout(() => {
+        if (!this.connected) {
+          const error = new Error('Connection to host timed out. Please verify the Peer ID and try again.');
+          console.error('Guest connection timeout');
+          reject(error);
+        }
+      }, 15000); // 15 second timeout
+
       try {
-        this.peer = new Peer();
+        this.peer = new Peer({
+          debug: 2, // Enable verbose logging for debugging
+          config: {
+            iceServers: [
+              // Google's public STUN servers
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+              { urls: 'stun:stun2.l.google.com:19302' },
+              { urls: 'stun:stun3.l.google.com:19302' },
+              { urls: 'stun:stun4.l.google.com:19302' },
+            ],
+          },
+        });
         this.isHostPlayer = false;
 
         this.peer.on('open', (id) => {
@@ -76,17 +126,31 @@ export class LANKVStore implements RealtimeKVStore {
           this.setupConnectionHandlers(conn);
           
           conn.on('open', () => {
+            clearTimeout(timeout);
             this.connected = true;
             console.log('Connected to host:', hostPeerId);
             resolve();
           });
+
+          conn.on('error', (err) => {
+            clearTimeout(timeout);
+            console.error('Connection error:', err);
+            reject(err);
+          });
         });
 
         this.peer.on('error', (err) => {
+          clearTimeout(timeout);
           console.error('Peer error:', err);
           reject(err);
         });
+
+        this.peer.on('disconnected', () => {
+          console.warn('Peer disconnected from server');
+        });
       } catch (err) {
+        clearTimeout(timeout);
+        console.error('Failed to create peer:', err);
         reject(err);
       }
     });
