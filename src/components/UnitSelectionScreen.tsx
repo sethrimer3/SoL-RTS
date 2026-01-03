@@ -20,18 +20,13 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
   const assetBaseUrl = import.meta.env.BASE_URL;
   const [selectedSlot, setSelectedSlot] = useState<'left' | 'up' | 'down' | 'right' | null>(null);
 
-  const renderUnitIcon = (unitType: UnitType, size: number = 20, color?: string) => {
-    const iconColor = color || playerColor || COLORS.playerDefault;
-  const renderUnitIcon = (unitType: UnitType, size: number = 20, color?: string) => {
-    const iconColor = color || playerColor || COLORS.playerDefault;
-    
+  const renderUnitIcon = (unitType: UnitType, size: number = 20) => {
     return (
       <img
         src={`${assetBaseUrl}ASSETS/sprites/units/${unitType}.svg`}
         alt={unitType}
         width={size}
         height={size}
-        style={{ color: iconColor }}
         className="unit-icon"
       />
     );
@@ -68,7 +63,6 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
     }
     
     return null;
-  };
   };
 
   return (
