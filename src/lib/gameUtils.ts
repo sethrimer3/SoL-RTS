@@ -114,6 +114,14 @@ export function isPortraitOrientation(): boolean {
   return window.innerHeight > window.innerWidth;
 }
 
+/**
+ * Calculate the default rally point for a base, which is 10 meters toward the enemy base
+ */
+export function calculateDefaultRallyPoint(basePosition: Vector2, enemyBasePosition: Vector2): Vector2 {
+  const direction = normalize(subtract(enemyBasePosition, basePosition));
+  return add(basePosition, scale(direction, 10));
+}
+
 export function generateTopographyLines(canvasWidth: number, canvasHeight: number): Array<{ x1: number; y1: number; x2: number; y2: number }> {
   const lines: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
   const numLines = 15 + Math.floor(Math.random() * 10); // 15-25 lines
