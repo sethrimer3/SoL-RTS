@@ -133,10 +133,15 @@ export function AnimatedBackground({
 
     // Animation loop
     let animationId: number;
+    let lastFrameTime = Date.now();
+    
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const time = Date.now() / 1000;
+      const currentTime = Date.now();
+      const deltaTime = Math.min((currentTime - lastFrameTime) / 1000, 0.1); // Cap at 0.1s to prevent huge jumps
+      lastFrameTime = currentTime;
+      const time = currentTime / 1000;
 
       // Update galaxies (slow drift)
       galaxies.forEach((galaxy) => {
@@ -163,7 +168,7 @@ export function AnimatedBackground({
           if (p.orbitAngle !== undefined && p.orbitDistance !== undefined) {
             // Slower orbit speed for particles farther from center
             const orbitSpeed = galaxy.rotationSpeed / (1 + p.orbitDistance / galaxy.radius);
-            p.orbitAngle += orbitSpeed * 0.016; // Assuming ~60fps
+            p.orbitAngle += orbitSpeed * deltaTime; // Frame-rate independent
             
             // Calculate new position relative to galaxy center
             p.x = galaxy.x + Math.cos(p.orbitAngle) * p.orbitDistance;
@@ -243,8 +248,15 @@ export function AnimatedBackground({
     animate();
 
     // Setup ability push effect listener (for future integration with game abilities)
-    const handleAbilityPush = (event: CustomEvent) => {
-      const { x, y, force } = event.detail;
+    interface BackgroundPushDetail {
+      x: number;
+      y: number;
+      force: number;
+    }
+    
+    const handleAbilityPush = (event: Event) => {
+      const customEvent = event as CustomEvent<BackgroundPushDetail>;
+      const { x, y, force } = customEvent.detail;
       
       // Push nearby galaxies
       galaxies.forEach((galaxy) => {
@@ -297,12 +309,12 @@ export function AnimatedBackground({
     };
 
     // Listen for custom ability push events
-    window.addEventListener('backgroundPush' as any, handleAbilityPush as any);
+    window.addEventListener('backgroundPush', handleAbilityPush);
 
     return () => {
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(animationId);
-      window.removeEventListener('backgroundPush' as any, handleAbilityPush as any);
+      window.removeEventListener('backgroundPush', handleAbilityPush);
     };
   }, [particleCount, color, galaxyCount]);
 
