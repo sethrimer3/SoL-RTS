@@ -90,6 +90,13 @@ const COHESION_FORCE = 2.0; // Strength of cohesion force
 const ALIGNMENT_RADIUS = 3.0; // Distance to check for velocity alignment
 const ALIGNMENT_FORCE = 1.5; // Strength of alignment force
 const FLOCKING_MAX_FORCE = 5.0; // Maximum magnitude of flocking forces
+const MIN_FORCE_THRESHOLD = 0.01; // Minimum force magnitude to apply
+
+// Jitter/wiggle constants for stuck unit recovery
+const JITTER_ACTIVATION_RATIO = 0.5; // Activate jitter at 50% of stuck timeout
+const JITTER_RADIUS = 0.2; // Size of jitter wiggle circle in meters
+const JITTER_INCREMENT = 0.1; // Speed of jitter cycle (radians per frame)
+const JITTER_MOVEMENT_DISTANCE = 0.1; // Distance to move per jitter attempt
 
 // Particle physics constants
 const PARTICLE_ATTRACTION_STRENGTH = 6.0; // How strongly particles are attracted to their unit
@@ -294,14 +301,26 @@ function checkUnitCollisionWithSliding(
   if (hasFriendlyCollision) {
     const movementDirection = normalize(subtract(desiredPosition, unit.position));
     
+    // Calculate perpendicular directions for sliding
+    const rightPerpendicular = { x: -movementDirection.y, y: movementDirection.x };
+    const leftPerpendicular = { x: movementDirection.y, y: -movementDirection.x };
+    
+    // Calculate diagonal directions (45-degree rotations)
+    // Diagonal right: rotate movement direction 45° clockwise
+    const sqrt2 = Math.sqrt(2);
+    const diagonalRight = { 
+      x: (-movementDirection.y + movementDirection.x) / sqrt2, 
+      y: (movementDirection.x + movementDirection.y) / sqrt2 
+    };
+    // Diagonal left: rotate movement direction 45° counter-clockwise
+    const diagonalLeft = { 
+      x: (movementDirection.y + movementDirection.x) / sqrt2, 
+      y: (-movementDirection.x + movementDirection.y) / sqrt2 
+    };
+    
     // Try multiple slide distances and angles for better pathfinding
     const slideDistances = [FRIENDLY_SLIDE_DISTANCE, FRIENDLY_SLIDE_DISTANCE * 1.5, FRIENDLY_SLIDE_DISTANCE * 0.5];
-    const slideAngles = [
-      { x: -movementDirection.y, y: movementDirection.x }, // right perpendicular
-      { x: movementDirection.y, y: -movementDirection.x }, // left perpendicular
-      { x: (-movementDirection.y + movementDirection.x) / Math.sqrt(2), y: (movementDirection.x + movementDirection.y) / Math.sqrt(2) }, // diagonal right
-      { x: (movementDirection.y + movementDirection.x) / Math.sqrt(2), y: (-movementDirection.x + movementDirection.y) / Math.sqrt(2) }, // diagonal left
-    ];
+    const slideAngles = [rightPerpendicular, leftPerpendicular, diagonalRight, diagonalLeft];
     
     // Try each combination of slide distance and angle
     for (const slideDistance of slideDistances) {
@@ -343,8 +362,8 @@ function updateStuckDetection(unit: Unit, deltaTime: number): void {
       unit.stuckTimer = (unit.stuckTimer || 0) + deltaTime;
       
       // If stuck for too long, try to wiggle out before canceling
-      if (unit.stuckTimer >= STUCK_TIMEOUT * 0.5 && unit.stuckTimer < STUCK_TIMEOUT) {
-        // Apply jitter to help unstick (50-100% of timeout period)
+      if (unit.stuckTimer >= STUCK_TIMEOUT * JITTER_ACTIVATION_RATIO && unit.stuckTimer < STUCK_TIMEOUT) {
+        // Apply jitter to help unstick (activation at 50% of timeout period)
         if (!unit.jitterOffset) {
           unit.jitterOffset = 0;
         }
@@ -382,19 +401,18 @@ function applyJitterMovement(
   }
   
   // Increment jitter offset for cycling through positions
-  unit.jitterOffset += 0.1;
+  unit.jitterOffset += JITTER_INCREMENT;
   
   // Try circular jitter pattern around the stuck position
-  const jitterRadius = 0.2; // Small radius for wiggle
   const jitterAngle = unit.jitterOffset * Math.PI * 2;
   const jitterOffset = {
-    x: Math.cos(jitterAngle) * jitterRadius,
-    y: Math.sin(jitterAngle) * jitterRadius
+    x: Math.cos(jitterAngle) * JITTER_RADIUS,
+    y: Math.sin(jitterAngle) * JITTER_RADIUS
   };
   
   // Apply jitter to base direction
   const jitteredDirection = normalize(add(baseDirection, jitterOffset));
-  const jitteredPosition = add(unit.position, scale(jitteredDirection, 0.1));
+  const jitteredPosition = add(unit.position, scale(jitteredDirection, JITTER_MOVEMENT_DISTANCE));
   
   // Check if jittered position is valid
   if (!checkObstacleCollision(jitteredPosition, UNIT_SIZE_METERS / 2, obstacles) &&
@@ -440,7 +458,7 @@ function calculateSeparation(unit: Unit, allUnits: Unit[]): Vector2 {
     // Average the forces
     separationForce = scale(separationForce, 1 / count);
     // Normalize and apply force strength
-    if (distance({ x: 0, y: 0 }, separationForce) > 0.01) {
+    if (distance({ x: 0, y: 0 }, separationForce) > MIN_FORCE_THRESHOLD) {
       separationForce = scale(normalize(separationForce), SEPARATION_FORCE);
     }
   }
@@ -476,7 +494,7 @@ function calculateCohesion(unit: Unit, allUnits: Unit[]): Vector2 {
     centerOfMass = scale(centerOfMass, 1 / count);
     // Create force toward center
     const cohesionForce = subtract(centerOfMass, unit.position);
-    if (distance({ x: 0, y: 0 }, cohesionForce) > 0.01) {
+    if (distance({ x: 0, y: 0 }, cohesionForce) > MIN_FORCE_THRESHOLD) {
       return scale(normalize(cohesionForce), COHESION_FORCE);
     }
   }
@@ -515,7 +533,7 @@ function calculateAlignment(unit: Unit, allUnits: Unit[], currentDirection: Vect
   if (count > 0) {
     // Calculate average direction
     averageDirection = scale(averageDirection, 1 / count);
-    if (distance({ x: 0, y: 0 }, averageDirection) > 0.01) {
+    if (distance({ x: 0, y: 0 }, averageDirection) > MIN_FORCE_THRESHOLD) {
       averageDirection = normalize(averageDirection);
       // Create steering force toward average direction
       const alignmentForce = subtract(averageDirection, currentDirection);
@@ -546,7 +564,7 @@ function applyFlockingBehavior(unit: Unit, baseDirection: Vector2, allUnits: Uni
   finalDirection = add(finalDirection, alignment);
   
   // Normalize to maintain consistent speed
-  if (distance({ x: 0, y: 0 }, finalDirection) > 0.01) {
+  if (distance({ x: 0, y: 0 }, finalDirection) > MIN_FORCE_THRESHOLD) {
     return normalize(finalDirection);
   }
   
