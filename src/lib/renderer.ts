@@ -229,6 +229,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       drawUnits(ctx, state);
       drawExplosionParticles(ctx, state);
       drawHitSparks(ctx, state);
+      drawBounceParticles(ctx, state);
       drawEnergyPulses(ctx, state);
       drawSpawnEffects(ctx, state);
       drawImpactEffects(ctx, state);
@@ -1499,90 +1500,20 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, state: GameState): void 
     
     ctx.save();
     
-    // Calculate age for pulsing effect
-    const age = (Date.now() - projectile.createdAt) / 1000;
-    const pulseIntensity = 0.8 + Math.sin(age * 30) * 0.2; // Fast pulse
+    // Calculate rotation angle based on velocity direction
+    const angle = Math.atan2(projectile.velocity.y, projectile.velocity.x);
     
-    // Draw outer glow layer
-    // Convert trail length from meters so projectile visuals scale with unit size.
-    const trailLength = PROJECTILE_TRAIL_LENGTH_METERS;
-    const direction = normalize(projectile.velocity);
-    const trailStart = subtract(projectile.position, scale(direction, trailLength));
-    const trailScreenPos = positionToPixels(trailStart);
+    // Translate to projectile position and rotate
+    ctx.translate(screenPos.x, screenPos.y);
+    ctx.rotate(angle);
     
-    // Create multi-layer gradient for trail
-    const outerGradient = ctx.createLinearGradient(trailScreenPos.x, trailScreenPos.y, screenPos.x, screenPos.y);
-    outerGradient.addColorStop(0, 'transparent');
-    outerGradient.addColorStop(0.5, addAlphaToColor(projectile.color, 0.3));
-    outerGradient.addColorStop(1, addAlphaToColor(projectile.color, 0.6));
+    // Draw tiny rectangle bullet (4px x 2px)
+    const bulletWidth = 4;
+    const bulletHeight = 2;
     
-    ctx.strokeStyle = outerGradient;
-    // Scale trail widths in meters to keep bullets proportionate to units.
-    ctx.lineWidth = metersToPixels(PROJECTILE_OUTER_TRAIL_WIDTH_METERS);
-    ctx.lineCap = 'round';
-    ctx.shadowColor = projectile.color;
-    ctx.shadowBlur = 25 * pulseIntensity;
-    
-    ctx.beginPath();
-    ctx.moveTo(trailScreenPos.x, trailScreenPos.y);
-    ctx.lineTo(screenPos.x, screenPos.y);
-    ctx.stroke();
-    
-    // Draw energy trail with gradient and glow (inner layer)
-    const gradient = ctx.createLinearGradient(trailScreenPos.x, trailScreenPos.y, screenPos.x, screenPos.y);
-    gradient.addColorStop(0, 'transparent');
-    gradient.addColorStop(0.3, addAlphaToColor(projectile.color, 0.5));
-    gradient.addColorStop(1, projectile.color);
-    
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = metersToPixels(PROJECTILE_INNER_TRAIL_WIDTH_METERS);
-    ctx.shadowBlur = 18 * pulseIntensity;
-    
-    ctx.beginPath();
-    ctx.moveTo(trailScreenPos.x, trailScreenPos.y);
-    ctx.lineTo(screenPos.x, screenPos.y);
-    ctx.stroke();
-    
-    // Draw projectile sprite if loaded, otherwise fall back to circle
-    if (projectileSpriteLoaded && projectileSprite.complete) {
-      // Save context state before transformations
-      ctx.save();
-      
-      // Calculate rotation angle based on velocity direction
-      const angle = Math.atan2(projectile.velocity.y, projectile.velocity.x);
-      
-      // Set glow effect for the sprite
-      ctx.shadowColor = projectile.color;
-      // Scale glow with projectile size to match larger units.
-      ctx.shadowBlur = metersToPixels(UNIT_SIZE_METERS * 0.8) * pulseIntensity;
-      
-      // Draw sprite rotated in the direction of travel
-      ctx.translate(screenPos.x, screenPos.y);
-      ctx.rotate(angle);
-      
-      // Draw the sprite centered and scaled appropriately
-      // Use meter-based sizing so projectile sprites scale with unit size.
-      const spriteSize = metersToPixels(PROJECTILE_SIZE_METERS);
-      ctx.drawImage(projectileSprite, -spriteSize / 2, -spriteSize / 2, spriteSize, spriteSize);
-      
-      // Restore context state (resets transformations and shadow)
-      ctx.restore();
-    } else {
-      // Fallback to original circle rendering if sprite not loaded
-      ctx.fillStyle = projectile.color;
-      // Scale the fallback glow with unit size for consistent projectile weight.
-      ctx.shadowBlur = metersToPixels(UNIT_SIZE_METERS * 0.8) * pulseIntensity;
-      ctx.beginPath();
-      ctx.arc(screenPos.x, screenPos.y, metersToPixels(PROJECTILE_CORE_RADIUS_METERS), 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Draw bright center with appropriate team color
-      ctx.fillStyle = getTeamHighlightColor(projectile.owner);
-      ctx.shadowBlur = metersToPixels(UNIT_SIZE_METERS * 1.0) * pulseIntensity;
-      ctx.beginPath();
-      ctx.arc(screenPos.x, screenPos.y, metersToPixels(PROJECTILE_CORE_INNER_RADIUS_METERS), 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // Draw the rectangle centered
+    ctx.fillStyle = projectile.color;
+    ctx.fillRect(-bulletWidth / 2, -bulletHeight / 2, bulletWidth, bulletHeight);
     
     ctx.restore();
   });
@@ -3456,6 +3387,38 @@ function drawHitSparks(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.beginPath();
     ctx.arc(screenPos.x, screenPos.y, size / 2, 0, Math.PI * 2);
     ctx.fill();
+    
+    ctx.restore();
+  });
+}
+
+// Draw bounce particles for armored units
+function drawBounceParticles(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.bounceParticles) return;
+  if (!state.settings.enableParticleEffects) return; // Skip if particles disabled
+  
+  const now = Date.now();
+  state.bounceParticles.forEach((particle) => {
+    const age = (now - particle.createdAt) / 1000;
+    const progress = age / particle.lifetime;
+    const alpha = 1 - progress;
+    
+    const screenPos = positionToPixels(particle.position);
+    
+    // Draw tiny rectangle bullet (similar to projectile rendering)
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    
+    // Calculate rotation based on velocity
+    const angle = Math.atan2(particle.velocity.y, particle.velocity.x);
+    ctx.translate(screenPos.x, screenPos.y);
+    ctx.rotate(angle);
+    
+    // Draw tiny rectangle
+    const bulletWidth = 3;
+    const bulletHeight = 1.5;
+    ctx.fillStyle = particle.color;
+    ctx.fillRect(-bulletWidth / 2, -bulletHeight / 2, bulletWidth, bulletHeight);
     
     ctx.restore();
   });

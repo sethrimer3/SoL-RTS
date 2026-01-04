@@ -26,7 +26,7 @@ import {
 import { distance, normalize, scale, add, subtract, generateId } from './gameUtils';
 import { checkObstacleCollision } from './maps';
 import { soundManager } from './sound';
-import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash, createLaserParticles } from './visualEffects';
+import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash, createLaserParticles, createBounceParticles } from './visualEffects';
 import { ObjectPool } from './objectPool';
 
 // Projectile constants - must be declared before object pool
@@ -1184,6 +1184,12 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
             createDamageNumber(state, projectile.position, finalDamage, projectile.color);
             createHitSparks(state, projectile.position, projectile.color, 6);
             
+            // Create bounce particles if target has armor
+            if (target.armor > 0) {
+              const incomingDirection = normalize(projectile.velocity);
+              createBounceParticles(state, projectile.position, incomingDirection, projectile.color, 3);
+            }
+            
             if (state.matchStats && projectile.owner === 0) {
               state.matchStats.damageDealtByPlayer += finalDamage;
             }
@@ -1200,6 +1206,12 @@ function updateProjectiles(state: GameState, deltaTime: number): void {
               enemy.hp -= finalDamage;
               createDamageNumber(state, projectile.position, finalDamage, projectile.color);
               createHitSparks(state, projectile.position, projectile.color, 6);
+              
+              // Create bounce particles if enemy has armor
+              if (enemy.armor > 0) {
+                const incomingDirection = normalize(projectile.velocity);
+                createBounceParticles(state, projectile.position, incomingDirection, projectile.color, 3);
+              }
               
               if (state.matchStats && projectile.owner === 0) {
                 state.matchStats.damageDealtByPlayer += finalDamage;
@@ -3547,22 +3559,26 @@ export function spawnUnit(state: GameState, owner: number, type: UnitType, spawn
     attackCooldown: 0, // Initialize attack cooldown
   };
   
-  // Initialize particles for all units with different particle counts based on unit type
-  const particleCounts: Record<UnitType, number> = {
-    marine: 12,      // Ranged attacker - moderate particle count
-    warrior: 16,     // Melee bruiser - more particles for intimidation
-    snaker: 10,      // Fast harassment - fewer particles for speed aesthetic
-    tank: 20,        // Heavy tank - most particles for imposing presence
-    scout: 8,        // Fast scout - minimal particles for stealth aesthetic
-    artillery: 14,   // Long-range - moderate-high particles for power
-    medic: 12,       // Support unit - moderate particles with healing theme
-    interceptor: 14, // Fast attacker - moderate-high particles for aggressive look
-    berserker: 18,   // Heavy melee - lots of particles for rage effect
-    assassin: 10,    // Fast melee - fewer particles for stealth/speed
-    juggernaut: 22,  // Heaviest unit - most particles for imposing presence
-    striker: 14,     // Medium melee - moderate particles for whirlwind effect
-  };
-  unit.particles = createParticlesForUnit(unit, particleCounts[type]);
+  // Initialize particles only for Solari faction units
+  const solariUnits: Set<UnitType> = new Set(['flare', 'nova', 'eclipse', 'corona', 'supernova', 'zenith', 'pulsar', 'celestial', 'voidwalker', 'chronomancer', 'nebula', 'quasar']);
+  
+  if (solariUnits.has(type)) {
+    const particleCounts: Partial<Record<UnitType, number>> = {
+      flare: 10,
+      nova: 16,
+      eclipse: 12,
+      corona: 18,
+      supernova: 14,
+      zenith: 12,
+      pulsar: 14,
+      celestial: 16,
+      voidwalker: 12,
+      chronomancer: 12,
+      nebula: 14,
+      quasar: 14,
+    };
+    unit.particles = createParticlesForUnit(unit, particleCounts[type] || 12);
+  }
 
   state.units.push(unit);
   
