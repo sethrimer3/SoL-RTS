@@ -272,7 +272,7 @@ export function AnimatedBackground({
           
           // Clamp velocity to prevent galaxies from moving too fast
           const speed = Math.sqrt(galaxy.vx * galaxy.vx + galaxy.vy * galaxy.vy);
-          if (speed > 0.3) {
+          if (speed > 0.3 && speed > 0) {
             galaxy.vx = (galaxy.vx / speed) * 0.3;
             galaxy.vy = (galaxy.vy / speed) * 0.3;
           }
@@ -294,7 +294,7 @@ export function AnimatedBackground({
             
             // Ensure minimum velocity after push
             const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-            if (speed < MIN_VELOCITY) {
+            if (speed > 0 && speed < MIN_VELOCITY) {
               p.vx = (p.vx / speed) * MIN_VELOCITY;
               p.vy = (p.vy / speed) * MIN_VELOCITY;
             }
