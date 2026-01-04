@@ -1061,7 +1061,7 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
       }
       
       // Draw rally point flag for selected bases
-      if (base.isSelected && base.rallyPoint) {
+      if (base.isSelected) {
         const rallyScreen = positionToPixels(base.rallyPoint);
         const flagHeight = 20;
         const flagWidth = 15;

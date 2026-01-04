@@ -17,7 +17,7 @@ import {
   PIXELS_PER_METER,
   Vector2,
 } from './types';
-import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions } from './gameUtils';
+import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, pixelsToMeters } from './gameUtils';
 import { spawnUnit } from './simulation';
 import { soundManager } from './sound';
 import { applyFormation } from './formations';
@@ -426,9 +426,9 @@ function handleSetRallyPoint(state: GameState, base: Base, swipe: { x: number; y
   const swipeLen = Math.sqrt(swipe.x * swipe.x + swipe.y * swipe.y);
   if (swipeLen < SWIPE_THRESHOLD_PX) return;
 
-  // Convert swipe from pixels to world coordinates
-  const swipeWorldX = swipe.x / PIXELS_PER_METER;
-  const swipeWorldY = -swipe.y / PIXELS_PER_METER; // Flip Y since screen Y is inverted
+  // Convert swipe from pixels to world coordinates using proper scaling
+  const swipeWorldX = pixelsToMeters(swipe.x);
+  const swipeWorldY = -pixelsToMeters(swipe.y); // Flip Y since screen Y is inverted
   
   // Set rally point based on swipe direction and distance
   const newRallyPoint = add(base.position, { x: swipeWorldX, y: swipeWorldY });

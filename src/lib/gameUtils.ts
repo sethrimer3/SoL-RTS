@@ -118,7 +118,15 @@ export function isPortraitOrientation(): boolean {
  * Calculate the default rally point for a base, which is 10 meters toward the enemy base
  */
 export function calculateDefaultRallyPoint(basePosition: Vector2, enemyBasePosition: Vector2): Vector2 {
-  const direction = normalize(subtract(enemyBasePosition, basePosition));
+  const toEnemy = subtract(enemyBasePosition, basePosition);
+  const dist = distance({ x: 0, y: 0 }, toEnemy);
+  
+  // If bases are at same position or very close, default to a direction (right)
+  if (dist < 0.1) {
+    return add(basePosition, { x: 10, y: 0 });
+  }
+  
+  const direction = normalize(toEnemy);
   return add(basePosition, scale(direction, 10));
 }
 
