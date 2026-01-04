@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useKV } from './hooks/useKV';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { GameState, COLORS, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS, FactionType, FACTION_DEFINITIONS, BASE_TYPE_DEFINITIONS, BaseType, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS } from './lib/types';
-import { generateId, generateTopographyLines, generateStarfield, generateNebulaClouds, shouldUsePortraitCoordinates, updateViewportScale, calculateDefaultRallyPoint } from './lib/gameUtils';
+import { generateId, generateTopographyLines, generateStarfield, generateNebulaClouds, shouldUsePortraitCoordinates, updateViewportScale, calculateDefaultRallyPoint, createMiningDepots } from './lib/gameUtils';
 import { updateGame } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
@@ -1675,6 +1675,9 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
   const topographyLines = generateTopographyLines(canvas.width, canvas.height);
   const stars = generateStarfield(canvas.width, canvas.height);
   const nebulaClouds = generateNebulaClouds(canvas.width, canvas.height);
+  
+  // Create mining depots in corners
+  const miningDepots = createMiningDepots(arenaWidth, arenaHeight);
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
 
@@ -1684,6 +1687,7 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
     units: [],
     projectiles: [],
     obstacles: obstacles,
+    miningDepots: miningDepots,
     bases: [
       {
         id: generateId(),
@@ -1758,6 +1762,7 @@ function createInitialState(): GameState {
     units: [],
     projectiles: [],
     bases: [],
+    miningDepots: [],
     obstacles: [],
     players: [
       { photons: 0, incomeRate: 1, color: COLORS.playerDefault },
@@ -1806,6 +1811,9 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
   const topographyLines = generateTopographyLines(canvas.width, canvas.height);
   const stars = generateStarfield(canvas.width, canvas.height);
   const nebulaClouds = generateNebulaClouds(canvas.width, canvas.height);
+  
+  // Create mining depots in corners
+  const miningDepots = createMiningDepots(arenaWidth, arenaHeight);
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.playerBaseType || 'standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.enemyBaseType || 'standard'];
@@ -1816,6 +1824,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     units: [],
     projectiles: [],
     obstacles: obstacles,
+    miningDepots: miningDepots,
     bases: [
       {
         id: generateId(),
@@ -1898,6 +1907,9 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
   
   // Keep base placement aligned to the shared portrait coordinate system
   const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles, shouldUsePortraitCoordinates());
+  
+  // Create mining depots in corners
+  const miningDepots = createMiningDepots(arenaWidth, arenaHeight);
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.playerBaseType || 'standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.enemyBaseType || 'standard'];
@@ -1908,6 +1920,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
     units: [],
     projectiles: [],
     obstacles: obstacles,
+    miningDepots: miningDepots,
     bases: [
       {
         id: generateId(),
@@ -1978,6 +1991,9 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
   
   // Keep base placement aligned to the shared portrait coordinate system
   const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles, shouldUsePortraitCoordinates());
+  
+  // Create mining depots in corners
+  const miningDepots = createMiningDepots(arenaWidth, arenaHeight);
 
   // For online games, use standard base type for now
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
@@ -1989,6 +2005,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
     units: [],
     projectiles: [],
     obstacles: obstacles,
+    miningDepots: miningDepots,
     bases: [
       {
         id: generateId(),
@@ -2075,6 +2092,9 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
   const topographyLines = generateTopographyLines(canvas.width, canvas.height);
   const stars = generateStarfield(canvas.width, canvas.height);
   const nebulaClouds = generateNebulaClouds(canvas.width, canvas.height);
+  
+  // Create mining depots in corners
+  const miningDepots = createMiningDepots(arenaWidth, arenaHeight);
 
   // For online games, use standard base type for now
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
@@ -2086,6 +2106,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     units: [],
     projectiles: [],
     obstacles: obstacles,
+    miningDepots: miningDepots,
     bases: [
       {
         id: generateId(),

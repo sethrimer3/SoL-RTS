@@ -113,6 +113,11 @@ export interface Unit {
   queueDrawStartTime?: number; // Timestamp when queue drawing animation started (for new commands)
   queueDrawReverse?: boolean; // Whether queue should un-draw in reverse (true when unit dies)
   temporaryAvoidance?: { originalPosition: Vector2; returnDelay: number }; // For friendly unit avoidance - returnDelay is time remaining in seconds
+  miningState?: { // Mining drone specific state
+    depotId: string; // ID of the mining depot
+    depositId: string; // ID of the resource deposit being mined
+    atDepot: boolean; // true when at depot, false when at deposit
+  };
 }
 
 export type FactionType = 'radiant' | 'aurum' | 'solari';
@@ -233,7 +238,22 @@ export interface Base {
   regenerationPulse?: { endTime: number; radius: number }; // Visual effect for regeneration pulse
 }
 
-export type UnitType = 'marine' | 'warrior' | 'snaker' | 'tank' | 'scout' | 'artillery' | 'medic' | 'interceptor' | 'berserker' | 'assassin' | 'juggernaut' | 'striker' | 'flare' | 'nova' | 'eclipse' | 'corona' | 'supernova' | 'guardian' | 'reaper' | 'oracle' | 'harbinger' | 'zenith' | 'pulsar' | 'celestial' | 'marksman' | 'engineer' | 'skirmisher' | 'paladin' | 'gladiator' | 'ravager' | 'warlord' | 'duelist' | 'voidwalker' | 'chronomancer' | 'nebula' | 'quasar';
+// Mining depot for resource gathering
+export interface ResourceDeposit {
+  id: string;
+  position: Vector2;
+  depotId: string; // ID of the mining depot this deposit belongs to
+  workerId?: string; // ID of the mining drone working this deposit (only 1 per deposit)
+}
+
+export interface MiningDepot {
+  id: string;
+  position: Vector2;
+  owner: number; // 0 for player side, 1 for enemy side
+  deposits: ResourceDeposit[]; // 8 resource deposits around the depot
+}
+
+export type UnitType = 'marine' | 'warrior' | 'snaker' | 'tank' | 'scout' | 'artillery' | 'medic' | 'interceptor' | 'berserker' | 'assassin' | 'juggernaut' | 'striker' | 'flare' | 'nova' | 'eclipse' | 'corona' | 'supernova' | 'guardian' | 'reaper' | 'oracle' | 'harbinger' | 'zenith' | 'pulsar' | 'celestial' | 'marksman' | 'engineer' | 'skirmisher' | 'paladin' | 'gladiator' | 'ravager' | 'warlord' | 'duelist' | 'voidwalker' | 'chronomancer' | 'nebula' | 'quasar' | 'miningDrone';
 
 export interface UnitDefinition {
   name: string;
@@ -795,6 +815,21 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canDamageStructures: true,
     modifiers: ['ranged'],
   },
+  miningDrone: {
+    name: 'Mining Drone',
+    hp: 20,
+    armor: 0,
+    moveSpeed: 3,
+    attackType: 'none',
+    attackRange: 0,
+    attackDamage: 0,
+    attackRate: 0,
+    cost: 10,
+    abilityName: 'Mine Resources',
+    abilityCooldown: 0,
+    canDamageStructures: false,
+    modifiers: ['small', 'flying'],
+  },
 };
 
 // Background floaters for water-like effects
@@ -817,6 +852,7 @@ export interface GameState {
   units: Unit[];
   dyingUnits?: Unit[]; // Units that have died but are still showing queue un-draw animation
   bases: Base[];
+  miningDepots: MiningDepot[]; // Mining depots for resource gathering
   obstacles: import('./maps').Obstacle[];
   projectiles: Projectile[]; // Active projectiles in the game
   

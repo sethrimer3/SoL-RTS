@@ -342,3 +342,48 @@ export function generateNebulaClouds(canvasWidth: number, canvasHeight: number):
   
   return clouds;
 }
+
+// Create mining depots in the corners of the map
+export function createMiningDepots(arenaWidth: number, arenaHeight: number): import('./types').MiningDepot[] {
+  const depots: import('./types').MiningDepot[] = [];
+  const depositDistance = 2.5; // Distance from depot center to deposits
+  const depotSize = 1.5; // Size of the depot building
+  const margin = 8; // Margin from edges of arena
+  
+  // Define the 4 corner positions for depots
+  const corners = [
+    { x: margin, y: margin, owner: 0 }, // Top-left (player side)
+    { x: arenaWidth - margin, y: margin, owner: 0 }, // Top-right (player side)
+    { x: margin, y: arenaHeight - margin, owner: 1 }, // Bottom-left (enemy side)
+    { x: arenaWidth - margin, y: arenaHeight - margin, owner: 1 }, // Bottom-right (enemy side)
+  ];
+  
+  corners.forEach((corner, index) => {
+    const depotId = generateId();
+    const deposits: import('./types').ResourceDeposit[] = [];
+    
+    // Create 8 resource deposits in a ring around the depot
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const depositPos = {
+        x: corner.x + Math.cos(angle) * depositDistance,
+        y: corner.y + Math.sin(angle) * depositDistance,
+      };
+      
+      deposits.push({
+        id: generateId(),
+        position: depositPos,
+        depotId: depotId,
+      });
+    }
+    
+    depots.push({
+      id: depotId,
+      position: { x: corner.x, y: corner.y },
+      owner: corner.owner,
+      deposits: deposits,
+    });
+  });
+  
+  return depots;
+}

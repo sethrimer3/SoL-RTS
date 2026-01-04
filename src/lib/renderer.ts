@@ -188,6 +188,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
 
   if (state.mode === 'game' || state.mode === 'countdown') {
     drawObstacles(ctx, state);
+    drawMiningDepots(ctx, state);
     drawBases(ctx, state);
     
     if (state.mode === 'game') {
@@ -494,6 +495,83 @@ function drawObstacles(ctx: CanvasRenderingContext2D, state: GameState): void {
     }
 
     ctx.restore();
+  });
+}
+
+function drawMiningDepots(ctx: CanvasRenderingContext2D, state: GameState): void {
+  const DEPOT_SIZE = 1.5; // meters
+  const DEPOSIT_SIZE = 0.6; // meters
+  
+  state.miningDepots.forEach((depot) => {
+    const depotScreenPos = positionToPixels(depot.position);
+    const depotWidth = metersToPixels(DEPOT_SIZE);
+    const depotHeight = metersToPixels(DEPOT_SIZE);
+    
+    // Draw the depot building
+    ctx.save();
+    
+    // Depot base
+    const depotColor = state.players[depot.owner].color;
+    ctx.fillStyle = 'oklch(0.25 0.05 0)';
+    ctx.strokeStyle = depotColor;
+    ctx.lineWidth = 2;
+    
+    ctx.fillRect(depotScreenPos.x - depotWidth / 2, depotScreenPos.y - depotHeight / 2, depotWidth, depotHeight);
+    ctx.strokeRect(depotScreenPos.x - depotWidth / 2, depotScreenPos.y - depotHeight / 2, depotWidth, depotHeight);
+    
+    // Add glow effect
+    applyGlowEffect(ctx, state, depotColor, 10);
+    ctx.strokeRect(depotScreenPos.x - depotWidth / 2, depotScreenPos.y - depotHeight / 2, depotWidth, depotHeight);
+    clearGlowEffect(ctx, state);
+    
+    // Draw a center marker
+    ctx.fillStyle = depotColor;
+    ctx.beginPath();
+    ctx.arc(depotScreenPos.x, depotScreenPos.y, metersToPixels(0.3), 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+    
+    // Draw resource deposits around the depot
+    depot.deposits.forEach((deposit) => {
+      const depositScreenPos = positionToPixels(deposit.position);
+      const depositWidth = metersToPixels(DEPOSIT_SIZE);
+      
+      ctx.save();
+      
+      // Deposit is a hexagon shape
+      const isOccupied = !!deposit.workerId;
+      const depositColor = isOccupied ? 'oklch(0.85 0.20 95)' : 'oklch(0.50 0.15 95)'; // Yellow photon color
+      
+      ctx.fillStyle = depositColor;
+      ctx.strokeStyle = depotColor;
+      ctx.lineWidth = 1.5;
+      
+      // Draw hexagon
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+        const x = depositScreenPos.x + Math.cos(angle) * depositWidth / 2;
+        const y = depositScreenPos.y + Math.sin(angle) * depositWidth / 2;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Add glow for occupied deposits
+      if (isOccupied) {
+        applyGlowEffect(ctx, state, depositColor, 8);
+        ctx.stroke();
+        clearGlowEffect(ctx, state);
+      }
+      
+      ctx.restore();
+    });
   });
 }
 
