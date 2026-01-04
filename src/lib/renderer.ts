@@ -727,6 +727,9 @@ function drawMiningDepots(ctx: CanvasRenderingContext2D, state: GameState): void
       ctx.shadowBlur = 15;
       ctx.drawImage(depotSprite, depotScreenPos.x - size / 2, depotScreenPos.y - size / 2, size, size);
       
+      // Reset shadow and alpha
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1.0;
     } else {
       // Fallback to rectangle rendering
@@ -785,6 +788,9 @@ function drawMiningDepots(ctx: CanvasRenderingContext2D, state: GameState): void
           ctx.drawImage(resourceSprite, depositScreenPos.x - size / 2, depositScreenPos.y - size / 2, size, size);
         }
         
+        // Reset shadow and alpha
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
         ctx.globalAlpha = 1.0;
       } else {
         // Fallback to hexagon rendering
@@ -1828,6 +1834,9 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
         ctx.shadowBlur = glowIntensity;
         ctx.drawImage(unitSprite, -size / 2, -size / 2, size, size);
         
+        // Reset shadow and alpha
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
         ctx.globalAlpha = 1.0;
       } else {
         // Draw unit as circle with directional indicator (fallback)
@@ -2313,13 +2322,13 @@ function drawMiningDrone(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: {
     ctx.restore();
   } else {
     // Fallback to simple rendering if sprite not loaded
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 12;
-    
     const rotation = unit.rotation || 0;
     ctx.save();
     ctx.translate(screenPos.x, screenPos.y);
     ctx.rotate(rotation);
+    
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
     
     // Draw as diamond shape (drone body)
     ctx.beginPath();
