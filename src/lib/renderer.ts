@@ -2319,6 +2319,11 @@ function drawMiningDrone(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: {
     ctx.shadowBlur = 15;
     ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
     
+    // Reset shadow and alpha
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1.0;
+    
     ctx.restore();
   } else {
     // Fallback to simple rendering if sprite not loaded
