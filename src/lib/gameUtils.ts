@@ -119,7 +119,7 @@ export function isPortraitOrientation(): boolean {
  */
 export function calculateDefaultRallyPoint(basePosition: Vector2, enemyBasePosition: Vector2): Vector2 {
   const toEnemy = subtract(enemyBasePosition, basePosition);
-  const dist = distance({ x: 0, y: 0 }, toEnemy);
+  const dist = Math.sqrt(toEnemy.x * toEnemy.x + toEnemy.y * toEnemy.y);
   
   // If bases are at same position or very close, default to a direction (right)
   if (dist < 0.1) {
