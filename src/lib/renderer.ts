@@ -19,6 +19,7 @@ import {
   Floater,
 } from './types';
 import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract, getViewportOffset, getViewportDimensions } from './gameUtils';
+import { applyCameraTransform, removeCameraTransform, worldToScreen } from './camera';
 import { Obstacle } from './maps';
 import { MOTION_TRAIL_DURATION, QUEUE_FADE_DURATION, QUEUE_DRAW_DURATION, QUEUE_UNDRAW_DURATION } from './simulation';
 import { getFormationName } from './formations';
@@ -134,9 +135,25 @@ function addAlphaToColor(color: string, alpha: number): string {
   return color;
 }
 
+// Helper function to get camera-adjusted positions for visibility tests and overlays
+function getCameraAdjustedScreenPos(state: GameState, canvas: HTMLCanvasElement, worldPos: Vector2): Vector2 {
+  const baseScreenPos = positionToPixels(worldPos);
+  
+  if (!state.camera) {
+    return baseScreenPos;
+  }
+  
+  return worldToScreen(baseScreenPos, state, canvas);
+}
+
 // Helper function to check if an object is visible on screen
-function isOnScreen(position: Vector2, canvas: HTMLCanvasElement, margin: number = OFFSCREEN_CULLING_MARGIN): boolean {
-  const screenPos = positionToPixels(position);
+function isOnScreen(
+  position: Vector2,
+  canvas: HTMLCanvasElement,
+  state: GameState,
+  margin: number = OFFSCREEN_CULLING_MARGIN
+): boolean {
+  const screenPos = getCameraAdjustedScreenPos(state, canvas, position);
   return screenPos.x >= -margin && 
          screenPos.x <= canvas.width + margin && 
          screenPos.y >= -margin && 
@@ -188,6 +205,10 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
   
   // Draw background floaters (after background, before border)
   if (state.mode === 'game' || state.mode === 'countdown') {
+    // Apply camera transform so the battlefield zooms/pans while the UI stays fixed
+    if (state.camera) {
+      applyCameraTransform(ctx, state, canvas);
+    }
     drawBackgroundFloaters(ctx, state);
   }
   
@@ -214,12 +235,21 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       drawDamageNumbers(ctx, state);
       drawSelectionIndicators(ctx, state);
       drawAbilityRangeIndicators(ctx, state);
-      if (selectionRect) {
-        drawSelectionRect(ctx, selectionRect, state);
-      }
       drawAbilityCastPreview(ctx, state);
       drawBaseAbilityPreview(ctx, state);
       drawVisualFeedback(ctx, state);
+    }
+    
+    // Remove camera transform so screen-space UI does not zoom/pan
+    if (state.camera) {
+      removeCameraTransform(ctx);
+    }
+    
+    if (state.mode === 'game') {
+      if (selectionRect) {
+        drawSelectionRect(ctx, selectionRect, state);
+      }
+      drawOffscreenZoomIndicators(ctx, state, canvas);
       drawHUD(ctx, state);
       drawMinimap(ctx, state, canvas);
     }
@@ -252,6 +282,87 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       delete state.screenFlash;
     }
   }
+}
+
+// Draw off-screen unit/base indicators when zoomed in
+function drawOffscreenZoomIndicators(ctx: CanvasRenderingContext2D, state: GameState, canvas: HTMLCanvasElement): void {
+  if (!state.camera || state.camera.zoom <= 1.05) {
+    return;
+  }
+  
+  const viewportOffset = getViewportOffset();
+  const viewportDimensions = getViewportDimensions();
+  const bounds = {
+    left: viewportOffset.x,
+    right: viewportOffset.x + viewportDimensions.width,
+    top: viewportOffset.y,
+    bottom: viewportOffset.y + viewportDimensions.height,
+  };
+  
+  // Fallback to full canvas when viewport dimensions are unavailable
+  if (viewportDimensions.width === 0 || viewportDimensions.height === 0) {
+    bounds.left = 0;
+    bounds.right = canvas.width;
+    bounds.top = 0;
+    bounds.bottom = canvas.height;
+  }
+  
+  const center = {
+    x: (bounds.left + bounds.right) / 2,
+    y: (bounds.top + bounds.bottom) / 2,
+  };
+  
+  const drawIndicator = (screenPos: Vector2, color: string, radius: number): void => {
+    const dx = screenPos.x - center.x;
+    const dy = screenPos.y - center.y;
+    
+    if (dx === 0 && dy === 0) {
+      return;
+    }
+    
+    const tX = dx > 0 ? (bounds.right - center.x) / dx : (bounds.left - center.x) / dx;
+    const tY = dy > 0 ? (bounds.bottom - center.y) / dy : (bounds.top - center.y) / dy;
+    const t = Math.min(tX, tY);
+    const edgePoint = { x: center.x + dx * t, y: center.y + dy * t };
+    
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.85;
+    // Center the indicator on the edge so half the circle is clipped off-screen
+    ctx.beginPath();
+    ctx.arc(edgePoint.x, edgePoint.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  };
+  
+  // Draw unit indicators first so bases stand out on top
+  state.units.forEach((unit) => {
+    const screenPos = getCameraAdjustedScreenPos(state, canvas, unit.position);
+    const isVisible = screenPos.x >= bounds.left &&
+      screenPos.x <= bounds.right &&
+      screenPos.y >= bounds.top &&
+      screenPos.y <= bounds.bottom;
+    
+    if (isVisible) {
+      return;
+    }
+    
+    drawIndicator(screenPos, state.players[unit.owner].color, 7);
+  });
+  
+  state.bases.forEach((base) => {
+    const screenPos = getCameraAdjustedScreenPos(state, canvas, base.position);
+    const isVisible = screenPos.x >= bounds.left &&
+      screenPos.x <= bounds.right &&
+      screenPos.y >= bounds.top &&
+      screenPos.y <= bounds.bottom;
+    
+    if (isVisible) {
+      return;
+    }
+    
+    drawIndicator(screenPos, state.players[base.owner].color, 12);
+  });
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, state?: GameState): void {
@@ -1380,7 +1491,7 @@ function drawLaserBeam(ctx: CanvasRenderingContext2D, base: Base, screenPos: { x
 function drawProjectiles(ctx: CanvasRenderingContext2D, state: GameState): void {
   state.projectiles.forEach((projectile) => {
     // Skip projectiles that are off-screen for performance
-    if (!isOnScreen(projectile.position, ctx.canvas, OFFSCREEN_CULLING_MARGIN)) {
+    if (!isOnScreen(projectile.position, ctx.canvas, state, OFFSCREEN_CULLING_MARGIN)) {
       return;
     }
     
@@ -1529,7 +1640,7 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
   
   state.units.forEach((unit) => {
     // Skip units that are off-screen for performance
-    if (!isOnScreen(unit.position, ctx.canvas, OFFSCREEN_CULLING_MARGIN)) {
+    if (!isOnScreen(unit.position, ctx.canvas, state, OFFSCREEN_CULLING_MARGIN)) {
       return;
     }
     

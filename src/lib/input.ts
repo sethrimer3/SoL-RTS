@@ -14,10 +14,10 @@ import {
   BASE_SIZE_METERS,
   UNIT_SIZE_METERS,
   UNIT_DEFINITIONS,
-  PIXELS_PER_METER,
   Vector2,
 } from './types';
-import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, pixelsToMeters, generateId } from './gameUtils';
+import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId } from './gameUtils';
+import { screenToWorld, worldToScreen, zoomCamera } from './camera';
 import { spawnUnit } from './simulation';
 import { soundManager } from './sound';
 import { applyFormation } from './formations';
@@ -39,6 +39,7 @@ interface TouchState {
 
 const touchStates = new Map<number, TouchState>();
 let mouseState: TouchState | null = null;
+let pinchState: { lastDistance: number } | null = null;
 
 const SWIPE_THRESHOLD_PX = 30;
 const TAP_TIME_MS = 300;
@@ -47,12 +48,18 @@ const DOUBLE_TAP_TIME_MS = 400; // Time window for double-tap detection
 const DOUBLE_TAP_DISTANCE_PX = 50; // Max distance between taps to count as double-tap
 const MINING_DEPOT_CANCEL_RADIUS = 1.0; // Meters to allow canceling mining drone creation near depot
 
-function addVisualFeedback(state: GameState, type: 'tap' | 'drag', position: { x: number; y: number }, endPosition?: { x: number; y: number }): void {
+function addVisualFeedback(
+  state: GameState,
+  canvas: HTMLCanvasElement,
+  type: 'tap' | 'drag',
+  position: { x: number; y: number },
+  endPosition?: { x: number; y: number }
+): void {
   if (!state.visualFeedback) {
     state.visualFeedback = [];
   }
   
-  const worldPos = pixelsToPosition(position);
+  const worldPos = screenToWorldPosition(state, canvas, position);
   const feedback: {
     id: string;
     type: 'tap' | 'drag';
@@ -67,7 +74,7 @@ function addVisualFeedback(state: GameState, type: 'tap' | 'drag', position: { x
   };
   
   if (endPosition) {
-    feedback.endPosition = pixelsToPosition(endPosition);
+    feedback.endPosition = screenToWorldPosition(state, canvas, endPosition);
   }
   
   state.visualFeedback.push(feedback);
@@ -82,6 +89,35 @@ function transformCoordinates(clientX: number, clientY: number, rect: DOMRect): 
   const y = clientY - rect.top;
   
   return { x, y };
+}
+
+// Convert screen pixels to world coordinates while respecting camera zoom/pan
+function screenToWorldPosition(state: GameState, canvas: HTMLCanvasElement, screenPos: Vector2): Vector2 {
+  const worldPixels = screenToWorld(screenPos, state, canvas);
+  return pixelsToPosition(worldPixels);
+}
+
+// Convert world coordinates to screen pixels while respecting camera zoom/pan
+function worldToScreenPosition(state: GameState, canvas: HTMLCanvasElement, worldPos: Vector2): Vector2 {
+  const baseScreenPos = positionToPixels(worldPos);
+  
+  if (!state.camera) {
+    return baseScreenPos;
+  }
+  
+  return worldToScreen(baseScreenPos, state, canvas);
+}
+
+// Calculate the distance between two touches in screen space for pinch zooming
+function getPinchDistance(touches: TouchList, rect: DOMRect): number {
+  if (touches.length < 2) {
+    return 0;
+  }
+  
+  const [firstTouch, secondTouch] = [touches[0], touches[1]];
+  const firstPos = transformCoordinates(firstTouch.clientX, firstTouch.clientY, rect);
+  const secondPos = transformCoordinates(secondTouch.clientX, secondTouch.clientY, rect);
+  return Math.hypot(secondPos.x - firstPos.x, secondPos.y - firstPos.y);
 }
 
 function getViewportCenterX(): number {
@@ -107,13 +143,14 @@ export function handleTouchStart(e: TouchEvent, state: GameState, canvas: HTMLCa
   if (state.mode !== 'game') return;
   e.preventDefault();
 
+  const rect = canvas.getBoundingClientRect();
+
   Array.from(e.changedTouches).forEach((touch) => {
-    const rect = canvas.getBoundingClientRect();
     const { x, y } = transformCoordinates(touch.clientX, touch.clientY, rect);
-    const worldPos = pixelsToPosition({ x, y });
+    const worldPos = screenToWorldPosition(state, canvas, { x, y });
     
     // Add visual feedback for touch start
-    addVisualFeedback(state, 'tap', { x, y });
+    addVisualFeedback(state, canvas, 'tap', { x, y });
 
     const playerIndex = resolvePlayerIndex(state, x);
 
@@ -133,17 +170,43 @@ export function handleTouchStart(e: TouchEvent, state: GameState, canvas: HTMLCa
       touchedDepotPos: touchedDepot ? worldPos : undefined,
     });
   });
+  
+  // Initialize pinch tracking when a second touch begins
+  if (e.touches.length >= 2) {
+    pinchState = { lastDistance: getPinchDistance(e.touches, rect) };
+  }
 }
 
 export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCanvasElement): void {
   if (state.mode !== 'game') return;
   e.preventDefault();
 
+  const rect = canvas.getBoundingClientRect();
+
+  // Handle pinch-to-zoom when two fingers are active
+  if (e.touches.length >= 2) {
+    const pinchDistance = getPinchDistance(e.touches, rect);
+    
+    if (!pinchState) {
+      pinchState = { lastDistance: pinchDistance };
+    } else {
+      const distanceDelta = pinchDistance - pinchState.lastDistance;
+      const zoomDelta = distanceDelta / 120;
+      
+      if (Math.abs(zoomDelta) > 0.01) {
+        zoomCamera(state, zoomDelta);
+      }
+      
+      pinchState.lastDistance = pinchDistance;
+    }
+    
+    return;
+  }
+
   Array.from(e.changedTouches).forEach((touch) => {
     const touchState = touchStates.get(touch.identifier);
     if (!touchState) return;
 
-    const rect = canvas.getBoundingClientRect();
     const { x, y } = transformCoordinates(touch.clientX, touch.clientY, rect);
 
     const dx = x - touchState.startPos.x;
@@ -178,9 +241,9 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
     // Update rally point preview when dragging from a selected base
     if (touchState.isDragging && touchState.touchedBase && touchState.touchedBaseWasSelected) {
       // Convert screen space swipe delta to world space delta properly
-      const baseScreenPos = positionToPixels(touchState.touchedBase.position);
+      const baseScreenPos = worldToScreenPosition(state, canvas, touchState.touchedBase.position);
       const swipeEndScreenPos = { x: baseScreenPos.x + dx, y: baseScreenPos.y + dy };
-      const swipeEndWorldPos = pixelsToPosition(swipeEndScreenPos);
+      const swipeEndWorldPos = screenToWorldPosition(state, canvas, swipeEndScreenPos);
       const swipeWorldDelta = subtract(swipeEndWorldPos, touchState.touchedBase.position);
       const newRallyPoint = add(touchState.touchedBase.position, swipeWorldDelta);
       
@@ -195,12 +258,12 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
     
     // Update ability cast preview when units are selected and dragging
     if (touchState.isDragging && state.selectedUnits.size > 0 && !touchState.touchedBase && !touchState.touchedMovementDot) {
-      updateAbilityCastPreview(state, dx, dy, touchState.startPos);
+      updateAbilityCastPreview(state, dx, dy, touchState.startPos, canvas);
     }
 
     // Update mining depot drag preview so the line snaps toward the closest available deposit
     if (touchState.isDragging && touchState.touchedDepot && touchState.touchedDepotPos) {
-      const endWorldPos = pixelsToPosition({ x, y });
+      const endWorldPos = screenToWorldPosition(state, canvas, { x, y });
       const snappedDeposit = findSnappedResourceDeposit(touchState.touchedDepot, touchState.touchedDepotPos, endWorldPos);
 
       if (snappedDeposit) {
@@ -214,7 +277,7 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
     }
     
     // Update base ability preview when base is selected and dragging (but not from the base itself)
-    updateBaseAbilityPreview(state, touchState.isDragging, touchState.touchedBase, touchState.startPos, dx, dy);
+    updateBaseAbilityPreview(state, touchState.isDragging, touchState.touchedBase, touchState.startPos, dx, dy, canvas);
   });
 }
 
@@ -222,11 +285,12 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
   if (state.mode !== 'game') return;
   e.preventDefault();
 
+  const rect = canvas.getBoundingClientRect();
+
   Array.from(e.changedTouches).forEach((touch) => {
     const touchState = touchStates.get(touch.identifier);
     if (!touchState) return;
 
-    const rect = canvas.getBoundingClientRect();
     const { x, y } = transformCoordinates(touch.clientX, touch.clientY, rect);
 
     const dx = x - touchState.startPos.x;
@@ -238,7 +302,7 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
     
     // Add visual feedback for drag if moved significantly
     if (touchState.isDragging && dist > 10) {
-      addVisualFeedback(state, 'drag', touchState.startPos, { x, y });
+      addVisualFeedback(state, canvas, 'drag', touchState.startPos, { x, y });
     }
 
     if (touchState.selectionRect) {
@@ -247,7 +311,7 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
       handleLaserSwipe(state, touchState.touchedMovementDot, { x: dx, y: dy });
     } else if (touchState.touchedDepot && touchState.isDragging && dist > SWIPE_THRESHOLD_PX && touchState.touchedDepotPos) {
       // Handle mining depot drag to create mining drone
-      const endWorldPos = pixelsToPosition({ x, y });
+      const endWorldPos = screenToWorldPosition(state, canvas, { x, y });
       handleMiningDepotDrag(state, touchState.touchedDepot, touchState.touchedDepotPos, endWorldPos, playerIndex);
     } else if (touchState.touchedBase && !touchState.isDragging) {
       const base = touchState.touchedBase;
@@ -262,7 +326,7 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
       // If base was already selected, dragging from it sets rally point
       // If base was not selected, dragging from it spawns units
       if (touchState.touchedBaseWasSelected) {
-        handleSetRallyPoint(state, touchState.touchedBase, { x: dx, y: dy });
+        handleSetRallyPoint(state, touchState.touchedBase, { x: dx, y: dy }, canvas);
         delete state.rallyPointPreview; // Clear preview after setting rally point
       } else {
         handleBaseSwipe(state, touchState.touchedBase, { x: dx, y: dy }, playerIndex);
@@ -275,14 +339,12 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
 
       // When base is selected and drag is NOT from the base, queue the base's ability
       if (selectedBase && state.selectedUnits.size === 0 && !touchState.touchedBase) {
-        handleBaseAbilityDrag(state, selectedBase, { x: dx, y: dy }, touchState.startPos, playerIndex);
+        handleBaseAbilityDrag(state, selectedBase, { x: dx, y: dy }, touchState.startPos, canvas);
       } else if (state.selectedUnits.size > 0 && !touchState.touchedBase && !touchState.touchedMovementDot) {
         // Handle ability drag for selected units
-        const dragVectorPixels = { x: dx, y: dy };
-        let dragVectorWorld = {
-          x: dragVectorPixels.x / PIXELS_PER_METER,
-          y: dragVectorPixels.y / PIXELS_PER_METER
-        };
+        const worldStart = screenToWorldPosition(state, canvas, touchState.startPos);
+        const worldEnd = screenToWorldPosition(state, canvas, { x, y });
+        let dragVectorWorld = subtract(worldEnd, worldStart);
         
         // Apply mirroring if the setting is enabled (mirror both X and Y)
         if (state.settings.mirrorAbilityCasting) {
@@ -315,6 +377,10 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
 
     touchStates.delete(touch.identifier);
   });
+  
+  if (e.touches.length < 2) {
+    pinchState = null;
+  }
 }
 
 function findTouchedBase(state: GameState, worldPos: { x: number; y: number }, playerIndex: number): Base | undefined {
@@ -407,7 +473,7 @@ function handleRectSelection(
 
   state.units.forEach((unit) => {
     if (unit.owner !== playerIndex) return;
-    const screenPos = positionToPixels(unit.position);
+    const screenPos = worldToScreenPosition(state, canvas, unit.position);
     if (screenPos.x >= minX && screenPos.x <= maxX && screenPos.y >= minY && screenPos.y <= maxY) {
       state.selectedUnits.add(unit.id);
     }
@@ -420,7 +486,7 @@ function handleRectSelection(
 
   const selectedBase = state.bases.find((base) => {
     if (base.owner !== playerIndex) return false;
-    const screenPos = positionToPixels(base.position);
+    const screenPos = worldToScreenPosition(state, canvas, base.position);
     return screenPos.x >= minX && screenPos.x <= maxX && screenPos.y >= minY && screenPos.y <= maxY;
   });
 
@@ -497,7 +563,13 @@ function fireLaser(state: GameState, base: Base, direction: { x: number; y: numb
 }
 
 // Handle drag from anywhere (not from base) when base is selected - this queues the base's ability
-function handleBaseAbilityDrag(state: GameState, base: Base, swipe: { x: number; y: number }, startPos: { x: number; y: number }, playerIndex: number): void {
+function handleBaseAbilityDrag(
+  state: GameState,
+  base: Base,
+  swipe: { x: number; y: number },
+  startPos: { x: number; y: number },
+  canvas: HTMLCanvasElement
+): void {
   const swipeLen = Math.sqrt(swipe.x * swipe.x + swipe.y * swipe.y);
   if (swipeLen < SWIPE_THRESHOLD_PX) return;
 
@@ -507,8 +579,8 @@ function handleBaseAbilityDrag(state: GameState, base: Base, swipe: { x: number;
   }
 
   // Convert screen coordinates to world coordinates properly
-  const worldStart = pixelsToPosition(startPos);
-  const worldEnd = pixelsToPosition({ x: startPos.x + swipe.x, y: startPos.y + swipe.y });
+  const worldStart = screenToWorldPosition(state, canvas, startPos);
+  const worldEnd = screenToWorldPosition(state, canvas, { x: startPos.x + swipe.x, y: startPos.y + swipe.y });
   const swipeDir = normalize(subtract(worldEnd, worldStart));
 
   soundManager.playLaserFire();
@@ -524,15 +596,20 @@ function handleBaseAbilityDrag(state: GameState, base: Base, swipe: { x: number;
 }
 
 // Handle setting rally point by dragging from a selected base
-function handleSetRallyPoint(state: GameState, base: Base, swipe: { x: number; y: number }): void {
+function handleSetRallyPoint(
+  state: GameState,
+  base: Base,
+  swipe: { x: number; y: number },
+  canvas: HTMLCanvasElement
+): void {
   const swipeLen = Math.sqrt(swipe.x * swipe.x + swipe.y * swipe.y);
   if (swipeLen < SWIPE_THRESHOLD_PX) return;
 
   // Convert screen space swipe delta to world space delta properly
   // by using the base position as anchor point
-  const baseScreenPos = positionToPixels(base.position);
+  const baseScreenPos = worldToScreenPosition(state, canvas, base.position);
   const swipeEndScreenPos = { x: baseScreenPos.x + swipe.x, y: baseScreenPos.y + swipe.y };
-  const swipeEndWorldPos = pixelsToPosition(swipeEndScreenPos);
+  const swipeEndWorldPos = screenToWorldPosition(state, canvas, swipeEndScreenPos);
   const swipeWorldDelta = subtract(swipeEndWorldPos, base.position);
   
   // Set rally point based on swipe direction and distance
@@ -707,7 +784,7 @@ function handleTap(state: GameState, screenPos: { x: number; y: number }, canvas
     return;
   }
   
-  const worldPos = pixelsToPosition(screenPos);
+  const worldPos = screenToWorldPosition(state, canvas, screenPos);
 
   const tappedUnit = state.units.find((unit) => {
     if (unit.owner !== playerIndex) return false;
@@ -807,7 +884,13 @@ function clampVectorToRange(vector: Vector2, maxRange: number): Vector2 {
 }
 
 // Helper function to update the ability cast preview during drag
-function updateAbilityCastPreview(state: GameState, screenDx: number, screenDy: number, screenStartPos: { x: number; y: number }): void {
+function updateAbilityCastPreview(
+  state: GameState,
+  screenDx: number,
+  screenDy: number,
+  screenStartPos: { x: number; y: number },
+  canvas: HTMLCanvasElement
+): void {
   // Get the first selected unit to determine the command origin
   const selectedUnit = state.units.find(unit => state.selectedUnits.has(unit.id));
   if (!selectedUnit) {
@@ -822,8 +905,8 @@ function updateAbilityCastPreview(state: GameState, screenDx: number, screenDy: 
     x: screenStartPos.x + screenDx,
     y: screenStartPos.y + screenDy,
   };
-  const worldStartPos = pixelsToPosition(screenStartPos);
-  const worldEndPos = pixelsToPosition(screenEndPos);
+  const worldStartPos = screenToWorldPosition(state, canvas, screenStartPos);
+  const worldEndPos = screenToWorldPosition(state, canvas, screenEndPos);
   let dragVectorWorld = subtract(worldEndPos, worldStartPos);
   
   // Apply mirroring if the setting is enabled (mirror both X and Y)
@@ -840,7 +923,7 @@ function updateAbilityCastPreview(state: GameState, screenDx: number, screenDy: 
   state.abilityCastPreview = {
     commandOrigin,
     dragVector: clampedVector,
-    screenStartPos: pixelsToPosition(screenStartPos)
+    screenStartPos
   };
 }
 
@@ -971,10 +1054,10 @@ export function handleMouseDown(e: MouseEvent, state: GameState, canvas: HTMLCan
 
   const rect = canvas.getBoundingClientRect();
   const { x, y } = transformCoordinates(e.clientX, e.clientY, rect);
-  const worldPos = pixelsToPosition({ x, y });
+  const worldPos = screenToWorldPosition(state, canvas, { x, y });
   
   // Add visual feedback for mouse down
-  addVisualFeedback(state, 'tap', { x, y });
+  addVisualFeedback(state, canvas, 'tap', { x, y });
 
   const playerIndex = resolvePlayerIndex(state, x);
 
@@ -1000,7 +1083,7 @@ export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCan
   
   // Update tooltip if not dragging
   if (!mouseState || !mouseState.isDragging) {
-    const worldPos = pixelsToPosition({ x, y });
+    const worldPos = screenToWorldPosition(state, canvas, { x, y });
     
     // Check for unit hover
     const hoveredUnit = state.units.find(unit => {
@@ -1062,9 +1145,9 @@ export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCan
   // Update rally point preview when dragging from a selected base
   if (mouseState.isDragging && mouseState.touchedBase && mouseState.touchedBaseWasSelected) {
     // Convert screen space swipe delta to world space delta properly
-    const baseScreenPos = positionToPixels(mouseState.touchedBase.position);
+    const baseScreenPos = worldToScreenPosition(state, canvas, mouseState.touchedBase.position);
     const swipeEndScreenPos = { x: baseScreenPos.x + dx, y: baseScreenPos.y + dy };
-    const swipeEndWorldPos = pixelsToPosition(swipeEndScreenPos);
+    const swipeEndWorldPos = screenToWorldPosition(state, canvas, swipeEndScreenPos);
     const swipeWorldDelta = subtract(swipeEndWorldPos, mouseState.touchedBase.position);
     const newRallyPoint = add(mouseState.touchedBase.position, swipeWorldDelta);
     
@@ -1079,11 +1162,11 @@ export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCan
   
   // Update ability cast preview when units are selected and dragging
   if (mouseState.isDragging && state.selectedUnits.size > 0 && !mouseState.touchedBase && !mouseState.touchedMovementDot) {
-    updateAbilityCastPreview(state, dx, dy, mouseState.startPos);
+    updateAbilityCastPreview(state, dx, dy, mouseState.startPos, canvas);
   }
   
   // Update base ability preview when base is selected and dragging (but not from the base itself)
-  updateBaseAbilityPreview(state, mouseState.isDragging, mouseState.touchedBase, mouseState.startPos, dx, dy);
+  updateBaseAbilityPreview(state, mouseState.isDragging, mouseState.touchedBase, mouseState.startPos, dx, dy, canvas);
 }
 
 export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanvasElement): void {
@@ -1103,7 +1186,7 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
   
   // Add visual feedback for drag if moved significantly
   if (mouseState.isDragging && dist > 10) {
-    addVisualFeedback(state, 'drag', mouseState.startPos, { x, y });
+    addVisualFeedback(state, canvas, 'drag', mouseState.startPos, { x, y });
   }
 
   if (mouseState.selectionRect) {
@@ -1123,7 +1206,7 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
     // If base was already selected, dragging from it sets rally point
     // If base was not selected, dragging from it spawns units
     if (mouseState.touchedBaseWasSelected) {
-      handleSetRallyPoint(state, mouseState.touchedBase, { x: dx, y: dy });
+      handleSetRallyPoint(state, mouseState.touchedBase, { x: dx, y: dy }, canvas);
       delete state.rallyPointPreview; // Clear preview after setting rally point
     } else {
       handleBaseSwipe(state, mouseState.touchedBase, { x: dx, y: dy }, playerIndex);
@@ -1136,17 +1219,15 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
 
     // When base is selected and drag is NOT from the base, queue the base's ability
     if (selectedBase && state.selectedUnits.size === 0 && !mouseState.touchedBase) {
-      handleBaseAbilityDrag(state, selectedBase, { x: dx, y: dy }, mouseState.startPos, playerIndex);
+      handleBaseAbilityDrag(state, selectedBase, { x: dx, y: dy }, mouseState.startPos, canvas);
     }
   } else if (elapsed < TAP_TIME_MS && dist < 10) {
     handleTap(state, { x, y }, canvas, playerIndex);
   } else if (mouseState.isDragging && state.selectedUnits.size > 0 && !mouseState.touchedBase && !mouseState.touchedMovementDot) {
     // Use vector-based ability drag: convert screen drag to world vector
-    const dragVectorPixels = { x: dx, y: dy };
-    let dragVectorWorld = {
-      x: dragVectorPixels.x / PIXELS_PER_METER,
-      y: dragVectorPixels.y / PIXELS_PER_METER
-    };
+    const worldStart = screenToWorldPosition(state, canvas, mouseState.startPos);
+    const worldEnd = screenToWorldPosition(state, canvas, { x, y });
+    let dragVectorWorld = subtract(worldEnd, worldStart);
     
     // Apply mirroring if the setting is enabled (mirror both X and Y)
     if (state.settings.mirrorAbilityCasting) {
@@ -1180,14 +1261,15 @@ function updateBaseAbilityPreview(
   touchedBase: Base | undefined,
   startPos: { x: number; y: number },
   dx: number,
-  dy: number
+  dy: number,
+  canvas: HTMLCanvasElement
 ): void {
   const playerIndex = resolvePlayerIndex(state, startPos.x);
   const selectedBase = getSelectedBase(state, playerIndex);
   
   if (isDragging && selectedBase && state.selectedUnits.size === 0 && !touchedBase) {
-    const worldStart = pixelsToPosition(startPos);
-    const worldEnd = pixelsToPosition({ x: startPos.x + dx, y: startPos.y + dy });
+    const worldStart = screenToWorldPosition(state, canvas, startPos);
+    const worldEnd = screenToWorldPosition(state, canvas, { x: startPos.x + dx, y: startPos.y + dy });
     const swipeDir = normalize(subtract(worldEnd, worldStart));
     
     state.baseAbilityPreview = {

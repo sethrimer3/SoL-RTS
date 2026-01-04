@@ -7,6 +7,7 @@ Handles all user input for the game including touch, mouse, and keyboard events.
 ### Imports
 - `./types` - Game types and constants
 - `./gameUtils` - Coordinate conversions and vector math
+- `./camera` - Camera transforms for screen/world conversion and zooming
 - `./simulation` - spawnUnit() function
 - `./sound` - Sound effect playback
 
@@ -19,6 +20,7 @@ Handles all user input for the game including touch, mouse, and keyboard events.
 - **TouchState Interface**: Tracks individual touch/mouse interactions
 - **touchStates Map**: Stores state for multi-touch support
 - **mouseState**: Stores single mouse pointer state
+- **pinchState**: Tracks last pinch distance for zoom gestures
 
 ### Constants
 - **SWIPE_THRESHOLD_PX**: `30` - Minimum distance to register as swipe
@@ -42,6 +44,7 @@ Handles all user input for the game including touch, mouse, and keyboard events.
   - This allows swiping anywhere to spawn units once the base is selected
   - Updates base movement target
   - Handles movement dot dragging
+  - Applies pinch zoom when two touches are active
 
 #### handleTouchEnd/handleMouseUp
 - **Purpose:** Completes interaction and executes commands
@@ -89,6 +92,7 @@ Handles all user input for the game including touch, mouse, and keyboard events.
 
 ### Critical Details
 - Multi-touch support via Map of touch identifiers
+- Pinch zoom uses the distance between two touches to drive camera zoom
 - Split-screen: left half for player 0, right half for player 1 within the arena viewport
 - Player ownership determined by screen position relative to the arena viewport center in two-player mode
 - Falls back to window width for split detection if viewport dimensions are not initialized
@@ -98,7 +102,7 @@ Handles all user input for the game including touch, mouse, and keyboard events.
 - Swipe distance and direction determines command type
 - Command queue respects QUEUE_MAX_LENGTH
 - Ability command queue nodes clone their origin/direction vectors to avoid later mutation
-- Coordinates converted from pixels to game meters
+- Coordinates converted from screen pixels to game meters via camera-aware transforms
 - Touch events prevented to avoid browser scrolling
 - Mining depot drags snap toward the closest available deposit by drag angle, with a preview line stored in `state.miningDragPreview`
 - Mining drone creation can be canceled by releasing near the depot, and deposits cap at two drones with cadence delays for staggering
@@ -133,7 +137,6 @@ Handles all user input for the game including touch, mouse, and keyboard events.
 ### Needed
 - Keyboard shortcuts for unit spawning
 - Hotkey groups for unit selection
-- Camera controls (pan, zoom)
 - Minimap input
 - Better unit spawn UI (not just hold)
 - Right-click for alternative commands
@@ -152,6 +155,7 @@ Handles all user input for the game including touch, mouse, and keyboard events.
 - **2026-01-05**: Cloned ability command origin/direction vectors to keep queued ability anchors stable
 - **2026-01-06**: Derived ability drag vectors from world-space positions to respect rotated desktop input
 - **2025-03-17**: Added mining depot snap-to-deposit drag logic, preview state updates, and cancellation behavior near depots
+- **2026-01-04**: Added camera-aware screen/world conversions and pinch-to-zoom handling for touch input
 
 ## Watch Out For
 - Always prevent default on touch events to avoid scrolling
