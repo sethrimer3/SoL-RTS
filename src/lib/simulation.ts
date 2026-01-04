@@ -467,8 +467,7 @@ function calculateSeparation(unit: Unit, allUnits: Unit[]): Vector2 {
     separationForce = scale(separationForce, 1 / count);
     // Normalize and apply force strength
     if (distance({ x: 0, y: 0 }, separationForce) > MIN_FORCE_THRESHOLD) {
-      const magnitude = Math.min(distance({ x: 0, y: 0 }, separationForce), FLOCKING_MAX_FORCE);
-      separationForce = scale(normalize(separationForce), SEPARATION_FORCE * magnitude / FLOCKING_MAX_FORCE);
+      separationForce = scale(normalize(separationForce), SEPARATION_FORCE);
     }
   }
   
@@ -581,6 +580,12 @@ function applyFlockingBehavior(unit: Unit, baseDirection: Vector2, allUnits: Uni
   flockingForce = add(flockingForce, cohesion);
   flockingForce = add(flockingForce, alignment);
   
+  // Clamp flocking force to max magnitude before smoothing
+  const forceMagnitude = distance({ x: 0, y: 0 }, flockingForce);
+  if (forceMagnitude > FLOCKING_MAX_FORCE) {
+    flockingForce = scale(normalize(flockingForce), FLOCKING_MAX_FORCE);
+  }
+  
   // Apply force smoothing to prevent oscillations
   if (unit.previousFlockingForce) {
     // Blend previous force with current force for smooth transitions
@@ -590,14 +595,8 @@ function applyFlockingBehavior(unit: Unit, baseDirection: Vector2, allUnits: Uni
     };
   }
   
-  // Store for next frame
+  // Store clamped and smoothed force for next frame
   unit.previousFlockingForce = { ...flockingForce };
-  
-  // Clamp flocking force to max magnitude
-  const forceMagnitude = distance({ x: 0, y: 0 }, flockingForce);
-  if (forceMagnitude > FLOCKING_MAX_FORCE) {
-    flockingForce = scale(normalize(flockingForce), FLOCKING_MAX_FORCE);
-  }
   
   // Combine forces with base direction
   // Base direction should have stronger weight to ensure units still move toward their goal
