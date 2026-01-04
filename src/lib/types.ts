@@ -107,6 +107,7 @@ export interface Unit {
   currentSpeed?: number; // Current movement speed for acceleration/deceleration
   stuckTimer?: number; // Time in seconds that unit has been stuck (unable to move with commands queued)
   lastPosition?: Vector2; // Last recorded position for stuck detection
+  jitterOffset?: number; // Offset for jitter/wiggle movement when stuck
   queueFadeStartTime?: number; // Timestamp when queue fade animation started (for cancelled commands)
   queueDrawStartTime?: number; // Timestamp when queue drawing animation started (for new commands)
   queueDrawReverse?: boolean; // Whether queue should un-draw in reverse (true when unit dies)
