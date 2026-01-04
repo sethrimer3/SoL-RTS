@@ -158,6 +158,53 @@ export function createHitSparks(
 }
 
 /**
+ * Create bounce particles for armored units
+ * Bullets bounce off randomly within a 60-degree arc
+ */
+export function createBounceParticles(
+  state: GameState,
+  position: Vector2,
+  incomingDirection: Vector2,
+  color: string,
+  count: number = 3
+): void {
+  if (!state.bounceParticles) {
+    state.bounceParticles = [];
+  }
+
+  // Calculate the reflection direction (opposite of incoming)
+  const reflectionAngle = Math.atan2(-incomingDirection.y, -incomingDirection.x);
+  
+  // 60-degree arc in radians (30 degrees on each side)
+  const arcRange = Math.PI / 3; // 60 degrees
+  
+  for (let i = 0; i < count; i++) {
+    // Random angle within the 60-degree arc
+    const randomOffset = (Math.random() - 0.5) * arcRange;
+    const bounceAngle = reflectionAngle + randomOffset;
+    
+    // Random speed for variety
+    const speed = 4 + Math.random() * 3;
+    const velocity = {
+      x: Math.cos(bounceAngle) * speed,
+      y: Math.sin(bounceAngle) * speed,
+    };
+
+    const particle = {
+      id: generateId(),
+      position: { ...position },
+      velocity,
+      color,
+      size: 0.04 + Math.random() * 0.06,
+      lifetime: 0.3 + Math.random() * 0.2,
+      createdAt: Date.now(),
+    };
+
+    state.bounceParticles.push(particle);
+  }
+}
+
+/**
  * Create enhanced death explosion with multiple layers
  */
 export function createEnhancedDeathExplosion(
@@ -423,6 +470,29 @@ export function updateVisualEffects(state: GameState, deltaTime: number): void {
       // Apply damping
       spark.velocity.x *= 0.95;
       spark.velocity.y *= 0.95;
+
+      return true;
+    });
+  }
+
+  // Update bounce particles
+  if (state.bounceParticles) {
+    state.bounceParticles = state.bounceParticles.filter((particle) => {
+      const elapsed = (now - particle.createdAt) / 1000;
+      if (elapsed >= particle.lifetime) {
+        return false;
+      }
+
+      // Update position
+      particle.position.x += particle.velocity.x * deltaTime;
+      particle.position.y += particle.velocity.y * deltaTime;
+
+      // Apply gravity
+      particle.velocity.y += 3 * deltaTime;
+
+      // Apply damping
+      particle.velocity.x *= 0.96;
+      particle.velocity.y *= 0.96;
 
       return true;
     });

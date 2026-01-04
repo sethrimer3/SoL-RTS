@@ -281,8 +281,8 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     moveSpeed: 4,
     attackType: 'ranged',
     attackRange: 8,
-    attackDamage: 6,
-    attackRate: 2,
+    attackDamage: 2,
+    attackRate: 6,
     cost: 25,
     abilityName: 'Burst Fire',
     abilityCooldown: 5,
@@ -1070,6 +1070,17 @@ export interface GameState {
   
   // Hit spark effects
   hitSparks?: Array<{
+    id: string;
+    position: Vector2;
+    velocity: Vector2;
+    color: string;
+    size: number;
+    lifetime: number;
+    createdAt: number;
+  }>;
+  
+  // Bounce particles for armored units
+  bounceParticles?: Array<{
     id: string;
     position: Vector2;
     velocity: Vector2;
