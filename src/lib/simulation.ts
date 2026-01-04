@@ -82,6 +82,15 @@ const UNIT_COLLISION_RADIUS = UNIT_SIZE_METERS / 2; // Minimum distance between 
 const UNIT_COLLISION_SQUEEZE_FACTOR = 0.8; // Allow units to squeeze past each other (80% of full diameter)
 const FRIENDLY_SLIDE_DISTANCE = 0.3; // Distance to slide perpendicular when avoiding friendly units
 
+// Flocking/Boids constants for smooth group movement (StarCraft-like)
+const SEPARATION_RADIUS = 1.5; // Distance to maintain from nearby units
+const SEPARATION_FORCE = 8.0; // Strength of separation force
+const COHESION_RADIUS = 4.0; // Distance to check for group cohesion
+const COHESION_FORCE = 2.0; // Strength of cohesion force  
+const ALIGNMENT_RADIUS = 3.0; // Distance to check for velocity alignment
+const ALIGNMENT_FORCE = 1.5; // Strength of alignment force
+const FLOCKING_MAX_FORCE = 5.0; // Maximum magnitude of flocking forces
+
 // Particle physics constants
 const PARTICLE_ATTRACTION_STRENGTH = 6.0; // How strongly particles are attracted to their unit
 const PARTICLE_DAMPING = 0.92; // Velocity damping factor - reduces velocity to prevent excessive speeds
@@ -285,22 +294,24 @@ function checkUnitCollisionWithSliding(
   if (hasFriendlyCollision) {
     const movementDirection = normalize(subtract(desiredPosition, unit.position));
     
-    // Try sliding perpendicular to movement direction
-    const perpendicular1 = { x: -movementDirection.y, y: movementDirection.x };
-    const perpendicular2 = { x: movementDirection.y, y: -movementDirection.x };
+    // Try multiple slide distances and angles for better pathfinding
+    const slideDistances = [FRIENDLY_SLIDE_DISTANCE, FRIENDLY_SLIDE_DISTANCE * 1.5, FRIENDLY_SLIDE_DISTANCE * 0.5];
+    const slideAngles = [
+      { x: -movementDirection.y, y: movementDirection.x }, // right perpendicular
+      { x: movementDirection.y, y: -movementDirection.x }, // left perpendicular
+      { x: (-movementDirection.y + movementDirection.x) / Math.sqrt(2), y: (movementDirection.x + movementDirection.y) / Math.sqrt(2) }, // diagonal right
+      { x: (movementDirection.y + movementDirection.x) / Math.sqrt(2), y: (-movementDirection.x + movementDirection.y) / Math.sqrt(2) }, // diagonal left
+    ];
     
-    // Try sliding to the right
-    const slidePos1 = add(desiredPosition, scale(perpendicular1, FRIENDLY_SLIDE_DISTANCE));
-    if (!checkObstacleCollision(slidePos1, UNIT_SIZE_METERS / 2, obstacles) &&
-        !checkUnitCollision(slidePos1, unit.id, allUnits)) {
-      return { blocked: false, alternativePosition: slidePos1 };
-    }
-    
-    // Try sliding to the left
-    const slidePos2 = add(desiredPosition, scale(perpendicular2, FRIENDLY_SLIDE_DISTANCE));
-    if (!checkObstacleCollision(slidePos2, UNIT_SIZE_METERS / 2, obstacles) &&
-        !checkUnitCollision(slidePos2, unit.id, allUnits)) {
-      return { blocked: false, alternativePosition: slidePos2 };
+    // Try each combination of slide distance and angle
+    for (const slideDistance of slideDistances) {
+      for (const slideAngle of slideAngles) {
+        const slidePos = add(desiredPosition, scale(slideAngle, slideDistance));
+        if (!checkObstacleCollision(slidePos, UNIT_SIZE_METERS / 2, obstacles) &&
+            !checkUnitCollision(slidePos, unit.id, allUnits)) {
+          return { blocked: false, alternativePosition: slidePos };
+        }
+      }
     }
     
     // If no slide path found, return blocked but still friendly collision
@@ -331,26 +342,220 @@ function updateStuckDetection(unit: Unit, deltaTime: number): void {
       // Unit hasn't moved much - increment stuck timer
       unit.stuckTimer = (unit.stuckTimer || 0) + deltaTime;
       
-      // If stuck for too long, cancel command queue
+      // If stuck for too long, try to wiggle out before canceling
+      if (unit.stuckTimer >= STUCK_TIMEOUT * 0.5 && unit.stuckTimer < STUCK_TIMEOUT) {
+        // Apply jitter to help unstick (50-100% of timeout period)
+        if (!unit.jitterOffset) {
+          unit.jitterOffset = 0;
+        }
+      }
+      
+      // If stuck for too long after trying jitter, cancel command queue
       if (unit.stuckTimer >= STUCK_TIMEOUT) {
         markQueueForCancellation(unit);
       }
     } else {
-      // Unit moved enough - reset stuck timer
+      // Unit moved enough - reset stuck timer and jitter
       unit.stuckTimer = 0;
       unit.lastPosition = { ...unit.position };
+      unit.jitterOffset = undefined;
     }
   }
 }
 
+/**
+ * Apply jitter movement to help stuck units find a way out
+ * @param unit - The unit that's stuck
+ * @param baseDirection - The direction unit is trying to move
+ * @param allUnits - All units for collision checking
+ * @param obstacles - All obstacles for collision checking
+ * @returns Modified direction with jitter applied, or null if no valid jitter found
+ */
+function applyJitterMovement(
+  unit: Unit,
+  baseDirection: Vector2,
+  allUnits: Unit[],
+  obstacles: import('./maps').Obstacle[]
+): Vector2 | null {
+  if (!unit.jitterOffset) {
+    unit.jitterOffset = 0;
+  }
+  
+  // Increment jitter offset for cycling through positions
+  unit.jitterOffset += 0.1;
+  
+  // Try circular jitter pattern around the stuck position
+  const jitterRadius = 0.2; // Small radius for wiggle
+  const jitterAngle = unit.jitterOffset * Math.PI * 2;
+  const jitterOffset = {
+    x: Math.cos(jitterAngle) * jitterRadius,
+    y: Math.sin(jitterAngle) * jitterRadius
+  };
+  
+  // Apply jitter to base direction
+  const jitteredDirection = normalize(add(baseDirection, jitterOffset));
+  const jitteredPosition = add(unit.position, scale(jitteredDirection, 0.1));
+  
+  // Check if jittered position is valid
+  if (!checkObstacleCollision(jitteredPosition, UNIT_SIZE_METERS / 2, obstacles) &&
+      !checkUnitCollision(jitteredPosition, unit.id, allUnits)) {
+    return jitteredDirection;
+  }
+  
+  return null;
+}
+
 // Pathfinding constants
 const PATHFINDING_LOOKAHEAD_DISTANCE = 2.0; // How far ahead to check for obstacles
-const PATHFINDING_ANGLE_STEP = Math.PI / 6; // 30 degrees - angle increment for trying alternative paths
-const PATHFINDING_MAX_ANGLES = 3; // Try up to 3 angles on each side (30, 60, 90 degrees)
+const PATHFINDING_ANGLE_STEP = Math.PI / 8; // 22.5 degrees - smaller angle increments for smoother paths
+const PATHFINDING_MAX_ANGLES = 6; // Try up to 6 angles on each side (more attempts to find paths)
 
 /**
- * Finds an alternative path around obstacles using simple angle-based pathfinding.
- * Tries angles to the left and right of the direct path to find a clear route.
+ * Calculate separation force to avoid crowding nearby units (boids algorithm)
+ * @param unit - The unit calculating separation
+ * @param allUnits - All units in the game
+ * @returns Separation force vector
+ */
+function calculateSeparation(unit: Unit, allUnits: Unit[]): Vector2 {
+  let separationForce = { x: 0, y: 0 };
+  let count = 0;
+  
+  for (const other of allUnits) {
+    // Skip self and enemy units
+    if (other.id === unit.id || other.owner !== unit.owner) continue;
+    
+    const dist = distance(unit.position, other.position);
+    if (dist > 0 && dist < SEPARATION_RADIUS) {
+      // Calculate vector away from other unit
+      const away = subtract(unit.position, other.position);
+      // Weight by inverse distance (closer = stronger force)
+      const weight = (SEPARATION_RADIUS - dist) / SEPARATION_RADIUS;
+      const weightedAway = scale(normalize(away), weight);
+      separationForce = add(separationForce, weightedAway);
+      count++;
+    }
+  }
+  
+  if (count > 0) {
+    // Average the forces
+    separationForce = scale(separationForce, 1 / count);
+    // Normalize and apply force strength
+    if (distance({ x: 0, y: 0 }, separationForce) > 0.01) {
+      separationForce = scale(normalize(separationForce), SEPARATION_FORCE);
+    }
+  }
+  
+  return separationForce;
+}
+
+/**
+ * Calculate cohesion force to stay near group center (boids algorithm)
+ * @param unit - The unit calculating cohesion
+ * @param allUnits - All units in the game
+ * @returns Cohesion force vector
+ */
+function calculateCohesion(unit: Unit, allUnits: Unit[]): Vector2 {
+  let centerOfMass = { x: 0, y: 0 };
+  let count = 0;
+  
+  for (const other of allUnits) {
+    // Skip self and enemy units
+    if (other.id === unit.id || other.owner !== unit.owner) continue;
+    // Only consider units with same command (moving together)
+    if (other.commandQueue.length === 0) continue;
+    
+    const dist = distance(unit.position, other.position);
+    if (dist < COHESION_RADIUS) {
+      centerOfMass = add(centerOfMass, other.position);
+      count++;
+    }
+  }
+  
+  if (count > 0) {
+    // Calculate average position
+    centerOfMass = scale(centerOfMass, 1 / count);
+    // Create force toward center
+    const cohesionForce = subtract(centerOfMass, unit.position);
+    if (distance({ x: 0, y: 0 }, cohesionForce) > 0.01) {
+      return scale(normalize(cohesionForce), COHESION_FORCE);
+    }
+  }
+  
+  return { x: 0, y: 0 };
+}
+
+/**
+ * Calculate alignment force to match velocity of nearby units (boids algorithm)
+ * @param unit - The unit calculating alignment
+ * @param allUnits - All units in the game
+ * @param currentDirection - Current movement direction
+ * @returns Alignment force vector
+ */
+function calculateAlignment(unit: Unit, allUnits: Unit[], currentDirection: Vector2): Vector2 {
+  let averageDirection = { x: 0, y: 0 };
+  let count = 0;
+  
+  for (const other of allUnits) {
+    // Skip self and enemy units
+    if (other.id === unit.id || other.owner !== unit.owner) continue;
+    // Only consider units that are moving
+    if (other.commandQueue.length === 0) continue;
+    
+    const dist = distance(unit.position, other.position);
+    if (dist < ALIGNMENT_RADIUS && other.commandQueue.length > 0) {
+      const otherTarget = other.commandQueue[0];
+      if (otherTarget.type === 'move' || otherTarget.type === 'attack-move') {
+        const otherDirection = normalize(subtract(otherTarget.position, other.position));
+        averageDirection = add(averageDirection, otherDirection);
+        count++;
+      }
+    }
+  }
+  
+  if (count > 0) {
+    // Calculate average direction
+    averageDirection = scale(averageDirection, 1 / count);
+    if (distance({ x: 0, y: 0 }, averageDirection) > 0.01) {
+      averageDirection = normalize(averageDirection);
+      // Create steering force toward average direction
+      const alignmentForce = subtract(averageDirection, currentDirection);
+      return scale(normalize(alignmentForce), ALIGNMENT_FORCE);
+    }
+  }
+  
+  return { x: 0, y: 0 };
+}
+
+/**
+ * Apply flocking forces to a movement direction for smooth group movement
+ * @param unit - The unit to apply flocking to
+ * @param baseDirection - The base movement direction (toward target)
+ * @param allUnits - All units in the game
+ * @returns Modified direction with flocking applied
+ */
+function applyFlockingBehavior(unit: Unit, baseDirection: Vector2, allUnits: Unit[]): Vector2 {
+  // Calculate all three flocking forces
+  const separation = calculateSeparation(unit, allUnits);
+  const cohesion = calculateCohesion(unit, allUnits);
+  const alignment = calculateAlignment(unit, allUnits, baseDirection);
+  
+  // Combine forces with base direction
+  let finalDirection = { ...baseDirection };
+  finalDirection = add(finalDirection, separation);
+  finalDirection = add(finalDirection, cohesion);
+  finalDirection = add(finalDirection, alignment);
+  
+  // Normalize to maintain consistent speed
+  if (distance({ x: 0, y: 0 }, finalDirection) > 0.01) {
+    return normalize(finalDirection);
+  }
+  
+  return baseDirection;
+}
+
+/**
+ * Finds an alternative path around obstacles using enhanced angle-based pathfinding.
+ * Tries more angles with smaller increments for smoother pathfinding.
  * @param unit - The unit trying to move
  * @param target - The target position
  * @param obstacles - Array of obstacles to avoid
@@ -1326,15 +1531,27 @@ function updateUnits(state: GameState, deltaTime: number): void {
         // Reset stuck timer on successful completion
         unit.stuckTimer = 0;
         unit.lastPosition = undefined;
+        unit.jitterOffset = undefined;
         return;
       }
 
       let direction = normalize(subtract(currentNode.position, unit.position));
       
+      // Apply flocking behavior for smooth group movement (like StarCraft)
+      direction = applyFlockingBehavior(unit, direction, state.units);
+      
       // Try pathfinding if direct path might be blocked
       const alternativePath = findPathAroundObstacle(unit, currentNode.position, state.obstacles);
       if (alternativePath) {
         direction = alternativePath;
+      }
+      
+      // If stuck, try jitter movement to wiggle out
+      if (unit.jitterOffset !== undefined) {
+        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state.obstacles);
+        if (jitteredDirection) {
+          direction = jitteredDirection;
+        }
       }
       
       // Update unit rotation to face movement direction
@@ -1354,9 +1571,10 @@ function updateUnits(state: GameState, deltaTime: number): void {
         // Use alternative position if sliding found a path, otherwise use desired position
         unit.position = collisionResult.alternativePosition || newPosition;
         
-        // Reset stuck timer - unit is making progress
+        // Reset stuck timer and jitter - unit is making progress
         unit.stuckTimer = 0;
         unit.lastPosition = { ...unit.position };
+        unit.jitterOffset = undefined;
       } else {
         // Collision detected - slow down
         unit.currentSpeed = Math.max(0, (unit.currentSpeed || 0) * COLLISION_DECELERATION_FACTOR);
@@ -1411,15 +1629,29 @@ function updateUnits(state: GameState, deltaTime: number): void {
       if (dist < 0.1) {
         unit.commandQueue.shift();
         unit.currentSpeed = 0;
+        unit.stuckTimer = 0;
+        unit.lastPosition = undefined;
+        unit.jitterOffset = undefined;
         return;
       }
 
       let direction = normalize(subtract(currentNode.position, unit.position));
+      
+      // Apply flocking behavior for smooth group movement
+      direction = applyFlockingBehavior(unit, direction, state.units);
 
       // Try pathfinding if direct path might be blocked
       const alternativePath = findPathAroundObstacle(unit, currentNode.position, state.obstacles);
       if (alternativePath) {
         direction = alternativePath;
+      }
+      
+      // If stuck, try jitter movement
+      if (unit.jitterOffset !== undefined) {
+        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state.obstacles);
+        if (jitteredDirection) {
+          direction = jitteredDirection;
+        }
       }
 
       // Update unit rotation to face movement direction
@@ -1438,9 +1670,10 @@ function updateUnits(state: GameState, deltaTime: number): void {
       if (!collisionResult.blocked) {
         // Use alternative position if sliding found a path
         unit.position = collisionResult.alternativePosition || newPosition;
-        // Reset stuck timer
+        // Reset stuck timer and jitter
         unit.stuckTimer = 0;
         unit.lastPosition = { ...unit.position };
+        unit.jitterOffset = undefined;
       } else {
         // Collision detected - slow down
         unit.currentSpeed = Math.max(0, (unit.currentSpeed || 0) * COLLISION_DECELERATION_FACTOR);
@@ -1483,16 +1716,30 @@ function updateUnits(state: GameState, deltaTime: number): void {
             returnPosition: currentNode.position 
           });
         }
+        unit.stuckTimer = 0;
+        unit.lastPosition = undefined;
+        unit.jitterOffset = undefined;
         return;
       }
 
       const def = UNIT_DEFINITIONS[unit.type];
       let direction = normalize(subtract(currentNode.position, unit.position));
       
+      // Apply flocking behavior for smooth group patrol movement
+      direction = applyFlockingBehavior(unit, direction, state.units);
+      
       // Try pathfinding if direct path might be blocked
       const alternativePath = findPathAroundObstacle(unit, currentNode.position, state.obstacles);
       if (alternativePath) {
         direction = alternativePath;
+      }
+      
+      // If stuck, try jitter movement
+      if (unit.jitterOffset !== undefined) {
+        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state.obstacles);
+        if (jitteredDirection) {
+          direction = jitteredDirection;
+        }
       }
       
       const movement = scale(direction, def.moveSpeed * deltaTime);
@@ -1508,9 +1755,10 @@ function updateUnits(state: GameState, deltaTime: number): void {
       
       if (!collisionResult.blocked) {
         unit.position = collisionResult.alternativePosition || newPosition;
-        // Reset stuck timer
+        // Reset stuck timer and jitter
         unit.stuckTimer = 0;
         unit.lastPosition = { ...unit.position };
+        unit.jitterOffset = undefined;
       } else {
         // Track stuck state
         updateStuckDetection(unit, deltaTime);
