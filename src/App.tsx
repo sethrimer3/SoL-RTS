@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useKV } from './hooks/useKV';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { GameState, COLORS, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS, FactionType, FACTION_DEFINITIONS, BASE_TYPE_DEFINITIONS, BaseType, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS } from './lib/types';
-import { generateId, generateTopographyLines, generateStarfield, generateNebulaClouds, shouldUsePortraitCoordinates, updateViewportScale, calculateDefaultRallyPoint, createMiningDepots } from './lib/gameUtils';
+import { generateId, generateTopographyLines, generateStarfield, generateNebulaClouds, shouldUsePortraitCoordinates, updateViewportScale, calculateDefaultRallyPoint, createMiningDepots, getArenaHeight } from './lib/gameUtils';
 import { updateGame } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
@@ -1677,7 +1677,7 @@ function App() {
 
 function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
   const arenaWidth = ARENA_WIDTH_METERS;
-  const arenaHeight = ARENA_HEIGHT_METERS;
+  const arenaHeight = getArenaHeight();
 
   // Randomly select factions for both players
   const factions: FactionType[] = ['radiant', 'solari', 'aurum'];
@@ -1827,7 +1827,7 @@ function createInitialState(): GameState {
 
 function createCountdownState(mode: 'ai' | 'player', settings: GameState['settings'], canvas: HTMLCanvasElement): GameState {
   const arenaWidth = ARENA_WIDTH_METERS;
-  const arenaHeight = ARENA_HEIGHT_METERS;
+  const arenaHeight = getArenaHeight();
 
   const selectedMapDef = getMapById(settings.selectedMap) || getMapById('open')!;
   const mapObstacles = selectedMapDef.obstacles;
@@ -1928,7 +1928,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
 
 function createGameState(mode: 'ai' | 'player', settings: GameState['settings']): GameState {
   const arenaWidth = ARENA_WIDTH_METERS;
-  const arenaHeight = ARENA_HEIGHT_METERS;
+  const arenaHeight = getArenaHeight();
 
   const selectedMapDef = getMapById(settings.selectedMap) || getMapById('open')!;
   const mapObstacles = selectedMapDef.obstacles;
@@ -2012,7 +2012,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
 
 function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
   const arenaWidth = ARENA_WIDTH_METERS;
-  const arenaHeight = ARENA_HEIGHT_METERS;
+  const arenaHeight = getArenaHeight();
 
   const selectedMapDef = getMapById(lobby.mapId) || getMapById('open')!;
   const mapObstacles = selectedMapDef.obstacles;
@@ -2108,7 +2108,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
 
 function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: HTMLCanvasElement): GameState {
   const arenaWidth = ARENA_WIDTH_METERS;
-  const arenaHeight = ARENA_HEIGHT_METERS;
+  const arenaHeight = getArenaHeight();
 
   const selectedMapDef = getMapById(lobby.mapId) || getMapById('open')!;
   const mapObstacles = selectedMapDef.obstacles;

@@ -21,7 +21,7 @@ import {
   ARENA_HEIGHT_METERS,
   Floater,
 } from './types';
-import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract, getViewportOffset, getViewportDimensions } from './gameUtils';
+import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract, getViewportOffset, getViewportDimensions, getArenaHeight } from './gameUtils';
 import { applyCameraTransform, removeCameraTransform, worldToScreen } from './camera';
 import { Obstacle } from './maps';
 import { MOTION_TRAIL_DURATION, QUEUE_FADE_DURATION, QUEUE_DRAW_DURATION, QUEUE_UNDRAW_DURATION } from './simulation';
@@ -518,7 +518,7 @@ function drawPlayfieldBorder(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasEl
   const viewportDimensions = getViewportDimensions();
   // Use the rotated viewport dimensions so the border hugs the visible arena
   const playfieldWidthPixels = viewportDimensions.width || metersToPixels(ARENA_WIDTH_METERS);
-  const playfieldHeightPixels = viewportDimensions.height || metersToPixels(ARENA_HEIGHT_METERS);
+  const playfieldHeightPixels = viewportDimensions.height || metersToPixels(getArenaHeight());
   
   // Border thickness is 1 meter
   const borderThickness = metersToPixels(1);
@@ -3712,7 +3712,7 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
   
   // Calculate arena bounds
   const arenaWidth = ARENA_WIDTH_METERS; // meters
-  const arenaHeight = ARENA_HEIGHT_METERS; // meters
+  const arenaHeight = getArenaHeight(); // meters
   
   ctx.save();
   
