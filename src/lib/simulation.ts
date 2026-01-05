@@ -265,6 +265,27 @@ function checkUnitCollision(position: Vector2, currentUnitId: string, allUnits: 
   return false; // No collision
 }
 
+// Check if a friendly unit is occupying a target position
+// Returns true if a friendly unit is within collision distance of the target
+function isFriendlyUnitAtPosition(unit: Unit, targetPosition: Vector2, allUnits: Unit[]): boolean {
+  const collisionRadius = (UNIT_COLLISION_RADIUS * 2) * UNIT_COLLISION_SQUEEZE_FACTOR;
+  
+  for (const otherUnit of allUnits) {
+    // Skip checking against self
+    if (otherUnit.id === unit.id) continue;
+    
+    // Only check friendly units
+    if (otherUnit.owner !== unit.owner) continue;
+    
+    // Check if the other unit is at the target position
+    const distToTarget = distance(otherUnit.position, targetPosition);
+    if (distToTarget < collisionRadius) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Enhanced collision check that attempts to find a slide path for friendly units
 // Returns { blocked: boolean, alternativePosition?: Vector2 }
 function checkUnitCollisionWithSliding(
@@ -1642,7 +1663,14 @@ function updateUnits(state: GameState, deltaTime: number): void {
       const dist = distance(unit.position, currentNode.position);
       const def = UNIT_DEFINITIONS[unit.type];
 
-      if (dist < 0.1) {
+      // Check if unit has arrived at destination:
+      // 1. Standard arrival: within 0.1 units of target
+      // 2. Friendly unit at target: close enough to the friendly unit occupying the target spot
+      const hasArrived = dist < 0.1 || 
+        (isFriendlyUnitAtPosition(unit, currentNode.position, state.units) && 
+         dist < (UNIT_COLLISION_RADIUS * 2) * UNIT_COLLISION_SQUEEZE_FACTOR);
+
+      if (hasArrived) {
         unit.commandQueue.shift();
         // Decelerate when reaching destination
         unit.currentSpeed = 0;
@@ -1744,7 +1772,15 @@ function updateUnits(state: GameState, deltaTime: number): void {
       
       // Continue moving towards destination
       const dist = distance(unit.position, currentNode.position);
-      if (dist < 0.1) {
+      
+      // Check if unit has arrived at destination:
+      // 1. Standard arrival: within 0.1 units of target
+      // 2. Friendly unit at target: close enough to the friendly unit occupying the target spot
+      const hasArrived = dist < 0.1 || 
+        (isFriendlyUnitAtPosition(unit, currentNode.position, state.units) && 
+         dist < (UNIT_COLLISION_RADIUS * 2) * UNIT_COLLISION_SQUEEZE_FACTOR);
+
+      if (hasArrived) {
         unit.commandQueue.shift();
         unit.currentSpeed = 0;
         unit.stuckTimer = 0;
@@ -1823,7 +1859,15 @@ function updateUnits(state: GameState, deltaTime: number): void {
     } else if (currentNode.type === 'patrol') {
       // Patrol: move to patrol point, then add return command to create loop
       const dist = distance(unit.position, currentNode.position);
-      if (dist < 0.1) {
+      
+      // Check if unit has arrived at patrol point:
+      // 1. Standard arrival: within 0.1 units of target
+      // 2. Friendly unit at target: close enough to the friendly unit occupying the target spot
+      const hasArrived = dist < 0.1 || 
+        (isFriendlyUnitAtPosition(unit, currentNode.position, state.units) && 
+         dist < (UNIT_COLLISION_RADIUS * 2) * UNIT_COLLISION_SQUEEZE_FACTOR);
+
+      if (hasArrived) {
         // Reached patrol point - add return command and remove current
         unit.commandQueue.shift();
         // Add return patrol command if queue isn't full
