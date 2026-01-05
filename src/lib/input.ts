@@ -1072,6 +1072,7 @@ export function handleMouseDown(e: MouseEvent, state: GameState, canvas: HTMLCan
 
   const touchedBase = findTouchedBase(state, worldPos, playerIndex);
   const touchedDot = findTouchedMovementDot(state, worldPos, playerIndex);
+  const touchedDepot = findTouchedMiningDepot(state, worldPos, playerIndex);
 
   mouseState = {
     startPos: { x, y },
@@ -1081,6 +1082,8 @@ export function handleMouseDown(e: MouseEvent, state: GameState, canvas: HTMLCan
     touchedBase,
     touchedBaseWasSelected: touchedBase?.isSelected || false,
     touchedMovementDot: touchedDot,
+    touchedDepot,
+    touchedDepotPos: touchedDepot ? worldPos : undefined,
   };
 }
 
@@ -1136,7 +1139,7 @@ export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCan
     const selectedBase = getSelectedBase(state, playerIndex);
 
     // Skip selection rects when the base is selected so swipes spawn units anywhere
-    if (!mouseState.touchedBase && state.selectedUnits.size === 0 && !selectedBase) {
+    if (!mouseState.touchedBase && !mouseState.touchedDepot && state.selectedUnits.size === 0 && !selectedBase) {
       mouseState.selectionRect = {
         x1: mouseState.startPos.x,
         y1: mouseState.startPos.y,
@@ -1174,6 +1177,21 @@ export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCan
     updateAbilityCastPreview(state, dx, dy, mouseState.startPos, canvas);
   }
   
+  // Update mining depot drag preview so the line snaps toward the closest available deposit
+  if (mouseState.isDragging && mouseState.touchedDepot && mouseState.touchedDepotPos) {
+    const endWorldPos = screenToWorldPosition(state, canvas, { x, y });
+    const snappedDeposit = findSnappedResourceDeposit(mouseState.touchedDepot, mouseState.touchedDepotPos, endWorldPos);
+
+    if (snappedDeposit) {
+      state.miningDragPreview = {
+        depotId: mouseState.touchedDepot.id,
+        depositId: snappedDeposit.id,
+      };
+    } else {
+      delete state.miningDragPreview;
+    }
+  }
+  
   // Update base ability preview when base is selected and dragging (but not from the base itself)
   updateBaseAbilityPreview(state, mouseState.isDragging, mouseState.touchedBase, mouseState.startPos, dx, dy, canvas);
 }
@@ -1202,6 +1220,10 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
     handleRectSelection(state, mouseState.selectionRect, canvas, playerIndex);
   } else if (mouseState.touchedMovementDot) {
     handleLaserSwipe(state, mouseState.touchedMovementDot, { x: dx, y: dy });
+  } else if (mouseState.touchedDepot && mouseState.isDragging && dist > SWIPE_THRESHOLD_PX && mouseState.touchedDepotPos) {
+    // Handle mining depot drag to create mining drone
+    const endWorldPos = screenToWorldPosition(state, canvas, { x, y });
+    handleMiningDepotDrag(state, mouseState.touchedDepot, mouseState.touchedDepotPos, endWorldPos, playerIndex);
   } else if (mouseState.touchedBase && !mouseState.isDragging) {
     const base = mouseState.touchedBase;
     if (base.isSelected) {
@@ -1259,6 +1281,7 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
   
   // Clear all input-related previews when mouse is released
   clearBaseAbilityPreview(state);
+  delete state.miningDragPreview;
 
   mouseState = null;
 }
