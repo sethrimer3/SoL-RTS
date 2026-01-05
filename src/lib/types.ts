@@ -246,7 +246,6 @@ export interface Base {
   shieldActive?: { endTime: number }; // Shield ability for aurum faction
   autoAttackCooldown?: number; // Cooldown for auto-attack (defense base)
   regenerationPulse?: { endTime: number; radius: number }; // Visual effect for regeneration pulse
-  velocity?: Vector2; // Current velocity for smooth acceleration/deceleration
   currentSpeed?: number; // Current movement speed for acceleration/deceleration
 }
 

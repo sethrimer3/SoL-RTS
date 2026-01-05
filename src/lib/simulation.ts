@@ -2138,7 +2138,7 @@ function updateBases(state: GameState, deltaTime: number): void {
     // Use baseTypeDef moveSpeed if > 0, otherwise use faction baseMoveSpeed
     const moveSpeed = baseTypeDef.moveSpeed > 0 ? baseTypeDef.moveSpeed : FACTION_DEFINITIONS[base.faction].baseMoveSpeed;
     
-    // Initialize base velocity and current speed if needed
+    // Initialize base current speed if needed
     if (base.currentSpeed === undefined) {
       base.currentSpeed = 0;
     }
