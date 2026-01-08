@@ -1622,11 +1622,13 @@ function drawBladeSword(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { 
   for (let i = 0; i < BLADE_SWORD_PARTICLE_COUNT; i++) {
     let angle = baseRotation;
     let hasSwingMotion = false;
+    let elapsed = 0;
+    let delayedElapsed = 0;
 
     if (!collapseSword && swing) {
       hasSwingMotion = true;
-      const elapsed = (now - swing.startTime) / 1000;
-      const delayedElapsed = Math.max(0, elapsed - BLADE_SWORD_WHIP_DELAY * i);
+      elapsed = (now - swing.startTime) / 1000;
+      delayedElapsed = Math.max(0, elapsed - BLADE_SWORD_WHIP_DELAY * i);
       const progress = Math.min(1, delayedElapsed / swing.duration);
       
       angle = calculateBladeSwingAngle(baseRotation, swing.swingType, progress);
@@ -1644,9 +1646,6 @@ function drawBladeSword(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { 
 
     // Draw trail if swinging
     if (hasSwingMotion && swing) {
-      const elapsed = (now - swing.startTime) / 1000;
-      const delayedElapsed = Math.max(0, elapsed - BLADE_SWORD_WHIP_DELAY * i);
-      
       // Calculate previous angle for trail (16ms ago ~60fps)
       const prevProgress = Math.max(0, Math.min(1, (delayedElapsed - 0.016) / swing.duration));
       const prevAngle = calculateBladeSwingAngle(baseRotation, swing.swingType, prevProgress);

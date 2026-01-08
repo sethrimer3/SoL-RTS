@@ -3756,10 +3756,11 @@ function createBladeSwing(unit: Unit, direction: Vector2): void {
   let swingType: 'first' | 'second' | 'third' = 'first';
   let duration = BLADE_SWORD_SWING_DURATION_FIRST;
   
-  // If last swing was recent (within reset time), continue the sequence
+  // If last swing was recent (within reset time after it ended), continue the sequence
   if (unit.lastSwingNumber !== undefined && unit.swordSwing) {
-    const timeSinceLastSwing = (now - unit.swordSwing.startTime) / 1000;
-    if (timeSinceLastSwing < BLADE_SWORD_SEQUENCE_RESET_TIME) {
+    const swingEndTime = unit.swordSwing.startTime + unit.swordSwing.duration * 1000;
+    const timeSinceLastSwingEnded = (now - swingEndTime) / 1000;
+    if (timeSinceLastSwingEnded >= 0 && timeSinceLastSwingEnded < BLADE_SWORD_SEQUENCE_RESET_TIME) {
       swingNumber = (unit.lastSwingNumber % 3) + 1; // Cycle through 1, 2, 3
     }
   }
