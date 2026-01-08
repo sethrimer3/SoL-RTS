@@ -151,7 +151,8 @@ export interface Unit {
   queueDrawReverse?: boolean; // Whether queue should un-draw in reverse (true when unit dies)
   temporaryAvoidance?: { originalPosition: Vector2; returnDelay: number }; // For friendly unit avoidance - returnDelay is time remaining in seconds
   previousFlockingForce?: Vector2; // Previous flocking force for smoothing to prevent oscillations
-  swordSwing?: { startTime: number; duration: number; direction: Vector2 }; // Blade sword swing timing data
+  swordSwing?: { startTime: number; duration: number; direction: Vector2; swingRight: boolean }; // Blade sword swing timing data - swingRight alternates for back-and-forth swings
+  lastSwingRight?: boolean; // Track last swing direction for alternating back-and-forth swings
   bladeVolley?: {
     startTime: number;
     direction: Vector2;
