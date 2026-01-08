@@ -238,6 +238,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       drawCommandQueues(ctx, state);
       drawMotionTrails(ctx, state);
       drawProjectiles(ctx, state);
+      drawFieldParticles(ctx, state);
       drawUnits(ctx, state);
       drawExplosionParticles(ctx, state);
       drawHitSparks(ctx, state);
@@ -3435,6 +3436,31 @@ function drawBounceParticles(ctx: CanvasRenderingContext2D, state: GameState): v
     const bulletHeight = 1.5;
     ctx.fillStyle = particle.color;
     ctx.fillRect(-bulletWidth / 2, -bulletHeight / 2, bulletWidth, bulletHeight);
+    
+    ctx.restore();
+  });
+}
+
+// Draw field particles for mid-field physics effects
+function drawFieldParticles(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.fieldParticles || state.fieldParticles.length === 0) return;
+  if (!state.settings.enableParticleEffects) return; // Skip if particles disabled
+  
+  state.fieldParticles.forEach((particle) => {
+    const screenPos = positionToPixels(particle.position);
+    const size = metersToPixels(particle.size);
+    
+    ctx.save();
+    ctx.globalAlpha = particle.opacity;
+    
+    // Draw white particle with subtle glow
+    ctx.fillStyle = COLORS.white;
+    ctx.shadowColor = COLORS.white;
+    ctx.shadowBlur = size * 3;
+    
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, size, 0, Math.PI * 2);
+    ctx.fill();
     
     ctx.restore();
   });
