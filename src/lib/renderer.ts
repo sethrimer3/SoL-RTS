@@ -124,6 +124,11 @@ const PROJECTILE_OUTER_TRAIL_WIDTH_METERS = UNIT_SIZE_METERS * 0.3;
 const BLADE_SWORD_PARTICLE_RADIUS_METERS = UNIT_SIZE_METERS * 0.18; // Increased from 0.12 for better visibility as floating magnets
 const BLADE_SWORD_SWING_ARC = Math.PI * 1.2; // Wider arc for more visible swings
 const BLADE_SWORD_WHIP_DELAY = 0.04; // seconds of delay per particle index for whip effect
+// Blade sword rest position and swing arcs
+const BLADE_SWORD_REST_ANGLE = -110 * Math.PI / 180; // 110 degrees clockwise from movement direction
+const BLADE_SWORD_FIRST_SWING_ARC = 210 * Math.PI / 180; // 210 degree counterclockwise arc
+const BLADE_SWORD_SECOND_SWING_ARC = 180 * Math.PI / 180; // 180 degree clockwise arc
+const BLADE_SWORD_THIRD_SWING_ARC = 2 * Math.PI; // 360 degree full rotation
 const PROJECTILE_INNER_TRAIL_WIDTH_METERS = UNIT_SIZE_METERS * 0.15;
 const PROJECTILE_CORE_RADIUS_METERS = UNIT_SIZE_METERS * 0.25;
 const PROJECTILE_CORE_INNER_RADIUS_METERS = UNIT_SIZE_METERS * 0.125;
@@ -1581,6 +1586,28 @@ function drawShells(ctx: CanvasRenderingContext2D, state: GameState): void {
   });
 }
 
+// Helper function to calculate blade particle angle for a given swing state and progress
+function calculateBladeSwingAngle(
+  baseRotation: number,
+  swingType: 'first' | 'second' | 'third',
+  progress: number
+): number {
+  const restAngle = baseRotation + BLADE_SWORD_REST_ANGLE;
+  
+  if (swingType === 'first') {
+    // First swing: 210-degree arc counterclockwise from rest position
+    return restAngle + progress * BLADE_SWORD_FIRST_SWING_ARC;
+  } else if (swingType === 'second') {
+    // Second swing: 180-degree arc clockwise from end of first swing
+    const firstSwingEnd = restAngle + BLADE_SWORD_FIRST_SWING_ARC;
+    return firstSwingEnd - progress * BLADE_SWORD_SECOND_SWING_ARC;
+  } else {
+    // Third swing: 360-degree full rotation
+    const secondSwingEnd = restAngle + BLADE_SWORD_FIRST_SWING_ARC - BLADE_SWORD_SECOND_SWING_ARC;
+    return secondSwingEnd + progress * BLADE_SWORD_THIRD_SWING_ARC;
+  }
+}
+
 function drawBladeSword(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { x: number; y: number }, color: string): void {
   const now = Date.now();
   const baseRotation = unit.rotation ?? 0;
@@ -1594,27 +1621,51 @@ function drawBladeSword(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { 
 
   for (let i = 0; i < BLADE_SWORD_PARTICLE_COUNT; i++) {
     let angle = baseRotation;
+    let hasSwingMotion = false;
+    let elapsed = 0;
+    let delayedElapsed = 0;
 
     if (!collapseSword && swing) {
-      // Offset each successive particle to create a whip-like lag during swings.
-      const elapsed = (now - swing.startTime) / 1000;
-      const delayedElapsed = Math.max(0, elapsed - BLADE_SWORD_WHIP_DELAY * i);
+      hasSwingMotion = true;
+      elapsed = (now - swing.startTime) / 1000;
+      delayedElapsed = Math.max(0, elapsed - BLADE_SWORD_WHIP_DELAY * i);
       const progress = Math.min(1, delayedElapsed / swing.duration);
       
-      // Swing alternates between right (true) and left (false)
-      if (swing.swingRight) {
-        angle = baseRotation - BLADE_SWORD_SWING_ARC / 2 + progress * BLADE_SWORD_SWING_ARC;
-      } else {
-        angle = baseRotation + BLADE_SWORD_SWING_ARC / 2 - progress * BLADE_SWORD_SWING_ARC;
-      }
+      angle = calculateBladeSwingAngle(baseRotation, swing.swingType, progress);
+    } else if (!collapseSword) {
+      // When not swinging and not collapsed, hold sword at rest position
+      angle = baseRotation + BLADE_SWORD_REST_ANGLE;
     }
 
-    // Collapse particles into the first segment during the Blade volley wind-up.
+    // Each particle has its own orbital radius (different distances from unit center)
     const offset = collapseSword ? particleSpacing : particleSpacing * (i + 1);
     const particlePos = {
       x: screenPos.x + Math.cos(angle) * offset,
       y: screenPos.y + Math.sin(angle) * offset,
     };
+
+    // Draw trail if swinging
+    if (hasSwingMotion && swing) {
+      // Calculate previous angle for trail (16ms ago ~60fps)
+      const prevProgress = Math.max(0, Math.min(1, (delayedElapsed - 0.016) / swing.duration));
+      const prevAngle = calculateBladeSwingAngle(baseRotation, swing.swingType, prevProgress);
+      
+      const prevParticlePos = {
+        x: screenPos.x + Math.cos(prevAngle) * offset,
+        y: screenPos.y + Math.sin(prevAngle) * offset,
+      };
+
+      // Draw trail
+      ctx.strokeStyle = color;
+      ctx.lineWidth = particleRadius * 0.8;
+      ctx.globalAlpha = 0.3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(prevParticlePos.x, prevParticlePos.y);
+      ctx.lineTo(particlePos.x, particlePos.y);
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+    }
 
     // Draw each particle as a distinct glowing orb with minimal blur to keep them separated
     ctx.globalAlpha = collapseSword ? 0.9 : 1.0;
