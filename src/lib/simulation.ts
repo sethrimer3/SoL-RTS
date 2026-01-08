@@ -39,7 +39,10 @@ const MELEE_EFFECT_DURATION = 0.2; // seconds for melee attack visual
 const LASER_BEAM_DURATION = 0.5; // seconds for laser beam visual
 
 // Blade ability constants
-const BLADE_SWORD_SWING_DURATION = 0.35; // seconds for sword swing arc (longer for more visible animation)
+const BLADE_SWORD_SWING_DURATION_FIRST = 0.45; // seconds for first 210° swing
+const BLADE_SWORD_SWING_DURATION_SECOND = 0.40; // seconds for second 180° swing
+const BLADE_SWORD_SWING_DURATION_THIRD = 0.50; // seconds for third 360° spin
+const BLADE_SWORD_SEQUENCE_RESET_TIME = 2.0; // seconds before swing sequence resets to first swing
 const BLADE_KNIFE_ANGLES = [-10, -5, 0, 5, 10]; // degrees for volley spread
 const BLADE_KNIFE_SHOT_INTERVAL = 0.06; // seconds between knives
 const BLADE_KNIFE_SCRUNCH_DURATION = 0.12; // seconds to compress sword particles
@@ -3744,17 +3747,42 @@ function updateCombat(state: GameState, deltaTime: number): void {
   });
 }
 
-// Helper function to create Blade sword swing animation with alternating direction
+// Helper function to create Blade sword swing animation with 3-swing combo
 function createBladeSwing(unit: Unit, direction: Vector2): void {
-  // Alternate swing direction for back-and-forth motion
-  const swingRight = unit.lastSwingRight === undefined ? true : !unit.lastSwingRight;
-  unit.lastSwingRight = swingRight;
+  const now = Date.now();
   
+  // Determine which swing in the sequence based on timing and last swing
+  let swingNumber = 1;
+  let swingType: 'first' | 'second' | 'third' = 'first';
+  let duration = BLADE_SWORD_SWING_DURATION_FIRST;
+  
+  // If last swing was recent (within reset time), continue the sequence
+  if (unit.lastSwingNumber !== undefined && unit.swordSwing) {
+    const timeSinceLastSwing = (now - unit.swordSwing.startTime) / 1000;
+    if (timeSinceLastSwing < BLADE_SWORD_SEQUENCE_RESET_TIME) {
+      swingNumber = (unit.lastSwingNumber % 3) + 1; // Cycle through 1, 2, 3
+    }
+  }
+  
+  // Set swing type and duration based on swing number
+  if (swingNumber === 1) {
+    swingType = 'first';
+    duration = BLADE_SWORD_SWING_DURATION_FIRST;
+  } else if (swingNumber === 2) {
+    swingType = 'second';
+    duration = BLADE_SWORD_SWING_DURATION_SECOND;
+  } else {
+    swingType = 'third';
+    duration = BLADE_SWORD_SWING_DURATION_THIRD;
+  }
+  
+  unit.lastSwingNumber = swingNumber;
   unit.swordSwing = {
-    startTime: Date.now(),
-    duration: BLADE_SWORD_SWING_DURATION,
+    startTime: now,
+    duration,
     direction,
-    swingRight,
+    swingType,
+    swingNumber,
   };
 }
 

@@ -1592,29 +1592,91 @@ function drawBladeSword(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { 
   ctx.save();
   ctx.fillStyle = color;
 
+  // Store previous particle positions for trail rendering
+  const particlePositions: Array<{ x: number; y: number; prevX?: number; prevY?: number }> = [];
+
   for (let i = 0; i < BLADE_SWORD_PARTICLE_COUNT; i++) {
     let angle = baseRotation;
+    let hasSwingMotion = false;
 
     if (!collapseSword && swing) {
-      // Offset each successive particle to create a whip-like lag during swings.
+      hasSwingMotion = true;
       const elapsed = (now - swing.startTime) / 1000;
       const delayedElapsed = Math.max(0, elapsed - BLADE_SWORD_WHIP_DELAY * i);
       const progress = Math.min(1, delayedElapsed / swing.duration);
       
-      // Swing alternates between right (true) and left (false)
-      if (swing.swingRight) {
-        angle = baseRotation - BLADE_SWORD_SWING_ARC / 2 + progress * BLADE_SWORD_SWING_ARC;
-      } else {
-        angle = baseRotation + BLADE_SWORD_SWING_ARC / 2 - progress * BLADE_SWORD_SWING_ARC;
+      // Calculate rest position: 110 degrees clockwise from movement direction
+      // (110 degrees clockwise = -110 degrees = subtract 110° from base rotation)
+      const restAngle = baseRotation - (110 * Math.PI / 180);
+      
+      // Different swing patterns based on swing type
+      if (swing.swingType === 'first') {
+        // First swing: 210-degree arc counterclockwise from rest position
+        const swingArc = 210 * Math.PI / 180;
+        angle = restAngle + progress * swingArc;
+      } else if (swing.swingType === 'second') {
+        // Second swing: 180-degree arc clockwise from end of first swing
+        const firstSwingEnd = restAngle + (210 * Math.PI / 180);
+        const swingArc = 180 * Math.PI / 180;
+        angle = firstSwingEnd - progress * swingArc;
+      } else if (swing.swingType === 'third') {
+        // Third swing: 360-degree full rotation
+        const secondSwingEnd = restAngle + (210 * Math.PI / 180) - (180 * Math.PI / 180);
+        angle = secondSwingEnd + progress * (2 * Math.PI);
       }
+    } else if (!collapseSword) {
+      // When not swinging and not collapsed, hold sword at 110 degrees clockwise from movement direction
+      angle = baseRotation - (110 * Math.PI / 180);
     }
 
-    // Collapse particles into the first segment during the Blade volley wind-up.
+    // Each particle has its own orbital radius (different distances from unit center)
     const offset = collapseSword ? particleSpacing : particleSpacing * (i + 1);
     const particlePos = {
       x: screenPos.x + Math.cos(angle) * offset,
       y: screenPos.y + Math.sin(angle) * offset,
     };
+
+    // Store position for trail rendering
+    particlePositions.push(particlePos);
+
+    // Draw trail if swinging
+    if (hasSwingMotion && swing) {
+      const elapsed = (now - swing.startTime) / 1000;
+      const delayedElapsed = Math.max(0, elapsed - BLADE_SWORD_WHIP_DELAY * i);
+      
+      // Calculate previous angle for trail
+      const prevProgress = Math.max(0, Math.min(1, (delayedElapsed - 0.016) / swing.duration)); // 16ms ago (~60fps)
+      let prevAngle = baseRotation;
+      const restAngle = baseRotation - (110 * Math.PI / 180);
+      
+      if (swing.swingType === 'first') {
+        const swingArc = 210 * Math.PI / 180;
+        prevAngle = restAngle + prevProgress * swingArc;
+      } else if (swing.swingType === 'second') {
+        const firstSwingEnd = restAngle + (210 * Math.PI / 180);
+        const swingArc = 180 * Math.PI / 180;
+        prevAngle = firstSwingEnd - prevProgress * swingArc;
+      } else if (swing.swingType === 'third') {
+        const secondSwingEnd = restAngle + (210 * Math.PI / 180) - (180 * Math.PI / 180);
+        prevAngle = secondSwingEnd + prevProgress * (2 * Math.PI);
+      }
+      
+      const prevParticlePos = {
+        x: screenPos.x + Math.cos(prevAngle) * offset,
+        y: screenPos.y + Math.sin(prevAngle) * offset,
+      };
+
+      // Draw trail
+      ctx.strokeStyle = color;
+      ctx.lineWidth = particleRadius * 0.8;
+      ctx.globalAlpha = 0.3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(prevParticlePos.x, prevParticlePos.y);
+      ctx.lineTo(particlePos.x, particlePos.y);
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+    }
 
     // Draw each particle as a distinct glowing orb with minimal blur to keep them separated
     ctx.globalAlpha = collapseSword ? 0.9 : 1.0;
