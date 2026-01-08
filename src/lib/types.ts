@@ -5,7 +5,7 @@ export const BASE_SIZE_METERS = 6;
 export const UNIT_SIZE_METERS = 2;
 // Separate Blade sword particles into distinct, magnet-like segments.
 export const BLADE_SWORD_PARTICLE_COUNT = 5;
-export const BLADE_SWORD_PARTICLE_SPACING_METERS = UNIT_SIZE_METERS * 0.24 * 3.2;
+export const BLADE_SWORD_PARTICLE_SPACING_METERS = UNIT_SIZE_METERS * 0.24 * 4.5; // Increased from 3.2 to 4.5 for more visible separation
 // Keep Blade melee range aligned with the outermost sword particle radius.
 export const BLADE_SWORD_RANGE_METERS = BLADE_SWORD_PARTICLE_SPACING_METERS * BLADE_SWORD_PARTICLE_COUNT;
 // Scale mining depots to read as large structures in the resource loop.
