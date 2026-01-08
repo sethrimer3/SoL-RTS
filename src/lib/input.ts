@@ -999,13 +999,9 @@ function handleVectorBasedAbilityDrag(state: GameState, dragVector: { x: number;
 
 // Helper function to get return position for patrol commands
 function getPatrolReturnPosition(unit: Unit): Vector2 {
-  // Use current position or last queued position as return point
-  if (unit.commandQueue.length > 0) {
-    const lastNode = unit.commandQueue[unit.commandQueue.length - 1];
-    if (lastNode.type === 'move' || lastNode.type === 'attack-move' || lastNode.type === 'patrol') {
-      return lastNode.position;
-    }
-  }
+  // Always use current position as the return point for new patrol commands
+  // This prevents the bug where units with queued commands would patrol back to
+  // an old queued position instead of their current location
   return unit.position;
 }
 
