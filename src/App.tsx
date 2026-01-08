@@ -11,6 +11,7 @@ import { initializeCamera, updateCamera, zoomCamera, panCamera, resetCamera } fr
 import { updateVisualEffects, createCelebrationParticles } from './lib/visualEffects';
 import { FormationType, getFormationName } from './lib/formations';
 import { initializeFloaters, updateFloaters } from './lib/floaters';
+import { initializeFieldParticles, updateFieldParticles } from './lib/fieldParticles';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Label } from './components/ui/label';
@@ -225,6 +226,7 @@ function App() {
         const bg = gameStateRef.current.backgroundBattle;
         updateGame(bg, deltaTime);
         updateFloaters(bg, deltaTime);
+        updateFieldParticles(bg, deltaTime);
         updateAI(bg, deltaTime, true); // Both players are AI
         updateCamera(bg, deltaTime);
         updateVisualEffects(bg, deltaTime);
@@ -256,6 +258,7 @@ function App() {
         
         // Update floaters during countdown
         updateFloaters(gameStateRef.current, deltaTime);
+        updateFieldParticles(gameStateRef.current, deltaTime);
         updateVisualEffects(gameStateRef.current, deltaTime);
         
         if (elapsed >= 3000) {
@@ -291,6 +294,9 @@ function App() {
           
           // Update floaters physics
           updateFloaters(gameStateRef.current, deltaTime);
+          
+          // Update field particles physics
+          updateFieldParticles(gameStateRef.current, deltaTime);
           
           // Update multiplayer synchronization for online games
           if (gameStateRef.current.vsMode === 'online' && multiplayerManagerRef.current && multiplayerSyncRef.current) {
@@ -1782,6 +1788,7 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
     nebulaClouds,
     stars,
     floaters: initializeFloaters(),
+    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };
@@ -1921,6 +1928,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     nebulaClouds,
     stars,
     floaters: initializeFloaters(),
+    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };
@@ -2007,6 +2015,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
     floaters: initializeFloaters(),
+    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
   };
 }
 
@@ -2103,6 +2112,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
     floaters: initializeFloaters(),
+    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
   };
 }
 
@@ -2214,6 +2224,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     nebulaClouds,
     stars,
     floaters: initializeFloaters(),
+    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };

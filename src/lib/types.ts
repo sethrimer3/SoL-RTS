@@ -857,6 +857,16 @@ export interface Floater {
   targetOpacity: number; // Target opacity for fade-in
 }
 
+// Field particles for mid-field physics effects
+export interface FieldParticle {
+  id: string;
+  position: Vector2;
+  velocity: Vector2;
+  mass: number; // Very low mass for easy repulsion
+  size: number;
+  opacity: number;
+}
+
 export interface GameState {
   mode: 'menu' | 'game' | 'settings' | 'unitSelection' | 'victory' | 'mapSelection' | 'multiplayerLobby' | 'countdown' | 'statistics' | 'levelSelection' | 'onlineMode' | 'modifierHelp' | 'unitInformation' | 'lanMode' | 'tutorial';
   backgroundBattle?: GameState; // Background AI battle for menu
@@ -973,6 +983,9 @@ export interface GameState {
   
   // Background floaters for water-like physics
   floaters?: Floater[];
+  
+  // Field particles for mid-field physics effects (between 1st and 3rd quartiles)
+  fieldParticles?: FieldParticle[];
   
   // Impact effects for hits and explosions
   impactEffects?: Array<{
