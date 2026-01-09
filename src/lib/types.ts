@@ -1058,6 +1058,20 @@ export interface GameState {
   // Field particles for mid-field physics effects (between 1st and 3rd quartiles)
   fieldParticles?: FieldParticle[];
   
+  // Fog of war particles for swirling purple effects
+  fogParticles?: Array<{
+    id: string;
+    position: Vector2;
+    velocity: Vector2;
+    angle: number; // Current rotation angle
+    orbitRadius: number; // Distance from orbit center
+    orbitCenter: Vector2; // Point this particle orbits around
+    orbitSpeed: number; // Angular velocity
+    size: number;
+    opacity: number;
+    phase: number; // Phase offset for wave motion
+  }>;
+  
   // Impact effects for hits and explosions
   impactEffects?: Array<{
     id: string;

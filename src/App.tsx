@@ -8,7 +8,7 @@ import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
 import { handleTouchStart, handleTouchMove, handleTouchEnd, handleMouseDown, handleMouseMove, handleMouseUp, getActiveSelectionRect } from './lib/input';
 import { initializeCamera, updateCamera, zoomCamera, panCamera, resetCamera } from './lib/camera';
-import { updateVisualEffects, createCelebrationParticles } from './lib/visualEffects';
+import { updateVisualEffects, createCelebrationParticles, initializeFogParticles, updateFogParticles } from './lib/visualEffects';
 import { FormationType, getFormationName } from './lib/formations';
 import { initializeFloaters, updateFloaters } from './lib/floaters';
 import { initializeFieldParticles, updateFieldParticles } from './lib/fieldParticles';
@@ -243,6 +243,7 @@ function App() {
         updateGame(bg, deltaTime);
         updateFloaters(bg, deltaTime);
         updateFieldParticles(bg, deltaTime);
+        updateFogParticles(bg, deltaTime, ARENA_WIDTH_METERS, getArenaHeight());
         updateAI(bg, deltaTime, true); // Both players are AI
         updateCamera(bg, deltaTime);
         updateVisualEffects(bg, deltaTime);
@@ -275,6 +276,7 @@ function App() {
         // Update floaters during countdown
         updateFloaters(gameStateRef.current, deltaTime);
         updateFieldParticles(gameStateRef.current, deltaTime);
+        updateFogParticles(gameStateRef.current, deltaTime, ARENA_WIDTH_METERS, getArenaHeight());
         updateVisualEffects(gameStateRef.current, deltaTime);
         
         if (elapsed >= 3000) {
@@ -313,6 +315,9 @@ function App() {
           
           // Update field particles physics
           updateFieldParticles(gameStateRef.current, deltaTime);
+          
+          // Update fog particles physics
+          updateFogParticles(gameStateRef.current, deltaTime, ARENA_WIDTH_METERS, getArenaHeight());
           
           // Update multiplayer synchronization for online games
           if (gameStateRef.current.vsMode === 'online' && multiplayerManagerRef.current && multiplayerSyncRef.current) {
@@ -1915,6 +1920,7 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
     stars,
     floaters: initializeFloaters(),
     fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
+    fogParticles: initializeFogParticles(arenaWidth, arenaHeight),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };
@@ -2061,6 +2067,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     stars,
     floaters: initializeFloaters(),
     fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
+    fogParticles: initializeFogParticles(arenaWidth, arenaHeight),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };
@@ -2152,6 +2159,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
     isPortrait: shouldUsePortraitCoordinates(),
     floaters: initializeFloaters(),
     fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
+    fogParticles: initializeFogParticles(arenaWidth, arenaHeight),
   };
 }
 
@@ -2254,6 +2262,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
     isPortrait: shouldUsePortraitCoordinates(),
     floaters: initializeFloaters(),
     fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
+    fogParticles: initializeFogParticles(arenaWidth, arenaHeight),
   };
 }
 
@@ -2371,6 +2380,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     stars,
     floaters: initializeFloaters(),
     fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
+    fogParticles: initializeFogParticles(arenaWidth, arenaHeight),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };
