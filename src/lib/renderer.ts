@@ -440,8 +440,8 @@ function drawFogOfWar(ctx: CanvasRenderingContext2D, state: GameState, canvas: H
   
   ctx.save();
   
-  // Step 1: Draw dim black fog for all unexplored areas
-  ctx.fillStyle = 'rgba(5, 5, 10, 0.95)';
+  // Step 1: Draw dim black fog for all unexplored areas (very dark, almost black)
+  ctx.fillStyle = 'rgba(5, 5, 10, 0.92)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
   // Step 2: Identify all explored areas (where player units/base have been)
@@ -506,7 +506,6 @@ function drawFogOfWar(ctx: CanvasRenderingContext2D, state: GameState, canvas: H
   // Draw purple fog over the entire explored area
   ctx.globalCompositeOperation = 'source-over';
   ctx.save();
-  ctx.globalAlpha = 0.7;
   
   // Create a temporary canvas for purple fog
   const purpleCanvas = document.createElement('canvas');
@@ -514,15 +513,16 @@ function drawFogOfWar(ctx: CanvasRenderingContext2D, state: GameState, canvas: H
   purpleCanvas.height = canvas.height;
   const purpleCtx = purpleCanvas.getContext('2d');
   if (purpleCtx) {
-    purpleCtx.fillStyle = 'rgba(60, 30, 90, 1)';
+    // Use a brighter, more visible purple
+    purpleCtx.fillStyle = 'rgba(80, 40, 120, 1)';
     purpleCtx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Clip it to explored areas
     purpleCtx.globalCompositeOperation = 'destination-in';
     purpleCtx.drawImage(exploredCanvas, 0, 0);
     
-    // Draw it on main canvas
-    ctx.globalAlpha = 0.7;
+    // Draw it on main canvas with medium opacity
+    ctx.globalAlpha = 0.65;
     ctx.drawImage(purpleCanvas, 0, 0);
   }
   
