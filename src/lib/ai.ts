@@ -108,11 +108,23 @@ function performAIActions(state: GameState, aiPlayer: number = 1, difficultyConf
         });
         
         if (workers.length < 2) {
+          // Temporarily add miningDrone to enabled units if needed
+          const wasMiningDroneEnabled = state.settings.enabledUnits.has('miningDrone');
+          if (!wasMiningDroneEnabled) {
+            state.settings.enabledUnits.add('miningDrone');
+          }
+          
           // Store units count before spawning to identify the new drone
           const unitsCountBefore = state.units.length;
           
           // Spawn drone at this deposit
           const spawned = spawnUnit(state, aiPlayer, 'miningDrone', aiBase.position, deposit.position);
+          
+          // Restore enabledUnits state if we temporarily modified it
+          if (!wasMiningDroneEnabled) {
+            state.settings.enabledUnits.delete('miningDrone');
+          }
+          
           if (spawned) {
             // Find the newly spawned drone (it's the last one added)
             const drone = state.units[state.units.length - 1];
