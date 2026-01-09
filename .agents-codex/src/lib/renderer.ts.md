@@ -44,6 +44,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
   - Health bar with color coding (green→yellow→red)
   - Pulsing selection indicator with a secondary ring for clearer selection state
   - Movement target indicator (dot)
+  - Optional Radiant base sprites when sprite rendering is enabled
 
 #### drawCommandQueues(ctx, state): void
 - **Purpose:** Visualizes unit command queues
@@ -57,6 +58,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **Notes:**
   - Draws particles first (behind unit) for marines
   - Circle for unit body
+  - Optional Radiant unit/mining drone sprites when sprite rendering is enabled
   - HP bar (optional numeric display)
   - Active ability effects (shields, cloaking, etc.)
   - Attack animations (ranged/melee)
@@ -113,6 +115,8 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - Blade sword particle spacing pulls from shared constants so the visuals match the melee range tuning
 - Blade sword particles sample lagged transform history so each segment trails behind movement/turns
 - Blade sword particles honor the swing hold state to keep the sword at the final swing angle between combo hits
+- Sprite rendering uses cached Image instances and respects the `settings.enableSprites` toggle
+- Sprite glow uses the same glow toggle as other shader-like effects
 
 ### Rendering Optimizations
 - Clears only once per frame
@@ -161,6 +165,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **2026-01-09**: Spaced Blade sword particles farther apart by reading the shared spacing constant for magnet-like separation
 - **2026-01-11**: Added Blade movement lag sampling so sword particles trail behind the unit based on history snapshots
 - **2026-01-12**: Held Blade sword particles at the final swing angles between combo swings before resetting to rest
+- **2025-03-22**: Added Radiant sprite rendering for units, bases, and mining drones with a settings toggle.
 
 ## Watch Out For
 - Always convert game positions to pixels before drawing

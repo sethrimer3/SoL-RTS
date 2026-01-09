@@ -42,6 +42,7 @@ Main application component that orchestrates the entire game. Manages game state
 - **soundEnabled**: Audio on/off
 - **sfxVolume/musicVolume**: Audio levels
 - **showNumericHP**: Display numeric health values
+- **enableSprites**: Toggle sprite-based rendering for units and bases
 
 ### Functions
 
@@ -116,6 +117,7 @@ Main application component that orchestrates the entire game. Manages game state
 - Canvas resizes with window
 - Gameplay coordinate orientation is derived from `shouldUsePortraitCoordinates()` to keep desktop rotation cosmetic
 - Settings synced from useKV to game state on change
+- Sprite rendering toggle stored in settings for the renderer
 - Match statistics tracked throughout game
 - MMR calculated using ELO formula for online matches
 - Surrender requires 3 clicks within time window
@@ -169,6 +171,7 @@ Main application component that orchestrates the entire game. Manages game state
 - Added portrait-stable coordinate usage so desktop rotation does not change gameplay layout.
 - **2025-03-22**: Initialized shell casing arrays alongside projectiles in game state setup.
 - **2025-03-22**: Preloaded UI/gameplay sound effect assets and routed settings controls to the setting change cue.
+- **2025-03-22**: Added a sprite rendering toggle to persisted settings and the settings screen.
 
 ## Watch Out For
 - Game state ref vs React state - use correctly for performance

@@ -78,6 +78,7 @@ function App() {
   const [enableGlowEffects, setEnableGlowEffects] = useKV<boolean>('enable-glow-effects', true);
   const [enableParticleEffects, setEnableParticleEffects] = useKV<boolean>('enable-particle-effects', true);
   const [enableMotionBlur, setEnableMotionBlur] = useKV<boolean>('enable-motion-blur', true);
+  const [enableSprites, setEnableSprites] = useKV<boolean>('enable-sprites', true);
   const [mirrorAbilityCasting, setMirrorAbilityCasting] = useKV<boolean>('mirror-ability-casting', false);
   const [chessMode, setChessMode] = useKV<boolean>('chess-mode', false);
 
@@ -148,6 +149,7 @@ function App() {
       enableGlowEffects: enableGlowEffects ?? true,
       enableParticleEffects: enableParticleEffects ?? true,
       enableMotionBlur: enableMotionBlur ?? true,
+      enableSprites: enableSprites ?? true,
       mirrorAbilityCasting: mirrorAbilityCasting ?? false,
       chessMode: chessMode ?? false,
     };
@@ -156,7 +158,7 @@ function App() {
       ...p,
       color: i === 0 ? (playerColor || COLORS.playerDefault) : (enemyColor || COLORS.enemyDefault),
     }));
-  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP, showHealthBarsOnlyWhenDamaged, showMinimap, playerFaction, enemyFaction, enableGlowEffects, enableParticleEffects, enableMotionBlur, mirrorAbilityCasting, chessMode]);
+  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP, showHealthBarsOnlyWhenDamaged, showMinimap, playerFaction, enemyFaction, enableGlowEffects, enableParticleEffects, enableMotionBlur, enableSprites, mirrorAbilityCasting, chessMode]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -1555,6 +1557,18 @@ function App() {
                 />
               </div>
 
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sprite-toggle">Use Sprite Art</Label>
+                <Switch
+                  id="sprite-toggle"
+                  checked={enableSprites ?? true}
+                  onCheckedChange={(checked) => {
+                    setEnableSprites(checked);
+                    soundManager.playSettingChange();
+                  }}
+                />
+              </div>
+
               <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
                 <p><strong>Controls:</strong></p>
               </div>
@@ -1818,6 +1832,7 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: 'open',
       showNumericHP: false,
+      enableSprites: true,
       playerFaction: player1Faction,
       enemyFaction: player2Faction,
       playerBaseType: 'standard',
@@ -1864,6 +1879,7 @@ function createInitialState(): GameState {
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: 'open',
       showNumericHP: true,
+      enableSprites: true,
       playerFaction: 'radiant',
       enemyFaction: 'radiant',
       playerBaseType: 'standard',
@@ -2152,6 +2168,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: lobby.mapId,
       showNumericHP: true,
+      enableSprites: true,
       playerFaction: 'radiant',
       enemyFaction: 'radiant',
       playerBaseType: 'standard',
@@ -2258,6 +2275,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: lobby.mapId,
       showNumericHP: true,
+      enableSprites: true,
       playerFaction: 'radiant',
       enemyFaction: 'radiant',
       playerBaseType: 'standard',
