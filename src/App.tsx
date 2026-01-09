@@ -1787,8 +1787,14 @@ function App() {
             gameState.winner === -1 ? 'draw' : gameState.winner === 0 ? 'victory' : 'defeat'
           )}
           onRematch={gameState.vsMode === 'ai' ? () => {
+            // Save settings before returnToMenu resets the game state
+            const savedSettings = gameState.settings;
             returnToMenu(true, gameState.winner === -1 ? 'draw' : gameState.winner === 0 ? 'victory' : 'defeat');
-            setTimeout(() => startGame('ai', gameState.settings.selectedMap), 100);
+            // Restore settings after reset, then start game
+            setTimeout(() => {
+              gameStateRef.current.settings = savedSettings;
+              startGame('ai', savedSettings.selectedMap);
+            }, 100);
           } : undefined}
         />
       )}

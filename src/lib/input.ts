@@ -18,7 +18,7 @@ import {
   UNIT_DEFINITIONS,
   Vector2,
 } from './types';
-import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId } from './gameUtils';
+import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId, isVisibleToPlayer } from './gameUtils';
 import { screenToWorld, worldToScreen, zoomCamera } from './camera';
 import { spawnUnit } from './simulation';
 import { soundManager } from './sound';
@@ -1101,11 +1101,17 @@ export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCan
   if (!mouseState || !mouseState.isDragging) {
     const worldPos = screenToWorldPosition(state, canvas, { x, y });
     
-    // Check for unit hover
+    // Check for unit hover - show info for all visible units (player and enemy)
     const hoveredUnit = state.units.find(unit => {
-      if (unit.owner !== 0) return false; // Only show tooltips for player units
       const dist = distance(worldPos, unit.position);
-      return dist < 0.8; // Within unit radius
+      if (dist >= 0.8) return false; // Outside unit radius
+      
+      // For enemy units, check if they're visible (fog of war)
+      if (unit.owner !== 0) {
+        return isVisibleToPlayer(unit.position, state);
+      }
+      
+      return true; // Show player units
     });
     
     if (hoveredUnit) {

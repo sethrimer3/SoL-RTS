@@ -1,4 +1,4 @@
-import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, RESOURCE_DEPOSIT_RING_RADIUS_METERS, UNIT_DEFINITIONS } from './types';
+import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, RESOURCE_DEPOSIT_RING_RADIUS_METERS, UNIT_DEFINITIONS, FOG_OF_WAR_VISION_RANGE, GameState } from './types';
 
 // Calculate viewport scale to fit the fixed arena to the viewport
 let viewportScale = 1.0;
@@ -455,4 +455,31 @@ export function createInitialMiningDrones(miningDepots: import('./types').Mining
   });
   
   return drones;
+}
+
+/**
+ * Check if a position is visible to the player under fog of war
+ * @param position - The position to check
+ * @param state - The game state containing player units and bases
+ * @returns true if the position is visible to the player
+ */
+export function isVisibleToPlayer(position: Vector2, state: GameState): boolean {
+  if (!state.settings.enableFogOfWar) {
+    return true; // Fog of war disabled, everything is visible
+  }
+  
+  // Player's base provides vision
+  const playerBase = state.bases.find(b => b.owner === 0);
+  if (playerBase && distance(playerBase.position, position) <= FOG_OF_WAR_VISION_RANGE) {
+    return true;
+  }
+  
+  // Player's units provide vision
+  for (const unit of state.units) {
+    if (unit.owner === 0 && distance(unit.position, position) <= FOG_OF_WAR_VISION_RANGE) {
+      return true;
+    }
+  }
+  
+  return false;
 }
