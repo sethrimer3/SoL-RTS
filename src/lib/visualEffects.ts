@@ -842,3 +842,110 @@ export function triggerBackgroundPush(position: Vector2, force: number = 10): vo
     }));
   }
 }
+
+// Fog of war particle constants
+const FOG_PARTICLE_COUNT = 150; // Number of swirling particles in fog
+const FOG_PARTICLE_MIN_SIZE = 0.2; // Minimum particle size in meters
+const FOG_PARTICLE_MAX_SIZE = 0.6; // Maximum particle size in meters
+const FOG_PARTICLE_ORBIT_RADIUS_MIN = 1.5; // Minimum orbit radius
+const FOG_PARTICLE_ORBIT_RADIUS_MAX = 4.0; // Maximum orbit radius
+const FOG_PARTICLE_ORBIT_SPEED_MIN = 0.3; // Minimum angular velocity (radians/sec)
+const FOG_PARTICLE_ORBIT_SPEED_MAX = 1.2; // Maximum angular velocity (radians/sec)
+const FOG_PARTICLE_MIN_OPACITY = 0.2;
+const FOG_PARTICLE_MAX_OPACITY = 0.7;
+
+/**
+ * Initialize fog of war particles across the entire arena
+ */
+export function initializeFogParticles(arenaWidth: number, arenaHeight: number): Array<{
+  id: string;
+  position: Vector2;
+  velocity: Vector2;
+  angle: number;
+  orbitRadius: number;
+  orbitCenter: Vector2;
+  orbitSpeed: number;
+  size: number;
+  opacity: number;
+  phase: number;
+}> {
+  const particles = [];
+  
+  for (let i = 0; i < FOG_PARTICLE_COUNT; i++) {
+    // Random position across the arena
+    const position = {
+      x: Math.random() * arenaWidth,
+      y: Math.random() * arenaHeight,
+    };
+    
+    // Each particle orbits around a local center point
+    const orbitCenter = { ...position };
+    const orbitRadius = FOG_PARTICLE_ORBIT_RADIUS_MIN + 
+                       Math.random() * (FOG_PARTICLE_ORBIT_RADIUS_MAX - FOG_PARTICLE_ORBIT_RADIUS_MIN);
+    const orbitSpeed = (FOG_PARTICLE_ORBIT_SPEED_MIN + 
+                       Math.random() * (FOG_PARTICLE_ORBIT_SPEED_MAX - FOG_PARTICLE_ORBIT_SPEED_MIN)) *
+                       (Math.random() > 0.5 ? 1 : -1); // Random direction
+    
+    particles.push({
+      id: generateId(),
+      position,
+      velocity: { x: 0, y: 0 },
+      angle: Math.random() * Math.PI * 2,
+      orbitRadius,
+      orbitCenter,
+      orbitSpeed,
+      size: FOG_PARTICLE_MIN_SIZE + Math.random() * (FOG_PARTICLE_MAX_SIZE - FOG_PARTICLE_MIN_SIZE),
+      opacity: FOG_PARTICLE_MIN_OPACITY + Math.random() * (FOG_PARTICLE_MAX_OPACITY - FOG_PARTICLE_MIN_OPACITY),
+      phase: Math.random() * Math.PI * 2, // Phase for wave motion
+    });
+  }
+  
+  return particles;
+}
+
+/**
+ * Update fog particles with swirling orbital motion
+ */
+export function updateFogParticles(state: GameState, deltaTime: number, arenaWidth: number, arenaHeight: number): void {
+  if (!state.fogParticles) return;
+  
+  const time = Date.now() / 1000; // Current time in seconds
+  
+  for (const particle of state.fogParticles) {
+    // Update angle based on orbit speed
+    particle.angle += particle.orbitSpeed * deltaTime;
+    
+    // Calculate position in orbit around center with wave motion
+    const waveOffset = Math.sin(time * 2 + particle.phase) * 0.3; // Small wave motion
+    const currentRadius = particle.orbitRadius * (1 + waveOffset);
+    
+    particle.position.x = particle.orbitCenter.x + Math.cos(particle.angle) * currentRadius;
+    particle.position.y = particle.orbitCenter.y + Math.sin(particle.angle) * currentRadius;
+    
+    // Pulsing opacity effect
+    const opacityWave = Math.sin(time * 1.5 + particle.phase) * 0.15;
+    const baseOpacity = FOG_PARTICLE_MIN_OPACITY + 
+                       (particle.opacity - FOG_PARTICLE_MIN_OPACITY);
+    particle.opacity = Math.max(FOG_PARTICLE_MIN_OPACITY, 
+                                Math.min(FOG_PARTICLE_MAX_OPACITY, baseOpacity + opacityWave));
+    
+    // Slowly drift the orbit center for more organic motion
+    const driftSpeed = 0.5; // meters per second
+    const driftAngle = time * 0.3 + particle.phase;
+    particle.orbitCenter.x += Math.cos(driftAngle) * driftSpeed * deltaTime;
+    particle.orbitCenter.y += Math.sin(driftAngle) * driftSpeed * deltaTime;
+    
+    // Wrap orbit center around arena edges
+    if (particle.orbitCenter.x < -particle.orbitRadius) {
+      particle.orbitCenter.x = arenaWidth + particle.orbitRadius;
+    } else if (particle.orbitCenter.x > arenaWidth + particle.orbitRadius) {
+      particle.orbitCenter.x = -particle.orbitRadius;
+    }
+    
+    if (particle.orbitCenter.y < -particle.orbitRadius) {
+      particle.orbitCenter.y = arenaHeight + particle.orbitRadius;
+    } else if (particle.orbitCenter.y > arenaHeight + particle.orbitRadius) {
+      particle.orbitCenter.y = -particle.orbitRadius;
+    }
+  }
+}

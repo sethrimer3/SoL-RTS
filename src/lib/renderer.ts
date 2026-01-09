@@ -423,10 +423,31 @@ function drawFogOfWar(ctx: CanvasRenderingContext2D, state: GameState, canvas: H
     return;
   }
   
-  // Create a full-screen dark overlay
+  // Create a full-screen dark purple overlay with swirling effect
   ctx.save();
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  
+  // Base dark purple fog layer
+  ctx.fillStyle = 'rgba(40, 20, 60, 0.75)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Draw swirling fog particles before cutting out vision
+  if (state.fogParticles && state.settings.enableParticleEffects) {
+    state.fogParticles.forEach(particle => {
+      const screenPos = worldToScreen(particle.position, state, canvas);
+      const size = metersToPixels(particle.size) * (state.camera?.zoom || 1);
+      
+      // Create purple particle with glow
+      const gradient = ctx.createRadialGradient(screenPos.x, screenPos.y, 0, screenPos.x, screenPos.y, size * 2);
+      gradient.addColorStop(0, `rgba(180, 120, 255, ${particle.opacity * 0.6})`);
+      gradient.addColorStop(0.5, `rgba(140, 80, 220, ${particle.opacity * 0.3})`);
+      gradient.addColorStop(1, 'rgba(80, 40, 150, 0)');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, size * 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
   
   // Cut out visible areas using destination-out compositing
   ctx.globalCompositeOperation = 'destination-out';
