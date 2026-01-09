@@ -24,7 +24,7 @@ import {
   ARENA_HEIGHT_METERS,
   Floater,
 } from './types';
-import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract, getViewportOffset, getViewportDimensions, getArenaHeight } from './gameUtils';
+import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract, getViewportOffset, getViewportDimensions, getArenaHeight, getPlayfieldRotationRadians } from './gameUtils';
 import { applyCameraTransform, removeCameraTransform, worldToScreen } from './camera';
 import { Obstacle } from './maps';
 import { MOTION_TRAIL_DURATION, QUEUE_FADE_DURATION, QUEUE_DRAW_DURATION, QUEUE_UNDRAW_DURATION } from './simulation';
@@ -182,6 +182,7 @@ function drawRadiantUnitSprite(
   screenPos: Vector2,
   color: string,
   state: GameState,
+  renderRotation: number,
 ): boolean {
   if (unit.type === 'miningDrone') {
     const miningSprite = getSpriteFromCache(radiantMiningDroneSpritePath);
@@ -195,7 +196,7 @@ function drawRadiantUnitSprite(
       miningSprite,
       screenPos,
       spriteSize,
-      (unit.rotation || 0) + RADIANT_SPRITE_ROTATION_OFFSET,
+      renderRotation + RADIANT_SPRITE_ROTATION_OFFSET,
       color,
       !!state.settings.enableGlowEffects,
     );
@@ -219,7 +220,7 @@ function drawRadiantUnitSprite(
     sprite,
     screenPos,
     spriteSize,
-    (unit.rotation || 0) + RADIANT_SPRITE_ROTATION_OFFSET,
+    renderRotation + RADIANT_SPRITE_ROTATION_OFFSET,
     color,
     !!state.settings.enableGlowEffects,
   );
@@ -1875,6 +1876,8 @@ function drawBladeSword(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { 
   const particleSpacing = metersToPixels(BLADE_SWORD_PARTICLE_SPACING_METERS);
   const swing = unit.swordSwing;
   const swingHold = unit.swordSwingHold;
+  // Apply the desktop rotation offset so blade trails align with the rotated playfield.
+  const playfieldRotation = getPlayfieldRotationRadians();
 
   ctx.save();
   ctx.fillStyle = color;
@@ -1882,7 +1885,7 @@ function drawBladeSword(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { 
   for (let i = 0; i < BLADE_SWORD_PARTICLE_COUNT; i++) {
     const lagSeconds = BLADE_SWORD_MOVEMENT_LAG_SECONDS * (i + 1);
     const trailSample = sampleBladeTrail(unit, now - lagSeconds * 1000);
-    const baseRotation = trailSample.rotation;
+    const baseRotation = trailSample.rotation + playfieldRotation;
     const baseScreenPos = positionToPixels(trailSample.position);
     let angle = baseRotation;
     let hasSwingMotion = false;
@@ -2016,6 +2019,8 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
   const time = Date.now() / 1000;
   // Use the settings toggle to decide whether sprite rendering is allowed.
   const spritesEnabled = state.settings.enableSprites ?? true;
+  // Rotate unit visuals on desktop so they face forward in the rotated playfield view.
+  const playfieldRotation = getPlayfieldRotationRadians();
   
   state.units.forEach((unit) => {
     // Skip units that are off-screen for performance
@@ -2061,7 +2066,7 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
     
     // Draw motion blur trail for fast-moving units
     if (!useLOD && state.settings.enableMotionBlur && unit.currentSpeed && unit.currentSpeed > MOTION_BLUR_SPEED_THRESHOLD) {
-      drawMotionBlurTrail(ctx, unit, screenPos, color, state);
+      drawMotionBlurTrail(ctx, unit, screenPos, color, state, playfieldRotation);
     }
     
     // Draw particles first (behind the unit) - skip for LOD
@@ -2080,9 +2085,11 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.save();
     ctx.fillStyle = color;
     ctx.strokeStyle = color;
+    // Apply the playfield rotation offset to the unit's facing direction for rendering.
+    const unitRenderRotation = (unit.rotation || 0) + playfieldRotation;
 
     // Try sprite rendering first; fall back to vector shapes when sprites are disabled or unavailable.
-    const spriteDrawn = spritesEnabled && drawRadiantUnitSprite(ctx, unit, screenPos, color, state);
+    const spriteDrawn = spritesEnabled && drawRadiantUnitSprite(ctx, unit, screenPos, color, state, unitRenderRotation);
 
     if (!spriteDrawn && unit.type === 'snaker') {
       drawSnaker(ctx, unit, screenPos, color);
@@ -2121,7 +2128,7 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.shadowBlur = glowIntensity;
 
       // Apply rotation if available
-      const rotation = unit.rotation || 0;
+      const rotation = unitRenderRotation;
       ctx.save();
       ctx.translate(screenPos.x, screenPos.y);
       ctx.rotate(rotation);
@@ -2308,14 +2315,21 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
 }
 
 // Draw motion blur trail for fast-moving units
-function drawMotionBlurTrail(ctx: CanvasRenderingContext2D, unit: Unit, screenPos: { x: number; y: number }, color: string, state: GameState): void {
+function drawMotionBlurTrail(
+  ctx: CanvasRenderingContext2D,
+  unit: Unit,
+  screenPos: { x: number; y: number },
+  color: string,
+  state: GameState,
+  playfieldRotation: number,
+): void {
   if (unit.rotation === undefined || unit.rotation === null) return;
   
   const speed = unit.currentSpeed || 0;
   const speedRatio = Math.min(speed / 5, 1); // Normalize speed to 0-1 range
   
   // Calculate trail direction (opposite of movement)
-  const trailAngle = unit.rotation + Math.PI;
+  const trailAngle = unit.rotation + playfieldRotation + Math.PI;
   const trailLength = 15 * speedRatio; // Trail length based on speed
   
   // Create gradient for trail

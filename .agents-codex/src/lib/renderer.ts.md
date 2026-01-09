@@ -128,6 +128,8 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - Radiant sprites are tinted to the owning team color using an offscreen canvas with multiplicative blending to preserve shading
 - Tinted sprite canvases are cached per sprite path + team color to avoid re-tinting every frame
 - Radiant sprite rotation adds a fixed offset so sprite-forward (up) aligns with unit-forward directions
+- Unit rendering applies the playfield rotation offset on desktop so sprites and vector shapes face forward
+- Motion blur trails use the playfield rotation offset to align with rotated unit visuals
 
 ### Rendering Optimizations
 - Clears only once per frame
@@ -179,6 +181,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **2025-03-22**: Added Radiant sprite rendering for units, bases, and mining drones with a settings toggle.
 - **2025-03-23**: Tinted Radiant sprites to team colors and added a rotation offset to align sprite-forward direction.
 - **2025-03-24**: Moved sprite tinting to cached offscreen canvases to preserve scene transparency and reduce per-frame work.
+- **2025-03-24**: Applied the playfield rotation offset to unit rendering and motion trails for desktop landscape alignment.
 
 ## Watch Out For
 - Always convert game positions to pixels before drawing

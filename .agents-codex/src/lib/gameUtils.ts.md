@@ -100,6 +100,11 @@ Provides core mathematical utility functions for vector operations, coordinate t
 - **Returns:** True when portrait orientation is active or when the desktop view is rotated
 - **Notes:** Keeps gameplay logic consistent while allowing the desktop view to rotate
 
+#### getPlayfieldRotationRadians(): number
+- **Purpose:** Provide the render-only rotation offset for the desktop playfield
+- **Returns:** Rotation in radians (π/2 when desktop rotation is active, 0 otherwise)
+- **Notes:** Used by renderers to keep unit visuals aligned with the rotated desktop view
+
 ### Numeric Utility Functions
 
 #### clamp(value: number, min: number, max: number): number
@@ -173,6 +178,7 @@ Provides core mathematical utility functions for vector operations, coordinate t
 - **2026-01-06**: Switched desktop rotation to counter-clockwise and updated inverse coordinate mapping for rotated input
 - **2025-03-17**: Initialized mining depot resource deposits with `workerIds` arrays to support multiple drones
 - **2025-03-18**: Aligned mining depot deposit ring spacing with the shared resource ring radius constant
+- **2025-03-24**: Added a render-only playfield rotation helper for aligning unit visuals in desktop landscape mode
 
 ## Watch Out For
 - Always normalize vectors before using them as directions (especially for movement)

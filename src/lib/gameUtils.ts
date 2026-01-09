@@ -18,6 +18,12 @@ function shouldRotatePlayfield(): boolean {
   return isLandscape && hasFinePointer;
 }
 
+// Provide the render-only rotation offset for the desktop playfield (in radians).
+export function getPlayfieldRotationRadians(): number {
+  // Rotate counter-clockwise on desktop landscape to match the rotated playfield view.
+  return shouldRotatePlayfield() ? Math.PI / 2 : 0;
+}
+
 // Detect if we're on a mobile device (no fine pointer)
 function isMobileDevice(): boolean {
   if (typeof window === 'undefined') {
