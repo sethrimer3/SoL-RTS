@@ -114,9 +114,6 @@ function performAIActions(state: GameState, aiPlayer: number = 1, difficultyConf
             state.settings.enabledUnits.add('miningDrone');
           }
           
-          // Store units count before spawning to identify the new drone
-          const unitsCountBefore = state.units.length;
-          
           // Spawn drone at this deposit
           const spawned = spawnUnit(state, aiPlayer, 'miningDrone', aiBase.position, deposit.position);
           
@@ -126,9 +123,9 @@ function performAIActions(state: GameState, aiPlayer: number = 1, difficultyConf
           }
           
           if (spawned) {
-            // Find the newly spawned drone (it's the last one added)
-            const drone = state.units[state.units.length - 1];
-            if (drone && drone.type === 'miningDrone') {
+            // Find the newly spawned drone - it's the last unit with matching owner and type
+            const drone = state.units.slice().reverse().find(u => u.owner === aiPlayer && u.type === 'miningDrone');
+            if (drone) {
               drone.miningState = {
                 depotId: depot.id,
                 depositId: deposit.id,
@@ -157,7 +154,7 @@ function performAIActions(state: GameState, aiPlayer: number = 1, difficultyConf
 
     if (unitTypes.length === 0) return;
 
-    // Apply difficulty-based spawn chance
+    // Apply difficulty-based spawn chance - higher multiplier means more spawning
     if (Math.random() > difficultyConfig.spawnChanceMultiplier) return;
 
     const chosenType = unitTypes[Math.floor(Math.random() * unitTypes.length)];
@@ -175,9 +172,6 @@ function performAIActions(state: GameState, aiPlayer: number = 1, difficultyConf
 
   if (enemyBase) {
     aiCombatUnits.forEach((unit) => {
-      // Skip mining drones - they manage themselves
-      if (unit.type === 'miningDrone' || unit.miningState) return;
-
       // In chess mode, add to pending commands instead of immediate queue
       if (state.settings.chessMode && state.chessMode) {
         // Only give command if unit doesn't already have a pending command
