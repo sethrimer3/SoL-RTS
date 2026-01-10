@@ -1269,6 +1269,14 @@ export interface GameState {
     color: string;
   }>;
   
+  // Sprite corner trails - thin trails from back corners of unit sprites
+  spriteCornerTrails?: Array<{
+    unitId: string;
+    leftCornerPositions: Array<{ pos: Vector2; timestamp: number }>;
+    rightCornerPositions: Array<{ pos: Vector2; timestamp: number }>;
+    color: string;
+  }>;
+  
   // Victory celebration particles
   celebrationParticles?: Array<{
     id: string;
