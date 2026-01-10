@@ -34,7 +34,6 @@ import { ObjectPool } from './objectPool';
 // Projectile constants - must be declared before object pool
 const PROJECTILE_SPEED = 15; // meters per second
 const PROJECTILE_LIFETIME = 2.0; // seconds before projectile disappears
-const MARINE_PROJECTILE_SPEED_MULTIPLIER = 3; // Marines fire faster bullets for snappier ranged pressure
 const MELEE_EFFECT_DURATION = 0.2; // seconds for melee attack visual
 const LASER_BEAM_DURATION = 0.5; // seconds for laser beam visual
 
@@ -1050,8 +1049,7 @@ function createProjectile(
   const damage = options?.damage ?? (def.attackDamage * sourceUnit.damageMultiplier);
   const color = state.players[sourceUnit.owner].color;
   const baseSpeed = options?.speed ?? PROJECTILE_SPEED;
-  // Marines get a speed multiplier on default shots to make their bullets feel snappier.
-  const projectileSpeed = options?.speed ? baseSpeed : baseSpeed * (sourceUnit.type === 'marine' ? MARINE_PROJECTILE_SPEED_MULTIPLIER : 1);
+  const projectileSpeed = baseSpeed;
   const startOffset = options?.startOffset ?? 0;
   
   // Acquire projectile from pool and initialize it
@@ -1079,7 +1077,8 @@ function createEjectedShell(unit: Unit, firingDirection: Vector2): Shell {
   const fallbackDirection = firingDirection.x === 0 && firingDirection.y === 0 ? { x: 1, y: 0 } : firingDirection;
   const forward = normalize(fallbackDirection);
   const side = normalize({ x: -forward.y, y: forward.x });
-  const sideSign = Math.random() < 0.5 ? -1 : 1;
+  // Always eject shells to the marine's right-hand side for consistent feedback.
+  const sideSign = 1;
   const baseEjection = normalize(add(scale(side, sideSign), scale(forward, 0.25)));
   const baseAngle = Math.atan2(baseEjection.y, baseEjection.x);
   const angle = baseAngle + (Math.random() - 0.5) * 2 * SHELL_EJECTION_ANGLE_VARIANCE;
@@ -1096,6 +1095,69 @@ function createEjectedShell(unit: Unit, firingDirection: Vector2): Shell {
     mass: SHELL_MASS,
     owner: unit.owner,
   };
+}
+
+/**
+ * Applies an instant marine ranged hit so bullets register immediately without travel time.
+ * Creates impact feedback, damage numbers, and bounce particles at the target location.
+ * @param state - Current game state to mutate
+ * @param unit - Marine unit firing the shot
+ * @param target - Unit or base being hit
+ * @param direction - Normalized direction of the shot for ricochet feedback
+ */
+function applyInstantMarineHit(state: GameState, unit: Unit, target: Unit | Base, direction: Vector2): void {
+  const def = UNIT_DEFINITIONS[unit.type];
+  const color = state.players[unit.owner].color;
+  const impactPosition = { ...target.position };
+  const incomingDirection = normalize(direction);
+  const baseDamage = def.attackDamage * unit.damageMultiplier;
+
+  // Always show a small impact ring at the hit position for instantaneous feedback.
+  createImpactEffect(state, impactPosition, color, 0.8);
+
+  if ('type' in target) {
+    const targetUnit = target as Unit;
+    const targetDef = UNIT_DEFINITIONS[targetUnit.type];
+    const shieldMultiplier = getShieldDamageMultiplier(state, targetUnit, 'ranged');
+    const finalDamage = calculateDamageWithArmor(baseDamage, targetUnit.armor, false, targetDef.modifiers) * shieldMultiplier;
+
+    targetUnit.hp -= finalDamage;
+    createDamageNumber(state, impactPosition, finalDamage, color);
+    createHitSparks(state, impactPosition, color, 6);
+    // Spawn ricochet bullets on every marine hit to keep the impact visible.
+    createBounceParticles(state, impactPosition, incomingDirection, color, 2);
+
+    if (state.matchStats && unit.owner === 0) {
+      state.matchStats.damageDealtByPlayer += finalDamage;
+    }
+    return;
+  }
+
+  const targetBase = target as Base;
+
+  // Respect base shields so marine hits still flash without applying damage.
+  if (targetBase.shieldActive && Date.now() < targetBase.shieldActive.endTime) {
+    createHitSparks(state, impactPosition, state.players[targetBase.owner].color, 12);
+    return;
+  }
+
+  const finalDamage = calculateDamageWithArmor(baseDamage, targetBase.armor, false);
+  targetBase.hp -= finalDamage;
+  createHitSparks(state, impactPosition, color, 8);
+  // Show the ricochet at the base impact for marine shots as well.
+  createBounceParticles(state, impactPosition, incomingDirection, color, 2);
+
+  if (state.matchStats) {
+    if (targetBase.owner === 0) {
+      state.matchStats.damageToPlayerBase += finalDamage;
+    } else {
+      state.matchStats.damageToEnemyBase += finalDamage;
+    }
+
+    if (unit.owner === 0) {
+      state.matchStats.damageDealtByPlayer += finalDamage;
+    }
+  }
 }
 
 // Create an impact effect
@@ -4290,12 +4352,18 @@ function performAttack(state: GameState, unit: Unit, target: Unit | Base): void 
   unit.rotation = targetRotation;
   
   if (def.attackType === 'ranged') {
-    // Spawn projectile for ranged attacks
-    const targetPos = target.position;
-    const targetUnit = 'type' in target ? (target as Unit) : undefined;
-    const projectile = createProjectile(state, unit, targetPos, targetUnit);
-    state.projectiles.push(projectile);
+    // Marines fire hitscan-style shots so bullets register instantly without visible travel.
+    if (unit.type === 'marine') {
+      applyInstantMarineHit(state, unit, target, direction);
+    } else {
+      // Spawn projectile for standard ranged attacks.
+      const targetPos = target.position;
+      const targetUnit = 'type' in target ? (target as Unit) : undefined;
+      const projectile = createProjectile(state, unit, targetPos, targetUnit);
+      state.projectiles.push(projectile);
+    }
 
+    // Always eject a shell casing when a marine fires.
     if (unit.type === 'marine') {
       if (!state.shells) {
         state.shells = [];
