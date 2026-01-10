@@ -11,6 +11,7 @@ import {
   QUEUE_BONUS_PER_NODE,
   BASE_SIZE_METERS,
   UNIT_SIZE_METERS,
+  MINING_DRONE_SIZE_MULTIPLIER,
   ABILITY_MAX_RANGE,
   ABILITY_LASER_DAMAGE,
   ABILITY_LASER_WIDTH,
@@ -25,7 +26,7 @@ import {
   QUEUE_MAX_LENGTH,
   BASE_TYPE_DEFINITIONS,
 } from './types';
-import { distance, normalize, scale, add, subtract, generateId } from './gameUtils';
+import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians } from './gameUtils';
 import { checkObstacleCollision } from './maps';
 import { soundManager } from './sound';
 import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash, createLaserParticles, createBounceParticles } from './visualEffects';
@@ -1464,6 +1465,96 @@ function updateMotionTrails(state: GameState): void {
   state.motionTrails = state.motionTrails.filter(t => unitIds.has(t.unitId));
 }
 
+// Update sprite corner trails for all units
+function updateSpriteCornerTrails(state: GameState): void {
+  if (!state.spriteCornerTrails) {
+    state.spriteCornerTrails = [];
+  }
+  
+  const now = Date.now();
+  const SPRITE_CORNER_TRAIL_DURATION = 0.3; // seconds - shorter than motion trails
+  const UNIT_SPRITE_HALF_SIZE = UNIT_SIZE_METERS * 1.55 / 2; // Half of sprite size (matches UNIT_SPRITE_SCALE * UNIT_SIZE_METERS)
+  const MINING_DRONE_SPRITE_HALF_SIZE = UNIT_SIZE_METERS * MINING_DRONE_SIZE_MULTIPLIER * 1.35 / 2; // For mining drones
+  
+  // Update trails for each unit
+  state.units.forEach((unit) => {
+    // Skip mining drones for now as they have different sprite scaling
+    if (unit.type === 'miningDrone') {
+      return;
+    }
+    
+    // Check if unit is moving
+    const isMoving = unit.commandQueue.length > 0 || (unit.currentSpeed && unit.currentSpeed > 0.5);
+    if (!isMoving) return;
+    
+    // Get or create trail for this unit
+    let trail = state.spriteCornerTrails?.find(t => t.unitId === unit.id);
+    if (!trail) {
+      trail = {
+        unitId: unit.id,
+        leftCornerPositions: [],
+        rightCornerPositions: [],
+        color: state.players[unit.owner].color,
+      };
+      state.spriteCornerTrails!.push(trail);
+    }
+    
+    // Calculate back corner positions based on unit rotation
+    // Sprites are rotated to face forward, so we need to account for rotation
+    const rotation = unit.rotation || 0;
+    const playfieldRotation = getPlayfieldRotationRadians();
+    const totalRotation = rotation + playfieldRotation;
+    
+    // Get sprite size for this unit type
+    const spriteHalfSize = unit.type === 'miningDrone' ? MINING_DRONE_SPRITE_HALF_SIZE : UNIT_SPRITE_HALF_SIZE;
+    
+    // Calculate back corners (perpendicular to forward direction, at the back)
+    // Back is opposite to forward direction (rotation + PI)
+    const backAngle = totalRotation + Math.PI + Math.PI / 2; // Add 90 degrees to get sprite orientation
+    const perpAngle = totalRotation + Math.PI / 2; // Perpendicular to forward
+    
+    // Back center point
+    const backX = unit.position.x + Math.cos(backAngle) * spriteHalfSize;
+    const backY = unit.position.y + Math.sin(backAngle) * spriteHalfSize;
+    
+    // Calculate left and right corner offsets from back center
+    const cornerOffset = spriteHalfSize * 0.7; // Corners are 70% of the way to the edge
+    
+    const leftCornerPos = {
+      x: backX + Math.cos(perpAngle) * cornerOffset,
+      y: backY + Math.sin(perpAngle) * cornerOffset,
+    };
+    
+    const rightCornerPos = {
+      x: backX - Math.cos(perpAngle) * cornerOffset,
+      y: backY - Math.sin(perpAngle) * cornerOffset,
+    };
+    
+    // Add current positions to trails
+    trail.leftCornerPositions.push({
+      pos: leftCornerPos,
+      timestamp: now,
+    });
+    
+    trail.rightCornerPositions.push({
+      pos: rightCornerPos,
+      timestamp: now,
+    });
+    
+    // Remove old positions
+    trail.leftCornerPositions = trail.leftCornerPositions.filter(
+      p => (now - p.timestamp) / 1000 < SPRITE_CORNER_TRAIL_DURATION
+    );
+    trail.rightCornerPositions = trail.rightCornerPositions.filter(
+      p => (now - p.timestamp) / 1000 < SPRITE_CORNER_TRAIL_DURATION
+    );
+  });
+  
+  // Clean up trails for dead units
+  const unitIds = new Set(state.units.map(u => u.id));
+  state.spriteCornerTrails = state.spriteCornerTrails.filter(t => unitIds.has(t.unitId));
+}
+
 // Pull enemy projectiles toward nearby tanks to simulate passive magnetic defense.
 function applyTankProjectileAttraction(state: GameState, projectile: Projectile, deltaTime: number): void {
   const enemyTanks = state.units.filter((unit) => unit.type === 'tank' && unit.owner !== projectile.owner && unit.hp > 0);
@@ -1826,6 +1917,7 @@ export function updateGame(state: GameState, deltaTime: number): void {
   updateEnergyPulses(state);
   updateHitSparks(state, deltaTime);
   updateMotionTrails(state);
+  updateSpriteCornerTrails(state);
   checkTimeLimit(state);
   checkVictory(state);
 }

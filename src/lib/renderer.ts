@@ -597,6 +597,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
     if (state.mode === 'game') {
       drawCommandQueues(ctx, state);
       drawMotionTrails(ctx, state);
+      drawSpriteCornerTrails(ctx, state);
       drawProjectiles(ctx, state);
       drawShells(ctx, state);
       drawFieldParticles(ctx, state);
@@ -4263,6 +4264,54 @@ function drawMotionTrails(ctx: CanvasRenderingContext2D, state: GameState): void
       ctx.lineTo(pos2.x, pos2.y);
       ctx.stroke();
     }
+    
+    ctx.restore();
+  });
+}
+
+// Draw thin trails from back corners of unit sprites
+function drawSpriteCornerTrails(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.spriteCornerTrails || state.spriteCornerTrails.length === 0) return;
+  
+  const now = Date.now();
+  const SPRITE_CORNER_TRAIL_DURATION = 0.3; // Must match simulation value
+  
+  state.spriteCornerTrails.forEach((trail) => {
+    ctx.save();
+    ctx.strokeStyle = trail.color;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Helper function to draw a single corner trail
+    const drawCornerTrail = (positions: Array<{ pos: Vector2; timestamp: number }>) => {
+      if (positions.length < 2) return;
+      
+      // Draw trail from oldest to newest
+      for (let i = 0; i < positions.length - 1; i++) {
+        const age = (now - positions[i].timestamp) / 1000;
+        const alpha = Math.max(0, 1 - age / SPRITE_CORNER_TRAIL_DURATION);
+        
+        if (alpha <= 0) continue;
+        
+        const pos1 = positionToPixels(positions[i].pos);
+        const pos2 = positionToPixels(positions[i + 1].pos);
+        
+        // Thin trails with reduced opacity
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.lineWidth = 1.5 * alpha; // Thin line that fades
+        ctx.shadowColor = trail.color;
+        ctx.shadowBlur = 4;
+        
+        ctx.beginPath();
+        ctx.moveTo(pos1.x, pos1.y);
+        ctx.lineTo(pos2.x, pos2.y);
+        ctx.stroke();
+      }
+    };
+    
+    // Draw both corner trails
+    drawCornerTrail(trail.leftCornerPositions);
+    drawCornerTrail(trail.rightCornerPositions);
     
     ctx.restore();
   });
