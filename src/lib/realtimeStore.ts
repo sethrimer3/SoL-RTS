@@ -145,10 +145,9 @@ class SupabaseKVStore implements RealtimeKVStore {
     if (error.code === 'PGRST204' || error.code === 'PGRST205') {
       return true;
     }
-    // Check for common PostgreSQL error messages about missing tables
+    // Check for common PostgreSQL error messages about missing tables/relations
     const message = error.message?.toLowerCase() || '';
-    return message.includes('relation does not exist') || 
-           message.includes('does not exist') ||
+    return message.includes('relation') && message.includes('does not exist') || 
            message.includes('schema cache');
   }
 
