@@ -132,6 +132,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - Radiant sprite rotation adds a fixed offset so sprite-forward (up) aligns with unit-forward directions
 - Unit rendering applies the playfield rotation offset on desktop so sprites and vector shapes face forward
 - Motion blur trails use the playfield rotation offset to align with rotated unit visuals
+- Ability range indicators now toggle between attack range (idle) and ability max range (while dragging an ability arrow) based on `state.abilityCastPreview`
 
 ### Rendering Optimizations
 - Clears only once per frame
@@ -185,6 +186,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **2025-03-24**: Moved sprite tinting to cached offscreen canvases to preserve scene transparency and reduce per-frame work.
 - **2025-03-24**: Applied the playfield rotation offset to unit rendering and motion trails for desktop landscape alignment.
 - **2025-03-24**: Reduced Blade sword particle size, added pale connector lines, and retracted the blade when no enemies are in range.
+- **2025-03-24**: Swapped selection range visuals to show attack range when idle and ability range only during active ability drags.
 
 ## Watch Out For
 - Always convert game positions to pixels before drawing
