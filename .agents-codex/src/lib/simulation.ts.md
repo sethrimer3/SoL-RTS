@@ -125,6 +125,8 @@ Multiple functions for unit abilities:
 - Blade swings now apply area damage per swing with 1s pauses between combo hits and after the final spin
 - Blade movement history is recorded each frame to support lagged sword particle rendering
 - Blade sword swing completions now store a hold state so the sword stays at its final angle between combo swings
+- Marine basic ranged shots are now hitscan-style, spawning instant impact feedback and ricochet bullets at the target
+- Marine shell casings eject consistently to the firing unit's right side with angle variance
 
 ### Known Issues
 - None currently identified
@@ -160,6 +162,7 @@ Multiple functions for unit abilities:
 - **2026-01-10**: Queued Blade sword swing combo sequencing so each attack plays all three swings with pauses before reset
 - **2026-01-11**: Applied Blade swing damage in semicircle/full-circle arcs, extended combo pauses to 1s, and recorded Blade trail history for particle lag rendering
 - **2026-01-12**: Held Blade sword angles after each swing and added a final-swing hold delay before returning to rest
+- **2026-01-13**: Converted marine basic ranged attacks to instant hits with ricochet feedback and standardized right-side shell ejection
 
 ## Watch Out For
 - Delta time must be in seconds, not milliseconds
