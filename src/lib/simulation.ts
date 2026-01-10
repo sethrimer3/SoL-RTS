@@ -2707,6 +2707,12 @@ function executeAbility(state: GameState, unit: Unit, node: CommandNode): void {
   } else if (unit.type === 'photon') {
     createAbilityEffect(state, unit, node.position, 'chain-lightning');
     executeChainLightning(state, unit, node.direction);
+  } else if (unit.type === 'starborn') {
+    createAbilityEffect(state, unit, node.position, 'orbital-strike');
+    executeOrbitalStrike(state, unit, node.position);
+  } else if (unit.type === 'prism') {
+    createAbilityEffect(state, unit, node.position, 'light-refraction');
+    executeLightRefraction(state, unit, node.direction);
   } else if (unit.type === 'berserker') {
     createAbilityEffect(state, unit, node.position, 'rage');
     executeRage(state, unit);
@@ -3475,6 +3481,128 @@ function executeChainLightning(state: GameState, unit: Unit, direction: { x: num
   }
   
   createEnergyPulse(state, lastPosition, state.players[unit.owner].color, 3, 0.6);
+}
+
+// Starborn - Orbital Strike: Call down a powerful beam from above at target location
+function executeOrbitalStrike(state: GameState, unit: Unit, targetPos: { x: number; y: number }): void {
+  const BEAM_DELAY = 1500; // Delay before beam impacts
+  const BEAM_DURATION = 2000; // Duration of beam
+  const BEAM_RADIUS = 2; // Radius of the beam
+  const BEAM_DAMAGE = 50; // Base damage
+  const BEAM_TICK_INTERVAL = 200; // Damage tick interval in ms
+  
+  // Visual telegraph
+  unit.bombardmentActive = {
+    endTime: Date.now() + BEAM_DELAY + BEAM_DURATION,
+    targetPos,
+    impactTime: Date.now() + BEAM_DELAY,
+  };
+  
+  createEnergyPulse(state, targetPos, state.players[unit.owner].color, BEAM_RADIUS, 0.4);
+  
+  // Start dealing damage after delay
+  setTimeout(() => {
+    const damageInterval = setInterval(() => {
+      const enemies = state.units.filter((u) => u.owner !== unit.owner);
+      const enemyBases = state.bases.filter((b) => b.owner !== unit.owner);
+      
+      // Damage enemies in beam
+      enemies.forEach((enemy) => {
+        if (distance(enemy.position, targetPos) <= BEAM_RADIUS) {
+          const tickDamage = (BEAM_DAMAGE / (BEAM_DURATION / BEAM_TICK_INTERVAL)) * unit.damageMultiplier;
+          const shieldMultiplier = getShieldDamageMultiplier(state, enemy, 'ranged');
+          const finalDamage = tickDamage * shieldMultiplier;
+          enemy.hp -= finalDamage;
+          
+          if (Math.random() < 0.4) {
+            createHitSparks(state, enemy.position, state.players[unit.owner].color, 3);
+          }
+          
+          if (state.matchStats && unit.owner === 0) {
+            state.matchStats.damageDealtByPlayer += finalDamage;
+          }
+        }
+      });
+      
+      // Damage bases in beam
+      enemyBases.forEach((base) => {
+        if (distance(base.position, targetPos) <= BEAM_RADIUS) {
+          const tickDamage = (BEAM_DAMAGE * 1.5) / (BEAM_DURATION / BEAM_TICK_INTERVAL) * unit.damageMultiplier;
+          base.hp -= tickDamage;
+          
+          if (state.matchStats && unit.owner === 0) {
+            state.matchStats.damageDealtByPlayer += tickDamage;
+          }
+        }
+      });
+      
+      // Visual feedback
+      if (Math.random() < 0.5) {
+        createEnergyPulse(state, targetPos, state.players[unit.owner].color, BEAM_RADIUS * 0.8, 0.3);
+      }
+    }, BEAM_TICK_INTERVAL);
+    
+    // Stop dealing damage after duration
+    setTimeout(() => {
+      clearInterval(damageInterval);
+      createEnergyPulse(state, targetPos, state.players[unit.owner].color, BEAM_RADIUS * 1.5, 0.6);
+    }, BEAM_DURATION);
+  }, BEAM_DELAY);
+}
+
+// Prism - Light Refraction: Split attacks into multiple beams that fan out
+function executeLightRefraction(state: GameState, unit: Unit, direction: { x: number; y: number }): void {
+  const NUM_BEAMS = 5; // Number of beams
+  const SPREAD_ANGLE = Math.PI / 4; // 45 degrees total spread
+  const BEAM_LENGTH = 9; // Length of each beam
+  const BEAM_DAMAGE = 15; // Damage per beam
+  
+  const dir = normalize(direction);
+  const baseAngle = Math.atan2(dir.y, dir.x);
+  
+  // Create multiple beams in a fan pattern
+  for (let i = 0; i < NUM_BEAMS; i++) {
+    const angleOffset = (i - (NUM_BEAMS - 1) / 2) * (SPREAD_ANGLE / (NUM_BEAMS - 1));
+    const beamAngle = baseAngle + angleOffset;
+    const beamDir = {
+      x: Math.cos(beamAngle),
+      y: Math.sin(beamAngle),
+    };
+    
+    // Check for hits along this beam
+    const enemies = state.units.filter((u) => u.owner !== unit.owner);
+    enemies.forEach((enemy) => {
+      const toEnemy = subtract(enemy.position, unit.position);
+      const dist = distance(unit.position, enemy.position);
+      
+      if (dist > BEAM_LENGTH) return;
+      
+      const projectedDist = toEnemy.x * beamDir.x + toEnemy.y * beamDir.y;
+      const perpDist = Math.abs(toEnemy.x * beamDir.y - toEnemy.y * beamDir.x);
+      
+      // Check if enemy is in this beam (narrow beam)
+      if (projectedDist > 0 && projectedDist <= BEAM_LENGTH && perpDist < 0.5) {
+        const damage = BEAM_DAMAGE * unit.damageMultiplier;
+        const shieldMultiplier = getShieldDamageMultiplier(state, enemy, 'ranged');
+        const finalDamage = damage * shieldMultiplier;
+        enemy.hp -= finalDamage;
+        createHitSparks(state, enemy.position, state.players[unit.owner].color, 4);
+        
+        if (state.matchStats && unit.owner === 0) {
+          state.matchStats.damageDealtByPlayer += finalDamage;
+        }
+      }
+    });
+    
+    // Visual effect for each beam
+    const beamEndPos = {
+      x: unit.position.x + beamDir.x * BEAM_LENGTH,
+      y: unit.position.y + beamDir.y * BEAM_LENGTH,
+    };
+    createLaserParticles(state, unit.position, beamDir, BEAM_LENGTH, state.players[unit.owner].color);
+  }
+  
+  createEnergyPulse(state, unit.position, state.players[unit.owner].color, 2, 0.5);
 }
 
 // Berserker - Rage: Temporary damage boost
@@ -4439,7 +4567,7 @@ export function spawnUnit(state: GameState, owner: number, type: UnitType, spawn
   }
 
   // Initialize particles only for Solari faction units
-  const solariUnits: Set<UnitType> = new Set(['flare', 'nova', 'eclipse', 'corona', 'supernova', 'zenith', 'pulsar', 'celestial', 'voidwalker', 'chronomancer', 'nebula', 'quasar', 'luminary', 'photon']);
+  const solariUnits: Set<UnitType> = new Set(['flare', 'nova', 'eclipse', 'corona', 'supernova', 'zenith', 'pulsar', 'celestial', 'voidwalker', 'chronomancer', 'nebula', 'quasar', 'luminary', 'photon', 'starborn', 'prism']);
   
   if (solariUnits.has(type)) {
     const particleCounts: Partial<Record<UnitType, number>> = {
@@ -4457,6 +4585,8 @@ export function spawnUnit(state: GameState, owner: number, type: UnitType, spawn
       quasar: 14,
       luminary: 13,
       photon: 11,
+      starborn: 15,
+      prism: 12,
     };
     unit.particles = createParticlesForUnit(unit, particleCounts[type] || 12);
   }
