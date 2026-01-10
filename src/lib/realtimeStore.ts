@@ -138,6 +138,20 @@ class SupabaseKVStore implements RealtimeKVStore {
     this.commandsTableName = commandsTableName;
   }
 
+  // Check if an error indicates the table does not exist
+  private isTableNotFoundError(error: any): boolean {
+    // PGRST204 = "Could not find foreign keys"
+    // PGRST205 = "Could not find the table in the schema cache"
+    if (error.code === 'PGRST204' || error.code === 'PGRST205') {
+      return true;
+    }
+    // Check for common PostgreSQL error messages about missing tables
+    const message = error.message?.toLowerCase() || '';
+    return message.includes('relation does not exist') || 
+           message.includes('does not exist') ||
+           message.includes('schema cache');
+  }
+
   // Supabase is available when the client has been configured with env credentials.
   isAvailable(): boolean {
     return this.client !== null;
@@ -244,7 +258,7 @@ class SupabaseKVStore implements RealtimeKVStore {
 
       if (error) {
         // Check if the error is because the table doesn't exist
-        if (error.code === 'PGRST204' || error.code === 'PGRST205' || error.message?.includes('table')) {
+        if (this.isTableNotFoundError(error)) {
           console.warn('Commands table not found, falling back to KV storage:', error.message);
           this.useCommandsTable = false;
           // Fall through to KV-based storage
@@ -290,7 +304,7 @@ class SupabaseKVStore implements RealtimeKVStore {
 
       if (error) {
         // Check if the error is because the table doesn't exist
-        if (error.code === 'PGRST204' || error.code === 'PGRST205' || error.message?.includes('table')) {
+        if (this.isTableNotFoundError(error)) {
           console.warn('Commands table not found, falling back to KV storage:', error.message);
           this.useCommandsTable = false;
           // Fall through to KV-based storage
