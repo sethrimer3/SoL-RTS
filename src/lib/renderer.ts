@@ -3355,13 +3355,15 @@ function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState
 }
 
 function drawAbilityRangeIndicators(ctx: CanvasRenderingContext2D, state: GameState): void {
-  // Only draw for selected player units
+  // Only draw for selected player units.
   const selectedPlayerUnits = Array.from(state.selectedUnits)
     .map(id => state.units.find(u => u.id === id))
     .filter(u => u && u.owner === 0);
 
   if (selectedPlayerUnits.length === 0) return;
 
+  // Track whether the player is actively dragging an ability arrow.
+  const isAbilityDragActive = Boolean(state.abilityCastPreview);
   const time = Date.now() / 1000;
 
   selectedPlayerUnits.forEach(unit => {
@@ -3370,8 +3372,8 @@ function drawAbilityRangeIndicators(ctx: CanvasRenderingContext2D, state: GameSt
     const def = UNIT_DEFINITIONS[unit.type];
     const screenPos = positionToPixels(unit.position);
     
-    // Draw attack range
-    if (def.attackRange > 0) {
+    // Draw attack range only when not actively dragging an ability arrow.
+    if (!isAbilityDragActive && def.attackRange > 0) {
       const attackRangePixels = metersToPixels(def.attackRange);
       
       ctx.save();
@@ -3387,20 +3389,22 @@ function drawAbilityRangeIndicators(ctx: CanvasRenderingContext2D, state: GameSt
       ctx.restore();
     }
 
-    // Draw ability range (max ability range)
-    const abilityRangePixels = metersToPixels(ABILITY_MAX_RANGE);
-    
-    ctx.save();
-    ctx.strokeStyle = COLORS.telegraph;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.15 + Math.sin(time * 3) * 0.05;
-    ctx.setLineDash([6, 6]);
-    ctx.lineDashOffset = -time * 15;
-    
-    ctx.beginPath();
-    ctx.arc(screenPos.x, screenPos.y, abilityRangePixels, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
+    // Draw ability range only while the player is dragging an ability arrow.
+    if (isAbilityDragActive) {
+      const abilityRangePixels = metersToPixels(ABILITY_MAX_RANGE);
+      
+      ctx.save();
+      ctx.strokeStyle = COLORS.telegraph;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.15 + Math.sin(time * 3) * 0.05;
+      ctx.setLineDash([6, 6]);
+      ctx.lineDashOffset = -time * 15;
+      
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, abilityRangePixels, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   });
 }
 
