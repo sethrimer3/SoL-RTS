@@ -2911,6 +2911,9 @@ function updateStructures(state: GameState, deltaTime: number): void {
           }
           state.projectiles.push(projectile);
           
+          // Add muzzle flash effect
+          createMuzzleFlash(state, structure.position, direction, state.players[structure.owner].color);
+          
           // Set cooldown
           structure.attackCooldown = 1 / structureDef.attackRate;
         }
@@ -2952,8 +2955,15 @@ function updateStructures(state: GameState, deltaTime: number): void {
     }
   });
   
-  // Remove destroyed structures
-  state.structures = state.structures.filter(s => s.hp > 0);
+  // Remove destroyed structures with explosion effects
+  state.structures = state.structures.filter(s => {
+    if (s.hp <= 0) {
+      // Create destruction explosion
+      createEnhancedDeathExplosion(state, s.position, state.players[s.owner].color, true);
+      return false;
+    }
+    return true;
+  });
 }
 
 function executeAbility(state: GameState, unit: Unit, node: CommandNode): void {
