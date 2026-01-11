@@ -33,19 +33,33 @@ import { MOTION_TRAIL_DURATION, QUEUE_FADE_DURATION, QUEUE_DRAW_DURATION, QUEUE_
 import { getFormationName } from './formations';
 import { calculateFloaterConnections } from './floaters';
 
-// Load projectile sprite
-const projectileSprite = new Image();
+// Asset base URL for all sprites
 const assetBaseUrl = import.meta.env.BASE_URL;
-projectileSprite.src = `${assetBaseUrl}ASSETS/sprites/projectiles/throw/throw1.png`;
-let projectileSpriteLoaded = false;
-projectileSprite.onload = () => {
-  projectileSpriteLoaded = true;
+
+// Load projectile sprites (projectile1-13)
+const projectileSpritePaths: string[] = [];
+for (let i = 1; i <= 13; i++) {
+  projectileSpritePaths.push(`${assetBaseUrl}ASSETS/sprites/factions/radiant/projectiles/projectile${i}.svg`);
+}
+
+// Load laser sprites (3-part chain: beginning, middle, end)
+const laserSpritePaths = {
+  beginning: `${assetBaseUrl}ASSETS/sprites/factions/radiant/projectiles/laser1beginning.svg`,
+  middle: `${assetBaseUrl}ASSETS/sprites/factions/radiant/projectiles/laser1middle.svg`,
+  end: `${assetBaseUrl}ASSETS/sprites/factions/radiant/projectiles/laser1end.svg`,
 };
 
 // Sprite sizing constants so art assets scale consistently with gameplay units.
 const UNIT_SPRITE_SCALE = 1.55;
 const BASE_SPRITE_SCALE = 1.15;
 const MINING_DRONE_SPRITE_SCALE = 1.35;
+const PROJECTILE_SPRITE_SIZE_MULTIPLIER = 0.8; // Projectiles are slightly smaller than units
+
+// Laser sprite dimensions from SVG viewBox (120x59)
+const LASER_SPRITE_WIDTH = 120;
+const LASER_SPRITE_HEIGHT = 59;
+const BASE_LASER_BEAM_THICKNESS_METERS = 0.8; // Thickness of base laser beams
+const UNIT_LASER_BEAM_THICKNESS_METERS = 0.6; // Thickness of unit laser beams (slightly smaller)
 // Radiant sprites are authored facing "up" in texture space, so rotate to match the engine's forward direction.
 const RADIANT_SPRITE_ROTATION_OFFSET = Math.PI / 2;
 
@@ -1983,32 +1997,98 @@ function drawLaserBeam(ctx: CanvasRenderingContext2D, base: Base, screenPos: { x
   ctx.save();
   ctx.globalAlpha = alpha;
   
-  // Draw main beam
-  ctx.strokeStyle = COLORS.laser;
-  ctx.lineWidth = 4;
-  ctx.shadowColor = COLORS.laser;
-  ctx.shadowBlur = 20;
+  // Try to use laser sprites
+  const beginSprite = getSpriteFromCache(laserSpritePaths.beginning);
+  const middleSprite = getSpriteFromCache(laserSpritePaths.middle);
+  const endSprite = getSpriteFromCache(laserSpritePaths.end);
   
-  ctx.beginPath();
-  ctx.moveTo(screenPos.x, screenPos.y);
-  ctx.lineTo(endScreenPos.x, endScreenPos.y);
-  ctx.stroke();
+  const allSpritesReady = isSpriteReady(beginSprite) && isSpriteReady(middleSprite) && isSpriteReady(endSprite);
   
-  // Draw bright core
-  ctx.lineWidth = 2;
-  ctx.shadowBlur = 30;
-  ctx.strokeStyle = 'oklch(0.95 0.25 320)';
-  
-  ctx.beginPath();
-  ctx.moveTo(screenPos.x, screenPos.y);
-  ctx.lineTo(endScreenPos.x, endScreenPos.y);
-  ctx.stroke();
+  if (allSpritesReady) {
+    // Calculate angle for rotation
+    const angle = Math.atan2(direction.y, direction.x);
+    
+    // Laser sprites have aspect ratio defined by their SVG viewBox
+    const beamThickness = metersToPixels(BASE_LASER_BEAM_THICKNESS_METERS);
+    const spriteAspectRatio = LASER_SPRITE_WIDTH / LASER_SPRITE_HEIGHT;
+    
+    // Each segment should be proportional to sprite aspect ratio
+    const segmentHeight = beamThickness;
+    const segmentWidth = beamThickness * spriteAspectRatio; // Maintain aspect ratio
+    
+    // Calculate total laser length in pixels
+    const totalLength = metersToPixels(LASER_RANGE);
+    
+    // Calculate how many middle segments we need to fill the space
+    const usedLength = segmentWidth * 2; // beginning + end
+    const remainingLength = Math.max(0, totalLength - usedLength);
+    const middleSegmentCount = Math.ceil(remainingLength / segmentWidth);
+    
+    ctx.save();
+    ctx.translate(screenPos.x, screenPos.y);
+    ctx.rotate(angle);
+    
+    // Draw beginning segment
+    ctx.drawImage(
+      beginSprite,
+      0,
+      -segmentHeight / 2,
+      segmentWidth,
+      segmentHeight
+    );
+    
+    // Draw middle segments (repeated to fill the length)
+    let currentX = segmentWidth;
+    for (let i = 0; i < middleSegmentCount; i++) {
+      ctx.drawImage(
+        middleSprite,
+        currentX,
+        -segmentHeight / 2,
+        segmentWidth,
+        segmentHeight
+      );
+      currentX += segmentWidth;
+    }
+    
+    // Draw end segment
+    ctx.drawImage(
+      endSprite,
+      currentX,
+      -segmentHeight / 2,
+      segmentWidth,
+      segmentHeight
+    );
+    
+    ctx.restore();
+  } else {
+    // Fallback to original line rendering if sprites not loaded
+    // Draw main beam
+    ctx.strokeStyle = COLORS.laser;
+    ctx.lineWidth = 4;
+    ctx.shadowColor = COLORS.laser;
+    ctx.shadowBlur = 20;
+    
+    ctx.beginPath();
+    ctx.moveTo(screenPos.x, screenPos.y);
+    ctx.lineTo(endScreenPos.x, endScreenPos.y);
+    ctx.stroke();
+    
+    // Draw bright core
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 30;
+    ctx.strokeStyle = 'oklch(0.95 0.25 320)';
+    
+    ctx.beginPath();
+    ctx.moveTo(screenPos.x, screenPos.y);
+    ctx.lineTo(endScreenPos.x, endScreenPos.y);
+    ctx.stroke();
+  }
   
   ctx.restore();
 }
 
 function drawProjectiles(ctx: CanvasRenderingContext2D, state: GameState): void {
-  state.projectiles.forEach((projectile) => {
+  state.projectiles.forEach((projectile, index) => {
     // Skip projectiles that are off-screen for performance
     if (!isOnScreen(projectile.position, ctx.canvas, state, OFFSCREEN_CULLING_MARGIN)) {
       return;
@@ -2044,13 +2124,28 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, state: GameState): void 
       ctx.lineTo(-bladeLength / 2 - 2, 0);
       ctx.stroke();
     } else {
-      // Draw tiny rectangle bullet (4px x 2px)
-      const bulletWidth = 4;
-      const bulletHeight = 2;
+      // Try to render projectile sprite if available
+      const spriteIndex = index % projectileSpritePaths.length;
+      const spritePath = projectileSpritePaths[spriteIndex];
+      const sprite = getSpriteFromCache(spritePath);
       
-      // Draw the rectangle centered
-      ctx.fillStyle = projectile.color;
-      ctx.fillRect(-bulletWidth / 2, -bulletHeight / 2, bulletWidth, bulletHeight);
+      if (isSpriteReady(sprite)) {
+        // Render sprite with proper sizing
+        const spriteSize = metersToPixels(UNIT_SIZE_METERS * PROJECTILE_SPRITE_SIZE_MULTIPLIER);
+        ctx.drawImage(
+          sprite,
+          -spriteSize / 2,
+          -spriteSize / 2,
+          spriteSize,
+          spriteSize
+        );
+      } else {
+        // Fallback to rectangle if sprite not loaded
+        const bulletWidth = 4;
+        const bulletHeight = 2;
+        ctx.fillStyle = projectile.color;
+        ctx.fillRect(-bulletWidth / 2, -bulletHeight / 2, bulletWidth, bulletHeight);
+      }
     }
     
     ctx.restore();
@@ -3227,27 +3322,95 @@ function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: str
   
   ctx.save();
   
-  // Draw outer glow
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 8;
-  ctx.globalAlpha = (1 - fadeProgress) * 0.3;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 20;
+  // Try to use laser sprites
+  const beginSprite = getSpriteFromCache(laserSpritePaths.beginning);
+  const middleSprite = getSpriteFromCache(laserSpritePaths.middle);
+  const endSprite = getSpriteFromCache(laserSpritePaths.end);
   
-  ctx.beginPath();
-  ctx.moveTo(unitScreen.x, unitScreen.y);
-  ctx.lineTo(endScreen.x, endScreen.y);
-  ctx.stroke();
+  const allSpritesReady = isSpriteReady(beginSprite) && isSpriteReady(middleSprite) && isSpriteReady(endSprite);
   
-  // Draw core beam
-  ctx.lineWidth = 3;
-  ctx.globalAlpha = (1 - fadeProgress) * 0.9;
-  ctx.shadowBlur = 10;
-  
-  ctx.beginPath();
-  ctx.moveTo(unitScreen.x, unitScreen.y);
-  ctx.lineTo(endScreen.x, endScreen.y);
-  ctx.stroke();
+  if (allSpritesReady) {
+    // Calculate angle for rotation
+    const angle = Math.atan2(direction.y, direction.x);
+    
+    // Laser sprites have aspect ratio defined by their SVG viewBox
+    // Unit lasers are slightly smaller than base lasers
+    const beamThickness = metersToPixels(UNIT_LASER_BEAM_THICKNESS_METERS);
+    const spriteAspectRatio = LASER_SPRITE_WIDTH / LASER_SPRITE_HEIGHT;
+    
+    // Each segment should be proportional to sprite aspect ratio
+    const segmentHeight = beamThickness;
+    const segmentWidth = beamThickness * spriteAspectRatio; // Maintain aspect ratio
+    
+    // Calculate total laser length in pixels
+    const totalLength = metersToPixels(range);
+    
+    // Calculate how many middle segments we need to fill the space
+    const usedLength = segmentWidth * 2; // beginning + end
+    const remainingLength = Math.max(0, totalLength - usedLength);
+    const middleSegmentCount = Math.ceil(remainingLength / segmentWidth);
+    
+    ctx.save();
+    ctx.translate(unitScreen.x, unitScreen.y);
+    ctx.rotate(angle);
+    ctx.globalAlpha = (1 - fadeProgress) * 0.9;
+    
+    // Draw beginning segment
+    ctx.drawImage(
+      beginSprite,
+      0,
+      -segmentHeight / 2,
+      segmentWidth,
+      segmentHeight
+    );
+    
+    // Draw middle segments (repeated to fill the length)
+    let currentX = segmentWidth;
+    for (let i = 0; i < middleSegmentCount; i++) {
+      ctx.drawImage(
+        middleSprite,
+        currentX,
+        -segmentHeight / 2,
+        segmentWidth,
+        segmentHeight
+      );
+      currentX += segmentWidth;
+    }
+    
+    // Draw end segment
+    ctx.drawImage(
+      endSprite,
+      currentX,
+      -segmentHeight / 2,
+      segmentWidth,
+      segmentHeight
+    );
+    
+    ctx.restore();
+  } else {
+    // Fallback to original line rendering if sprites not loaded
+    // Draw outer glow
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 8;
+    ctx.globalAlpha = (1 - fadeProgress) * 0.3;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+    
+    ctx.beginPath();
+    ctx.moveTo(unitScreen.x, unitScreen.y);
+    ctx.lineTo(endScreen.x, endScreen.y);
+    ctx.stroke();
+    
+    // Draw core beam
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = (1 - fadeProgress) * 0.9;
+    ctx.shadowBlur = 10;
+    
+    ctx.beginPath();
+    ctx.moveTo(unitScreen.x, unitScreen.y);
+    ctx.lineTo(endScreen.x, endScreen.y);
+    ctx.stroke();
+  }
   
   ctx.restore();
 }
