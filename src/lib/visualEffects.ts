@@ -293,6 +293,63 @@ export function createLaserParticles(
 }
 
 /**
+ * Create muzzle flash effect when a structure fires
+ */
+export function createMuzzleFlash(
+  state: GameState,
+  position: Vector2,
+  direction: Vector2,
+  color: string
+): void {
+  if (!state.impactEffects) {
+    state.impactEffects = [];
+  }
+
+  if (!state.settings?.enableParticleEffects) return;
+
+  // Create bright flash at firing position
+  const flashEffect = {
+    id: generateId(),
+    position: {
+      x: position.x + direction.x * 0.5,
+      y: position.y + direction.y * 0.5,
+    },
+    color,
+    startTime: Date.now(),
+    duration: 0.15, // Very short flash
+    size: 1.5,
+  };
+
+  state.impactEffects.push(flashEffect);
+
+  // Create a few spark particles
+  if (!state.explosionParticles) {
+    state.explosionParticles = [];
+  }
+
+  for (let i = 0; i < 5; i++) {
+    const spread = 0.3;
+    const particle = {
+      id: generateId(),
+      position: { ...position },
+      velocity: {
+        x: direction.x * 8 + (Math.random() - 0.5) * spread * 8,
+        y: direction.y * 8 + (Math.random() - 0.5) * spread * 8,
+      },
+      color,
+      size: Math.random() * 2 + 1,
+      lifetime: 0.2,
+      createdAt: Date.now(),
+      alpha: 1,
+    };
+
+    if (state.explosionParticles.length < MAX_EXPLOSION_PARTICLES) {
+      state.explosionParticles.push(particle);
+    }
+  }
+}
+
+/**
  * Create a screen flash effect for critical events
  */
 export function createScreenFlash(

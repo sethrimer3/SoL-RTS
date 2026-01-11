@@ -659,7 +659,7 @@ function applyGlowEffect(ctx: CanvasRenderingContext2D, state: GameState, color:
 function clearGlowEffect(ctx: CanvasRenderingContext2D, state: GameState): void {
   if (state.settings.enableGlowEffects) {
     ctx.shadowBlur = 0;
-    ctx.shadowColor = 'transparent';
+    ctx.shadowColor = 'rgba(0,0,0,0)';
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
   }
@@ -2181,6 +2181,7 @@ function drawStructures(ctx: CanvasRenderingContext2D, state: GameState): void {
     const structureDef = STRUCTURE_DEFINITIONS[structure.type];
     const size = metersToPixels(structureDef.size);
     const color = state.players[structure.owner].color;
+    const time = Date.now() / 1000;
     
     // Draw structure based on type
     ctx.save();
@@ -2188,11 +2189,35 @@ function drawStructures(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     
+    // Add glow effect if enabled
+    if (state.settings.enableGlowEffects) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 15;
+    }
+    
     // Different shapes for different structure types
     if (structure.type === 'offensive') {
-      // Offensive tower - hexagon shape
+      // Offensive tower - hexagon shape with energy core
       const sides = 6;
       const radius = size / 2;
+      
+      // Draw outer glow ring
+      if (state.settings.enableGlowEffects) {
+        ctx.globalAlpha = 0.2;
+        ctx.shadowBlur = 25;
+        ctx.beginPath();
+        for (let i = 0; i < sides; i++) {
+          const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+          const x = screenPos.x + Math.cos(angle) * (radius + 5);
+          const y = screenPos.y + Math.sin(angle) * (radius + 5);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+      
+      // Draw main hexagon
       ctx.beginPath();
       for (let i = 0; i < sides; i++) {
         const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
@@ -2202,22 +2227,66 @@ function drawStructures(ctx: CanvasRenderingContext2D, state: GameState): void {
         else ctx.lineTo(x, y);
       }
       ctx.closePath();
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha = 0.4;
       ctx.fill();
-      ctx.globalAlpha = 0.8;
+      ctx.globalAlpha = 1.0;
+      ctx.lineWidth = 3;
       ctx.stroke();
       
-      // Draw cannon barrel indicator
-      ctx.globalAlpha = 0.6;
-      ctx.lineWidth = 4;
+      // Draw energy core with pulse
+      const pulseScale = 1 + Math.sin(time * 3) * 0.15;
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, size * 0.15 * pulseScale, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw cannon barrel indicator with rotation animation during cooldown (recharging state)
+      // The barrel oscillates slightly while recharging, then stays steady when ready to fire
+      const rotationAngle = (structure.attackCooldown && structure.attackCooldown > 0) ? Math.PI * 0.1 * Math.sin(time * 5) : 0;
+      ctx.globalAlpha = 0.7;
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(screenPos.x, screenPos.y);
-      ctx.lineTo(screenPos.x, screenPos.y - size * 0.4);
+      const barrelEndX = screenPos.x + Math.sin(rotationAngle) * size * 0.2;
+      const barrelEndY = screenPos.y - Math.cos(rotationAngle) * size * 0.5;
+      ctx.lineTo(barrelEndX, barrelEndY);
       ctx.stroke();
+      
+      // Draw barrel tip
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.arc(barrelEndX, barrelEndY, size * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Reset glow effect
+      if (state.settings.enableGlowEffects) {
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'rgba(0,0,0,0)';
+      }
+      
     } else if (structure.type === 'defensive') {
       // Defensive tower - octagon with shield symbol
       const sides = 8;
       const radius = size / 2;
+      
+      // Draw outer glow ring
+      if (state.settings.enableGlowEffects) {
+        ctx.globalAlpha = 0.2;
+        ctx.shadowBlur = 25;
+        ctx.beginPath();
+        for (let i = 0; i < sides; i++) {
+          const angle = (i / sides) * Math.PI * 2;
+          const x = screenPos.x + Math.cos(angle) * (radius + 5);
+          const y = screenPos.y + Math.sin(angle) * (radius + 5);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+      
+      // Draw main octagon
       ctx.beginPath();
       for (let i = 0; i < sides; i++) {
         const angle = (i / sides) * Math.PI * 2;
@@ -2227,29 +2296,107 @@ function drawStructures(ctx: CanvasRenderingContext2D, state: GameState): void {
         else ctx.lineTo(x, y);
       }
       ctx.closePath();
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha = 0.4;
       ctx.fill();
-      ctx.globalAlpha = 0.8;
+      ctx.globalAlpha = 1.0;
+      ctx.lineWidth = 3;
       ctx.stroke();
       
-      // Draw shield symbol
-      if (structure.shieldActive && Date.now() < structure.shieldActive.endTime) {
-        ctx.globalAlpha = 0.5;
-        ctx.lineWidth = 3;
-        const shieldRadius = structure.shieldActive.radius ? metersToPixels(structure.shieldActive.radius) : size * 1.5;
-        ctx.beginPath();
-        ctx.arc(screenPos.x, screenPos.y, shieldRadius, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    } else {
-      // Faction-specific towers - star shape
-      const outerRadius = size / 2;
-      const innerRadius = size / 4;
-      drawStar(ctx, screenPos.x, screenPos.y, outerRadius, innerRadius, 5);
+      // Draw shield symbol in center
+      const shieldSize = size * 0.4;
+      ctx.globalAlpha = 0.7;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      // Shield outline (simplified shield shape)
+      ctx.moveTo(screenPos.x, screenPos.y - shieldSize * 0.5);
+      ctx.lineTo(screenPos.x + shieldSize * 0.4, screenPos.y - shieldSize * 0.3);
+      ctx.lineTo(screenPos.x + shieldSize * 0.4, screenPos.y + shieldSize * 0.2);
+      ctx.lineTo(screenPos.x, screenPos.y + shieldSize * 0.5);
+      ctx.lineTo(screenPos.x - shieldSize * 0.4, screenPos.y + shieldSize * 0.2);
+      ctx.lineTo(screenPos.x - shieldSize * 0.4, screenPos.y - shieldSize * 0.3);
+      ctx.closePath();
+      ctx.stroke();
       ctx.globalAlpha = 0.3;
       ctx.fill();
-      ctx.globalAlpha = 0.8;
+      
+      // Draw active shield dome
+      if (structure.shieldActive && Date.now() < structure.shieldActive.endTime) {
+        const shieldProgress = (structure.shieldActive.endTime - Date.now()) / 1000;
+        ctx.globalAlpha = Math.min(0.6, shieldProgress * 0.3);
+        ctx.lineWidth = 3;
+        const shieldRadius = structure.shieldActive.radius ? metersToPixels(structure.shieldActive.radius) : size * 1.5;
+        
+        // Pulsing shield dome
+        const pulseFactor = 1 + Math.sin(time * 4) * 0.1;
+        ctx.beginPath();
+        ctx.arc(screenPos.x, screenPos.y, shieldRadius * pulseFactor, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Shield particles
+        if (state.settings.enableParticleEffects) {
+          ctx.globalAlpha = 0.4;
+          for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2 + time;
+            const particleX = screenPos.x + Math.cos(angle) * shieldRadius;
+            const particleY = screenPos.y + Math.sin(angle) * shieldRadius;
+            ctx.beginPath();
+            ctx.arc(particleX, particleY, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+      
+      // Reset glow effect
+      if (state.settings.enableGlowEffects) {
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'rgba(0,0,0,0)';
+      }
+    } else {
+      // Faction-specific towers - star shape with energy swirl
+      const outerRadius = size / 2;
+      const innerRadius = size / 4;
+      
+      // Draw outer glow
+      if (state.settings.enableGlowEffects) {
+        ctx.globalAlpha = 0.2;
+        ctx.shadowBlur = 30;
+        drawStar(ctx, screenPos.x, screenPos.y, outerRadius + 5, innerRadius + 3, 5);
+        ctx.stroke();
+      }
+      
+      // Draw main star
+      drawStar(ctx, screenPos.x, screenPos.y, outerRadius, innerRadius, 5);
+      ctx.globalAlpha = 0.4;
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+      ctx.lineWidth = 3;
       ctx.stroke();
+      
+      // Draw rotating energy rings
+      if (state.settings.enableParticleEffects) {
+        ctx.globalAlpha = 0.5;
+        ctx.lineWidth = 2;
+        for (let ring = 0; ring < 2; ring++) {
+          const ringRadius = size * (0.3 + ring * 0.15);
+          const rotationSpeed = ring === 0 ? time * 2 : -time * 1.5;
+          ctx.beginPath();
+          ctx.arc(screenPos.x, screenPos.y, ringRadius, rotationSpeed, rotationSpeed + Math.PI * 1.5);
+          ctx.stroke();
+        }
+      }
+      
+      // Draw central orb with pulse
+      const pulseScale = 1 + Math.sin(time * 4) * 0.2;
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, size * 0.12 * pulseScale, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Reset glow effect
+      if (state.settings.enableGlowEffects) {
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'rgba(0,0,0,0)';
+      }
     }
     
     ctx.restore();
@@ -4534,17 +4681,40 @@ function drawBuildingMenu(ctx: CanvasRenderingContext2D, state: GameState): void
   ctx.save();
   
   // Draw radial menu
-  const menuRadius = 60;
+  const menuRadius = 70;
   
-  // Draw center circle
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  // Draw pulsing center circle with glow
+  const pulseScale = 1 + Math.sin(time * 3) * 0.1;
+  if (state.settings.enableGlowEffects) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+  }
+  
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
   ctx.beginPath();
-  ctx.arc(startScreen.x, startScreen.y, 25, 0, Math.PI * 2);
+  ctx.arc(startScreen.x, startScreen.y, 28 * pulseScale, 0, Math.PI * 2);
   ctx.fill();
   
   ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 3;
   ctx.stroke();
+  
+  // Draw connecting lines to options
+  ctx.globalAlpha = 0.3;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  const angles = [180, -90, 0, 90];
+  angles.forEach(angle => {
+    const angleRad = (angle * Math.PI) / 180;
+    const endX = startScreen.x + Math.cos(angleRad) * (menuRadius - 35);
+    const endY = startScreen.y + Math.sin(angleRad) * (menuRadius - 35);
+    ctx.beginPath();
+    ctx.moveTo(startScreen.x, startScreen.y);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1.0;
   
   // Draw four directional options
   const offensiveDef = STRUCTURE_DEFINITIONS['offensive'];
@@ -4565,29 +4735,55 @@ function drawBuildingMenu(ctx: CanvasRenderingContext2D, state: GameState): void
     
     const isSelected = selectedType === option.type;
     
-    // Draw option circle
-    ctx.fillStyle = isSelected ? color : 'rgba(0, 0, 0, 0.8)';
-    ctx.strokeStyle = isSelected ? color : 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = isSelected ? 3 : 2;
-    ctx.globalAlpha = isSelected ? 1.0 : 0.6;
+    // Draw glow for selected option
+    if (isSelected && state.settings.enableGlowEffects) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 25;
+      ctx.globalAlpha = 0.4;
+      ctx.beginPath();
+      ctx.arc(optionX, optionY, 45, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+    
+    // Draw option circle with gradient
+    ctx.shadowBlur = isSelected ? 15 : 5;
+    const gradient = ctx.createRadialGradient(optionX, optionY - 5, 0, optionX, optionY, 38);
+    gradient.addColorStop(0, isSelected ? color : 'rgba(40, 40, 40, 0.95)');
+    gradient.addColorStop(1, isSelected ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.9)');
+    ctx.fillStyle = gradient;
+    ctx.globalAlpha = 1.0;
     
     ctx.beginPath();
-    ctx.arc(optionX, optionY, 35, 0, Math.PI * 2);
+    ctx.arc(optionX, optionY, 38, 0, Math.PI * 2);
     ctx.fill();
-    ctx.stroke();
     
-    // Draw icon
+    // Draw border with animation
+    ctx.strokeStyle = isSelected ? color : 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = isSelected ? 3 : 2;
+    if (isSelected) {
+      const dashOffset = time * 50;
+      ctx.setLineDash([6, 6]);
+      ctx.lineDashOffset = -dashOffset;
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
+    
+    // Draw icon with shadow
+    ctx.shadowBlur = 5;
     ctx.fillStyle = 'white';
-    ctx.font = isSelected ? 'bold 24px sans-serif' : '20px sans-serif';
+    ctx.font = isSelected ? 'bold 26px sans-serif' : '22px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(option.icon, optionX, optionY - 8);
     
-    // Draw label
+    // Draw label with better styling
+    ctx.shadowBlur = 2;
     ctx.font = isSelected ? 'bold 11px sans-serif' : '10px sans-serif';
     const lines = option.label.split('\n');
     lines.forEach((line, i) => {
-      ctx.fillText(line, optionX, optionY + 12 + i * 12);
+      ctx.fillText(line, optionX, optionY + 14 + i * 11);
     });
   });
   
@@ -4598,10 +4794,14 @@ function drawBuildingMenu(ctx: CanvasRenderingContext2D, state: GameState): void
   );
   
   if (dragDistance > 10) {
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = color;
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.globalAlpha = 0.7;
-    ctx.setLineDash([5, 5]);
+    const dashOffset = time * 30;
+    ctx.setLineDash([10, 10]);
+    ctx.lineDashOffset = -dashOffset;
     
     ctx.beginPath();
     ctx.moveTo(startScreen.x, startScreen.y);
@@ -4609,6 +4809,26 @@ function drawBuildingMenu(ctx: CanvasRenderingContext2D, state: GameState): void
     ctx.stroke();
     
     ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
+    
+    // Draw arrow at end
+    if (selectedType) {
+      const angle = Math.atan2(currentScreen.y - startScreen.y, currentScreen.x - startScreen.x);
+      const arrowSize = 15;
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(currentScreen.x, currentScreen.y);
+      ctx.lineTo(
+        currentScreen.x - arrowSize * Math.cos(angle - Math.PI / 6),
+        currentScreen.y - arrowSize * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.moveTo(currentScreen.x, currentScreen.y);
+      ctx.lineTo(
+        currentScreen.x - arrowSize * Math.cos(angle + Math.PI / 6),
+        currentScreen.y - arrowSize * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.stroke();
+    }
   }
   
   // Draw preview of selected structure at current position
@@ -4628,10 +4848,38 @@ function drawBuildingMenu(ctx: CanvasRenderingContext2D, state: GameState): void
       return dist < (obs.radius + structureDef.size / 2);
     });
     
-    ctx.globalAlpha = isValidPosition ? 0.5 : 0.3;
+    // Draw range indicator
+    const attackRange = metersToPixels(structureDef.attackRange);
+    if (attackRange > 0) {
+      ctx.strokeStyle = isValidPosition ? color : '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.arc(currentScreen.x, currentScreen.y, attackRange, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Draw range text
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = isValidPosition ? color : '#ef4444';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`Range: ${structureDef.attackRange}m`, currentScreen.x, currentScreen.y + attackRange + 15);
+    }
+    
+    // Draw preview shape with animation
+    const previewPulse = 1 + Math.sin(time * 4) * 0.1;
+    ctx.globalAlpha = (isValidPosition ? 0.6 : 0.4) * previewPulse;
     ctx.fillStyle = isValidPosition ? color : '#ef4444';
     ctx.strokeStyle = isValidPosition ? color : '#ef4444';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
+    
+    if (state.settings.enableGlowEffects) {
+      ctx.shadowColor = isValidPosition ? color : '#ef4444';
+      ctx.shadowBlur = 20;
+    }
     
     // Draw preview shape
     if (selectedType === 'offensive') {
@@ -4673,6 +4921,10 @@ function drawBuildingMenu(ctx: CanvasRenderingContext2D, state: GameState): void
       ctx.stroke();
     }
   }
+  
+  // Reset shadow effects before restoring context
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'rgba(0,0,0,0)';
   
   ctx.restore();
 }

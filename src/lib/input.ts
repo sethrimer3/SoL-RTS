@@ -1455,7 +1455,9 @@ function handleBuildingPlacement(
   
   // Create spawn effect
   createSpawnEffect(state, currentPosition, player.color);
-  soundManager.play('setting-change');
+  
+  // Play building placement sound
+  soundManager.playBuildingPlace();
 }
 
 export function getActiveSelectionRect(): { x1: number; y1: number; x2: number; y2: number } | null {
