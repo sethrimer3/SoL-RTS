@@ -3,11 +3,11 @@ import { useKV } from './hooks/useKV';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { GameState, COLORS, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS, FactionType, FACTION_DEFINITIONS, BASE_TYPE_DEFINITIONS, BaseType, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS } from './lib/types';
 import { generateId, generateTopographyLines, generateStarfield, generateNebulaClouds, shouldUsePortraitCoordinates, updateViewportScale, calculateDefaultRallyPoint, createMiningDepots, createInitialMiningDrones, getArenaHeight } from './lib/gameUtils';
-import { updateGame } from './lib/simulation';
+import { updateGame, spawnUnit } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
 import { handleTouchStart, handleTouchMove, handleTouchEnd, handleMouseDown, handleMouseMove, handleMouseUp, getActiveSelectionRect } from './lib/input';
-import { initializeCamera, updateCamera, zoomCamera, panCamera, resetCamera } from './lib/camera';
+import { initializeCamera, updateCamera, zoomCamera, panCamera, resetCamera, worldToScreen } from './lib/camera';
 import { updateVisualEffects, createCelebrationParticles, initializeFogParticles, updateFogParticles } from './lib/visualEffects';
 import { FormationType, getFormationName } from './lib/formations';
 import { initializeFloaters, updateFloaters } from './lib/floaters';
@@ -38,7 +38,7 @@ import { createRealtimeStore } from './lib/realtimeStore';
 import { LANKVStore } from './lib/lanStore';
 import { PlayerStatistics, MatchStats, createEmptyStatistics, updateStatistics, calculateMMRChange } from './lib/statistics';
 import { soundManager } from './lib/sound';
-import { MultiplayerSync, initializeMultiplayerSync, updateMultiplayerSync } from './lib/multiplayerGame';
+import { MultiplayerSync, initializeMultiplayerSync, updateMultiplayerSync, sendSpawnCommand } from './lib/multiplayerGame';
 
 // Matchmaking configuration
 const MATCHMAKING_AUTO_START_DELAY_MS = 2000; // Delay before auto-starting matchmaking game
@@ -1003,6 +1003,49 @@ function App() {
     }));
   };
 
+  // Handle spawning units from button controls
+  const handleButtonSpawn = (slot: 'left' | 'up' | 'down' | 'right') => {
+    const state = gameStateRef.current;
+    if (state.mode !== 'game') return;
+    
+    const unitType = state.settings.unitSlots[slot];
+    const playerBase = state.bases.find(b => b.owner === 0);
+    if (!playerBase) return;
+    
+    // Use spawnUnit from simulation module
+    const success = spawnUnit(state, 0, unitType, playerBase.position, playerBase.rallyPoint);
+    if (!success) {
+      soundManager.playError();
+    } else if (state.vsMode === 'online' && state.multiplayerManager) {
+      sendSpawnCommand(state.multiplayerManager, 0, unitType, playerBase.id, playerBase.rallyPoint).catch(err => 
+        console.warn('Failed to send spawn command:', err)
+      );
+    }
+  };
+
+  // Handle spawning units from radial menu
+  const handleRadialSpawn = (slot: 'left' | 'up' | 'down' | 'right') => {
+    const state = gameStateRef.current;
+    if (state.mode !== 'game') return;
+    
+    const unitType = state.settings.unitSlots[slot];
+    const playerBase = state.bases.find(b => b.owner === 0);
+    if (!playerBase) return;
+    
+    // Use spawnUnit from simulation module
+    const success = spawnUnit(state, 0, unitType, playerBase.position, playerBase.rallyPoint);
+    if (!success) {
+      soundManager.playError();
+    } else if (state.vsMode === 'online' && state.multiplayerManager) {
+      sendSpawnCommand(state.multiplayerManager, 0, unitType, playerBase.id, playerBase.rallyPoint).catch(err => 
+        console.warn('Failed to send spawn command:', err)
+      );
+    }
+    
+    // Hide radial menu after spawning
+    state.radialMenu = undefined;
+  };
+
   const refreshLobbies = useCallback(async () => {
     if (!multiplayerManagerRef.current) return;
     const lobbies = await multiplayerManagerRef.current.getAvailableLobbies();
@@ -1220,6 +1263,114 @@ function App() {
               Fog of War
             </Label>
           </div>
+
+          {/* Button Mode: Spawn Unit Buttons */}
+          {gameState.settings.controlMode === 'buttons' && (
+            <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-2 p-2 bg-gray-800/90 backdrop-blur-sm border-t border-gray-600">
+              {(['left', 'up', 'down', 'right'] as const).map((slot, index) => {
+                const unitType = gameState.settings.unitSlots[slot];
+                const unitDef = UNIT_DEFINITIONS[unitType];
+                const playerPhotons = gameState.players[0]?.photons ?? 0;
+                const canAfford = playerPhotons >= unitDef.cost;
+                
+                return (
+                  <button
+                    key={slot}
+                    onClick={() => handleButtonSpawn(slot)}
+                    disabled={!canAfford}
+                    className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all orbitron ${
+                      canAfford ? 'hover:scale-105 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                    }`}
+                    style={{
+                      borderColor: playerColor || COLORS.playerDefault,
+                      backgroundColor: canAfford ? `${playerColor || COLORS.playerDefault}40` : `${playerColor || COLORS.playerDefault}20`,
+                      minWidth: '70px',
+                      minHeight: '70px',
+                    }}
+                  >
+                    <span className="text-xs font-bold capitalize">{unitType}</span>
+                    <span className="text-xs mt-1">{unitDef.cost}◈</span>
+                    <span className="text-xs text-muted-foreground">Slot {index + 1}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Radial Menu Mode: Contextual Unit Spawn Menu */}
+          {gameState.settings.controlMode === 'radial' && gameState.radialMenu?.visible && canvasRef.current && (
+            (() => {
+              const screenPos = worldToScreen(gameState.radialMenu.worldPosition, gameState, canvasRef.current);
+              const buttonDistance = 60; // Distance from center to buttons
+              const playerPhotons = gameState.players[0]?.photons ?? 0;
+              
+              const directions = [
+                { slot: 'left' as const, angle: Math.PI, label: '◀' },
+                { slot: 'up' as const, angle: -Math.PI / 2, label: '▲' },
+                { slot: 'down' as const, angle: Math.PI / 2, label: '▼' },
+                { slot: 'right' as const, angle: 0, label: '▶' },
+              ];
+              
+              return (
+                <>
+                  {/* Semi-transparent overlay */}
+                  <div 
+                    className="absolute inset-0 bg-black/20"
+                    onClick={() => { gameState.radialMenu = undefined; }}
+                  />
+                  
+                  {/* Radial menu buttons */}
+                  {directions.map(({ slot, angle, label }) => {
+                    const unitType = gameState.settings.unitSlots[slot];
+                    const unitDef = UNIT_DEFINITIONS[unitType];
+                    const canAfford = playerPhotons >= unitDef.cost;
+                    const x = screenPos.x + Math.cos(angle) * buttonDistance;
+                    const y = screenPos.y + Math.sin(angle) * buttonDistance;
+                    
+                    return (
+                      <button
+                        key={slot}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRadialSpawn(slot);
+                        }}
+                        disabled={!canAfford}
+                        className={`absolute flex flex-col items-center justify-center rounded-full border-2 transition-all orbitron ${
+                          canAfford ? 'hover:scale-110 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                        }`}
+                        style={{
+                          left: `${x - 35}px`,
+                          top: `${y - 35}px`,
+                          width: '70px',
+                          height: '70px',
+                          borderColor: playerColor || COLORS.playerDefault,
+                          backgroundColor: canAfford ? `${playerColor || COLORS.playerDefault}90` : `${playerColor || COLORS.playerDefault}40`,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                        }}
+                      >
+                        <span className="text-lg">{label}</span>
+                        <span className="text-xs font-bold capitalize mt-1">{unitType}</span>
+                        <span className="text-xs">{unitDef.cost}◈</span>
+                      </button>
+                    );
+                  })}
+                  
+                  {/* Center indicator */}
+                  <div
+                    className="absolute rounded-full bg-white/20 border-2"
+                    style={{
+                      left: `${screenPos.x - 10}px`,
+                      top: `${screenPos.y - 10}px`,
+                      width: '20px',
+                      height: '20px',
+                      borderColor: playerColor || COLORS.playerDefault,
+                      pointerEvents: 'none',
+                    }}
+                  />
+                </>
+              );
+            })()
+          )}
         </>
       )}
 
