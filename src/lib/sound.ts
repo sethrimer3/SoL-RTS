@@ -240,6 +240,13 @@ export class SoundManager {
     setTimeout(() => this.playTone(150, 0.2, 'square', 0.2), 100);
   }
 
+  playBuildingPlace() {
+    // Deep construction sound - combination of tones for a satisfying "thunk"
+    this.playTone(120, 0.15, 'square', 0.2);
+    setTimeout(() => this.playTone(180, 0.12, 'sine', 0.15), 50);
+    setTimeout(() => this.playTone(240, 0.08, 'triangle', 0.1), 100);
+  }
+
   loadAudioFile(name: string, url: string) {
     const audio = new Audio(url);
     const isMusic = name.startsWith('music_');
