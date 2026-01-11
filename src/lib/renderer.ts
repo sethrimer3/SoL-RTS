@@ -2241,7 +2241,7 @@ function drawStructures(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.fill();
       
       // Draw cannon barrel indicator with rotation animation
-      const rotationAngle = structure.attackCooldown ? Math.PI * 0.1 * Math.sin(time * 5) : 0;
+      const rotationAngle = (structure.attackCooldown && structure.attackCooldown > 0) ? Math.PI * 0.1 * Math.sin(time * 5) : 0;
       ctx.globalAlpha = 0.7;
       ctx.lineWidth = 5;
       ctx.lineCap = 'round';
@@ -2257,6 +2257,12 @@ function drawStructures(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.beginPath();
       ctx.arc(barrelEndX, barrelEndY, size * 0.08, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Reset glow effect
+      if (state.settings.enableGlowEffects) {
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+      }
       
     } else if (structure.type === 'defensive') {
       // Defensive tower - octagon with shield symbol
@@ -2338,6 +2344,12 @@ function drawStructures(ctx: CanvasRenderingContext2D, state: GameState): void {
           }
         }
       }
+      
+      // Reset glow effect
+      if (state.settings.enableGlowEffects) {
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+      }
     } else {
       // Faction-specific towers - star shape with energy swirl
       const outerRadius = size / 2;
@@ -2378,12 +2390,15 @@ function drawStructures(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.beginPath();
       ctx.arc(screenPos.x, screenPos.y, size * 0.12 * pulseScale, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Reset glow effect
+      if (state.settings.enableGlowEffects) {
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+      }
     }
     
     ctx.restore();
-    
-    // Draw attack range indicator if structure is selected (future enhancement)
-    // This will be useful when we add structure selection
     
     // Draw health bar
     drawStructureHealthBar(ctx, structure, screenPos, size, color, state);
@@ -4706,10 +4721,10 @@ function drawBuildingMenu(ctx: CanvasRenderingContext2D, state: GameState): void
   const factionDef = STRUCTURE_DEFINITIONS[`faction-${state.settings.playerFaction}` as import('./types').StructureType];
   
   const options = [
-    { angle: 180, type: 'offensive' as const, label: `Offensive\n${offensiveDef.cost}L`, icon: '⚔️', description: 'Attack Tower' },
-    { angle: -90, type: 'defensive' as const, label: `Defensive\n${defensiveDef.cost}L`, icon: '🛡️', description: 'Shield Tower' },
-    { angle: 0, type: `faction-${state.settings.playerFaction}` as const, label: `Special\n${factionDef.cost}L`, icon: '⭐', description: 'Faction Tower' },
-    { angle: 90, type: undefined, label: 'Cancel', icon: '✖️', description: 'Cancel' },
+    { angle: 180, type: 'offensive' as const, label: `Offensive\n${offensiveDef.cost}L`, icon: '⚔️' },
+    { angle: -90, type: 'defensive' as const, label: `Defensive\n${defensiveDef.cost}L`, icon: '🛡️' },
+    { angle: 0, type: `faction-${state.settings.playerFaction}` as const, label: `Special\n${factionDef.cost}L`, icon: '⭐' },
+    { angle: 90, type: undefined, label: 'Cancel', icon: '✖️' },
   ];
   
   options.forEach(option => {
@@ -4905,6 +4920,10 @@ function drawBuildingMenu(ctx: CanvasRenderingContext2D, state: GameState): void
       ctx.stroke();
     }
   }
+  
+  // Reset shadow effects before restoring context
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
   
   ctx.restore();
 }

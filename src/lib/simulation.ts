@@ -32,7 +32,7 @@ import {
 import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians } from './gameUtils';
 import { checkObstacleCollision } from './maps';
 import { soundManager } from './sound';
-import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash, createLaserParticles, createBounceParticles } from './visualEffects';
+import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash, createLaserParticles, createBounceParticles, createMuzzleFlash } from './visualEffects';
 import { ObjectPool } from './objectPool';
 
 // Projectile constants - must be declared before object pool
