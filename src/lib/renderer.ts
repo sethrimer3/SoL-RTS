@@ -2001,18 +2001,22 @@ function drawLaserBeam(ctx: CanvasRenderingContext2D, base: Base, screenPos: { x
     // Calculate angle for rotation
     const angle = Math.atan2(direction.y, direction.x);
     
-    // Laser segment dimensions (in pixels)
-    const segmentHeight = metersToPixels(0.5); // Width of the laser beam
-    const beginWidth = metersToPixels(1.0); // Width of beginning segment
-    const middleWidth = metersToPixels(1.0); // Width of middle segment
-    const endWidth = metersToPixels(1.0); // Width of end segment
+    // Laser sprites have aspect ratio of ~2:1 (120x59)
+    // We want the height (beam thickness) to be about 0.8 meters
+    const beamThickness = metersToPixels(0.8);
+    const spriteAspectRatio = 120 / 59; // width / height from viewBox
+    
+    // Each segment should be proportional to sprite aspect ratio
+    const segmentHeight = beamThickness;
+    const segmentWidth = beamThickness * spriteAspectRatio; // Maintain aspect ratio
     
     // Calculate total laser length in pixels
     const totalLength = metersToPixels(LASER_RANGE);
     
-    // Calculate how many middle segments we need
-    const middleSegmentCount = Math.max(0, Math.floor((totalLength - beginWidth - endWidth) / middleWidth));
-    const actualMiddleWidth = middleSegmentCount > 0 ? (totalLength - beginWidth - endWidth) / middleSegmentCount : 0;
+    // Calculate how many middle segments we need to fill the space
+    const usedLength = segmentWidth * 2; // beginning + end
+    const remainingLength = Math.max(0, totalLength - usedLength);
+    const middleSegmentCount = Math.ceil(remainingLength / segmentWidth);
     
     ctx.save();
     ctx.translate(screenPos.x, screenPos.y);
@@ -2023,21 +2027,21 @@ function drawLaserBeam(ctx: CanvasRenderingContext2D, base: Base, screenPos: { x
       beginSprite,
       0,
       -segmentHeight / 2,
-      beginWidth,
+      segmentWidth,
       segmentHeight
     );
     
     // Draw middle segments (repeated to fill the length)
-    let currentX = beginWidth;
+    let currentX = segmentWidth;
     for (let i = 0; i < middleSegmentCount; i++) {
       ctx.drawImage(
         middleSprite,
         currentX,
         -segmentHeight / 2,
-        actualMiddleWidth,
+        segmentWidth,
         segmentHeight
       );
-      currentX += actualMiddleWidth;
+      currentX += segmentWidth;
     }
     
     // Draw end segment
@@ -2045,7 +2049,7 @@ function drawLaserBeam(ctx: CanvasRenderingContext2D, base: Base, screenPos: { x
       endSprite,
       currentX,
       -segmentHeight / 2,
-      endWidth,
+      segmentWidth,
       segmentHeight
     );
     
@@ -3323,18 +3327,22 @@ function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: str
     // Calculate angle for rotation
     const angle = Math.atan2(direction.y, direction.x);
     
-    // Laser segment dimensions (in pixels)
-    const segmentHeight = metersToPixels(0.4); // Width of the laser beam (slightly thinner than base laser)
-    const beginWidth = metersToPixels(0.8); // Width of beginning segment
-    const middleWidth = metersToPixels(0.8); // Width of middle segment
-    const endWidth = metersToPixels(0.8); // Width of end segment
+    // Laser sprites have aspect ratio of ~2:1 (120x59)
+    // Unit lasers are slightly smaller than base lasers
+    const beamThickness = metersToPixels(0.6);
+    const spriteAspectRatio = 120 / 59; // width / height from viewBox
+    
+    // Each segment should be proportional to sprite aspect ratio
+    const segmentHeight = beamThickness;
+    const segmentWidth = beamThickness * spriteAspectRatio; // Maintain aspect ratio
     
     // Calculate total laser length in pixels
     const totalLength = metersToPixels(range);
     
-    // Calculate how many middle segments we need
-    const middleSegmentCount = Math.max(0, Math.floor((totalLength - beginWidth - endWidth) / middleWidth));
-    const actualMiddleWidth = middleSegmentCount > 0 ? (totalLength - beginWidth - endWidth) / middleSegmentCount : 0;
+    // Calculate how many middle segments we need to fill the space
+    const usedLength = segmentWidth * 2; // beginning + end
+    const remainingLength = Math.max(0, totalLength - usedLength);
+    const middleSegmentCount = Math.ceil(remainingLength / segmentWidth);
     
     ctx.save();
     ctx.translate(unitScreen.x, unitScreen.y);
@@ -3346,21 +3354,21 @@ function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: str
       beginSprite,
       0,
       -segmentHeight / 2,
-      beginWidth,
+      segmentWidth,
       segmentHeight
     );
     
     // Draw middle segments (repeated to fill the length)
-    let currentX = beginWidth;
+    let currentX = segmentWidth;
     for (let i = 0; i < middleSegmentCount; i++) {
       ctx.drawImage(
         middleSprite,
         currentX,
         -segmentHeight / 2,
-        actualMiddleWidth,
+        segmentWidth,
         segmentHeight
       );
-      currentX += actualMiddleWidth;
+      currentX += segmentWidth;
     }
     
     // Draw end segment
@@ -3368,7 +3376,7 @@ function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: str
       endSprite,
       currentX,
       -segmentHeight / 2,
-      endWidth,
+      segmentWidth,
       segmentHeight
     );
     
