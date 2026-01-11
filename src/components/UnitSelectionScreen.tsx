@@ -20,10 +20,37 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
   const assetBaseUrl = import.meta.env.BASE_URL;
   const [selectedSlot, setSelectedSlot] = useState<'left' | 'up' | 'down' | 'right' | null>(null);
 
+  // Map unit types to their faction-specific SVG sprite paths
+  // This matches the sprite paths used in the game renderer
+  const getUnitSpritePath = (unitType: UnitType, faction: FactionType): string => {
+    // Radiant faction has specific SVG sprites for its units
+    const radiantUnitSprites: Partial<Record<UnitType, string>> = {
+      marine: 'Marine.svg',
+      warrior: 'Blade.svg',
+      tank: 'Tank.svg',
+      scout: 'Dagger.svg',
+      artillery: 'Artillery.svg',
+      medic: 'Medic.svg',
+      interceptor: 'Interceptor.svg',
+      guardian: 'Guardian.svg',
+      marksman: 'Marksman.svg',
+      engineer: 'Engineer.svg',
+      skirmisher: 'skirmisher.svg',
+      paladin: 'palladin.svg', // Note: typo in filename is intentional to match actual file
+    };
+
+    if (faction === 'radiant' && radiantUnitSprites[unitType]) {
+      return `${assetBaseUrl}ASSETS/sprites/factions/radiant/units/${radiantUnitSprites[unitType]}`;
+    }
+
+    // Fallback to generic sprite path for other factions
+    return `${assetBaseUrl}ASSETS/sprites/units/${unitType}.svg`;
+  };
+
   const renderUnitIcon = (unitType: UnitType, size: number = 20) => {
     return (
       <img
-        src={`${assetBaseUrl}ASSETS/sprites/units/${unitType}.svg`}
+        src={getUnitSpritePath(unitType, playerFaction)}
         alt={unitType}
         width={size}
         height={size}
