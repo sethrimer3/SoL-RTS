@@ -2255,6 +2255,9 @@ function drawLaserBeam(ctx: CanvasRenderingContext2D, base: Base, screenPos: { x
     // Calculate angle for rotation
     const angle = Math.atan2(direction.y, direction.x);
     
+    // Apply playfield rotation for desktop mode
+    const playfieldRotation = getPlayfieldRotationRadians();
+    
     // Laser sprites have aspect ratio defined by their SVG viewBox
     const beamThickness = metersToPixels(BASE_LASER_BEAM_THICKNESS_METERS);
     const spriteAspectRatio = LASER_SPRITE_WIDTH / LASER_SPRITE_HEIGHT;
@@ -2273,7 +2276,7 @@ function drawLaserBeam(ctx: CanvasRenderingContext2D, base: Base, screenPos: { x
     
     ctx.save();
     ctx.translate(screenPos.x, screenPos.y);
-    ctx.rotate(angle);
+    ctx.rotate(angle + playfieldRotation);
     
     // Draw beginning segment
     ctx.drawImage(
@@ -2348,9 +2351,12 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, state: GameState): void 
     // Calculate rotation angle based on velocity direction
     const angle = Math.atan2(projectile.velocity.y, projectile.velocity.x);
     
+    // Apply playfield rotation for desktop mode
+    const playfieldRotation = getPlayfieldRotationRadians();
+    
     // Translate to projectile position and rotate
     ctx.translate(screenPos.x, screenPos.y);
-    ctx.rotate(angle);
+    ctx.rotate(angle + playfieldRotation);
     
     if (projectile.kind === 'knife') {
       // Draw slim knife silhouette with a pointed tip
@@ -3593,6 +3599,9 @@ function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: str
     // Calculate angle for rotation
     const angle = Math.atan2(direction.y, direction.x);
     
+    // Apply playfield rotation for desktop mode
+    const playfieldRotation = getPlayfieldRotationRadians();
+    
     // Laser sprites have aspect ratio defined by their SVG viewBox
     // Unit lasers are slightly smaller than base lasers
     const beamThickness = metersToPixels(UNIT_LASER_BEAM_THICKNESS_METERS);
@@ -3612,7 +3621,7 @@ function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: str
     
     ctx.save();
     ctx.translate(unitScreen.x, unitScreen.y);
-    ctx.rotate(angle);
+    ctx.rotate(angle + playfieldRotation);
     ctx.globalAlpha = (1 - fadeProgress) * 0.9;
     
     // Draw beginning segment
