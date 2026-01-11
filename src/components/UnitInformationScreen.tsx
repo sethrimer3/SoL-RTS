@@ -276,6 +276,9 @@ export function UnitInformationScreen({ onBack }: UnitInformationScreenProps) {
                         ({units.length} units)
                       </span>
                     </div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {factionDef.description}
+                    </p>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span>Base Speed: {factionDef.baseMoveSpeed}m/s</span>
                       <span>•</span>

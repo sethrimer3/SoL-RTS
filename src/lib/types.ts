@@ -265,6 +265,7 @@ export const BASE_TYPE_DEFINITIONS: Record<BaseType, BaseTypeDefinition> = {
 
 export interface FactionDefinition {
   name: string;
+  description: string;
   baseMoveSpeed: number;
   baseShape: 'square' | 'circle' | 'star' | 'triangle';
   ability: 'laser' | 'shield' | 'pulse';
@@ -275,6 +276,7 @@ export interface FactionDefinition {
 export const FACTION_DEFINITIONS: Record<FactionType, FactionDefinition> = {
   radiant: {
     name: 'Radiant',
+    description: 'Focused on long-range attacks and overall balanced gameplay',
     baseMoveSpeed: 3.0, // Doubled from 1.5
     baseShape: 'square',
     ability: 'laser',
@@ -283,6 +285,7 @@ export const FACTION_DEFINITIONS: Record<FactionType, FactionDefinition> = {
   },
   aurum: {
     name: 'Aurum',
+    description: 'Focused on strategic gameplay and advanced spell casting',
     baseMoveSpeed: 6.0, // Doubled from 3.0
     baseShape: 'triangle',
     ability: 'shield',
@@ -291,6 +294,7 @@ export const FACTION_DEFINITIONS: Record<FactionType, FactionDefinition> = {
   },
   solari: {
     name: 'Solari',
+    description: 'Focused on fast gameplay and melee combat',
     baseMoveSpeed: 4.0, // Doubled from 2.0
     baseShape: 'circle',
     ability: 'pulse',
@@ -394,7 +398,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 0,
     cost: 30,
     abilityName: 'Line Jump',
-    abilityCooldown: 5,
+    abilityCooldown: 4, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: false,
     modifiers: ['small'],
   },
@@ -484,7 +488,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 0.8,
     cost: 50,
     abilityName: 'Rage',
-    abilityCooldown: 5,
+    abilityCooldown: 4, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: true,
     modifiers: ['melee'],
   },
@@ -499,7 +503,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 2,
     cost: 35,
     abilityName: 'Shadow Strike',
-    abilityCooldown: 5,
+    abilityCooldown: 4, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: false,
     modifiers: ['melee'],
   },
@@ -514,7 +518,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 0.6,
     cost: 70,
     abilityName: 'Ground Slam',
-    abilityCooldown: 5,
+    abilityCooldown: 4, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: true,
     modifiers: ['melee'],
   },
@@ -529,7 +533,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 1.2,
     cost: 45,
     abilityName: 'Whirlwind',
-    abilityCooldown: 5,
+    abilityCooldown: 4, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: true,
     modifiers: ['melee'],
   },
@@ -537,26 +541,26 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     name: 'Flare',
     hp: 50,
     armor: 1,
-    moveSpeed: 10,
-    attackType: 'ranged',
-    attackRange: 7,
-    attackDamage: 7,
-    attackRate: 2.5,
+    moveSpeed: 13, // Increased from 10 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.0, // Changed from 7 for melee
+    attackDamage: 10, // Increased from 7 for melee
+    attackRate: 3, // Increased from 2.5 for fast attacks
     cost: 30,
     abilityName: 'Solar Beam',
     abilityCooldown: 5,
     canDamageStructures: true,
-    modifiers: ['ranged', 'small'],
+    modifiers: ['melee', 'small'], // Changed from ranged
   },
   nova: {
     name: 'Nova',
     hp: 110,
     armor: 4,
-    moveSpeed: 7,
+    moveSpeed: 10, // Increased from 7 for fast gameplay
     attackType: 'melee',
     attackRange: 1.2,
     attackDamage: 22,
-    attackRate: 1,
+    attackRate: 1.3, // Increased from 1 for faster attacks
     cost: 45,
     abilityName: 'Stellar Burst',
     abilityCooldown: 5,
@@ -567,46 +571,46 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     name: 'Eclipse',
     hp: 80,
     armor: 2,
-    moveSpeed: 9,
-    attackType: 'ranged',
-    attackRange: 9,
-    attackDamage: 5,
-    attackRate: 3,
+    moveSpeed: 12, // Increased from 9 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.1, // Changed from 9 for melee
+    attackDamage: 12, // Increased from 5 for melee
+    attackRate: 2.5, // Reduced from 3 but increased damage
     cost: 35,
     abilityName: 'Shadow Veil',
     abilityCooldown: 5,
     canDamageStructures: false,
-    modifiers: ['ranged'],
+    modifiers: ['melee'], // Changed from ranged
   },
   corona: {
     name: 'Corona',
     hp: 180,
     armor: 6,
-    moveSpeed: 5,
-    attackType: 'ranged',
-    attackRange: 6,
-    attackDamage: 10,
-    attackRate: 1,
+    moveSpeed: 8, // Increased from 5 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.3, // Changed from 6 for melee
+    attackDamage: 18, // Increased from 10 for melee
+    attackRate: 1.2, // Increased from 1 for faster attacks
     cost: 55,
     abilityName: 'Radiation Wave',
     abilityCooldown: 5,
     canDamageStructures: true,
-    modifiers: ['ranged'],
+    modifiers: ['melee'], // Changed from ranged
   },
   supernova: {
     name: 'Supernova',
     hp: 60,
     armor: 2,
-    moveSpeed: 6,
-    attackType: 'ranged',
-    attackRange: 12,
-    attackDamage: 15,
-    attackRate: 0.7,
+    moveSpeed: 9, // Increased from 6 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.5, // Changed from 12 for melee with extended reach
+    attackDamage: 25, // Increased from 15 for melee
+    attackRate: 0.9, // Increased from 0.7 for faster attacks
     cost: 65,
     abilityName: 'Cosmic Explosion',
     abilityCooldown: 5,
     canDamageStructures: true,
-    modifiers: ['ranged'],
+    modifiers: ['melee'], // Changed from ranged
   },
   guardian: {
     name: 'Guardian',
@@ -634,7 +638,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 2,
     cost: 40,
     abilityName: 'Soul Strike',
-    abilityCooldown: 5,
+    abilityCooldown: 4, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: true,
     modifiers: ['ranged'],
   },
@@ -649,7 +653,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 0,
     cost: 40,
     abilityName: 'Divine Restoration',
-    abilityCooldown: 5,
+    abilityCooldown: 4, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: false,
     modifiers: ['healing'],
   },
@@ -664,7 +668,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 2.5,
     cost: 50,
     abilityName: 'Ethereal Strike',
-    abilityCooldown: 5,
+    abilityCooldown: 4, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: true,
     modifiers: ['ranged', 'flying'],
   },
@@ -672,7 +676,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     name: 'Zenith',
     hp: 65,
     armor: 2,
-    moveSpeed: 7,
+    moveSpeed: 10, // Increased from 7 for fast gameplay
     attackType: 'none',
     attackRange: 0,
     attackDamage: 0,
@@ -687,26 +691,26 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     name: 'Pulsar',
     hp: 70,
     armor: 2,
-    moveSpeed: 11,
-    attackType: 'ranged',
-    attackRange: 7,
-    attackDamage: 7,
-    attackRate: 2.5,
+    moveSpeed: 14, // Increased from 11 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.0, // Changed from 7 for melee
+    attackDamage: 14, // Increased from 7 for melee
+    attackRate: 2.8, // Increased from 2.5 for faster attacks
     cost: 48,
     abilityName: 'Stellar Dive',
     abilityCooldown: 5,
     canDamageStructures: false,
-    modifiers: ['ranged', 'flying', 'small'],
+    modifiers: ['melee', 'flying', 'small'], // Changed from ranged
   },
   celestial: {
     name: 'Celestial',
     hp: 130,
     armor: 5,
-    moveSpeed: 6,
+    moveSpeed: 9, // Increased from 6 for fast gameplay
     attackType: 'melee',
     attackRange: 1.2,
     attackDamage: 20,
-    attackRate: 1.1,
+    attackRate: 1.4, // Increased from 1.1 for faster attacks
     cost: 50,
     abilityName: 'Astral Charge',
     abilityCooldown: 5,
@@ -774,7 +778,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canDamageStructures: true,
     modifiers: ['ranged', 'melee'],
   },
-  // Aurum faction - 4 new units (melee focus)
+  // Aurum faction - 4 new units (strategic/spell-casting focus)
   gladiator: {
     name: 'Gladiator',
     hp: 130,
@@ -786,7 +790,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 0.9,
     cost: 55,
     abilityName: 'Lethal Strike',
-    abilityCooldown: 5,
+    abilityCooldown: 3, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: true,
     modifiers: ['melee'],
   },
@@ -801,7 +805,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 1.5,
     cost: 45,
     abilityName: 'Blood Hunt',
-    abilityCooldown: 5,
+    abilityCooldown: 3, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: true,
     modifiers: ['melee'],
   },
@@ -816,7 +820,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 0.5,
     cost: 80,
     abilityName: 'Battle Cry',
-    abilityCooldown: 5,
+    abilityCooldown: 3, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: true,
     modifiers: ['melee'],
   },
@@ -831,130 +835,130 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackRate: 1.8,
     cost: 40,
     abilityName: 'Riposte',
-    abilityCooldown: 5,
+    abilityCooldown: 3, // Reduced from 5 for more strategic spell-casting
     canDamageStructures: false,
     modifiers: ['melee'],
   },
-  // Solari faction - 4 new units (complex/unique abilities)
+  // Solari faction - 4 new units (fast/melee focused)
   voidwalker: {
     name: 'Voidwalker',
     hp: 75,
     armor: 2,
-    moveSpeed: 7,
-    attackType: 'ranged',
-    attackRange: 7,
-    attackDamage: 8,
-    attackRate: 2,
+    moveSpeed: 11, // Increased from 7 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.0, // Changed from 7 for melee
+    attackDamage: 16, // Increased from 8 for melee
+    attackRate: 2.3, // Increased from 2 for faster attacks
     cost: 50,
     abilityName: 'Void Step',
     abilityCooldown: 5,
     canDamageStructures: false,
-    modifiers: ['ranged'],
+    modifiers: ['melee'], // Changed from ranged
   },
   chronomancer: {
     name: 'Chronomancer',
     hp: 60,
     armor: 2,
-    moveSpeed: 6,
-    attackType: 'ranged',
-    attackRange: 8,
-    attackDamage: 6,
-    attackRate: 1.5,
+    moveSpeed: 10, // Increased from 6 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.1, // Changed from 8 for melee
+    attackDamage: 12, // Increased from 6 for melee
+    attackRate: 1.8, // Increased from 1.5 for faster attacks
     cost: 55,
     abilityName: 'Time Dilation',
     abilityCooldown: 5,
     canDamageStructures: false,
-    modifiers: ['ranged'],
+    modifiers: ['melee'], // Changed from ranged
   },
   nebula: {
     name: 'Nebula',
     hp: 80,
     armor: 3,
-    moveSpeed: 5,
-    attackType: 'ranged',
-    attackRange: 6,
-    attackDamage: 7,
-    attackRate: 1.2,
+    moveSpeed: 8, // Increased from 5 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.2, // Changed from 6 for melee
+    attackDamage: 14, // Increased from 7 for melee
+    attackRate: 1.5, // Increased from 1.2 for faster attacks
     cost: 50,
     abilityName: 'Cosmic Barrier',
     abilityCooldown: 5,
     canDamageStructures: false,
-    modifiers: ['ranged'],
+    modifiers: ['melee'], // Changed from ranged
   },
   quasar: {
     name: 'Quasar',
     hp: 70,
     armor: 2,
-    moveSpeed: 6,
-    attackType: 'ranged',
-    attackRange: 10,
-    attackDamage: 9,
-    attackRate: 1,
+    moveSpeed: 10, // Increased from 6 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.3, // Changed from 10 for melee with extended reach
+    attackDamage: 18, // Increased from 9 for melee
+    attackRate: 1.3, // Increased from 1 for faster attacks
     cost: 60,
     abilityName: 'Stellar Convergence',
     abilityCooldown: 5,
     canDamageStructures: true,
-    modifiers: ['ranged'],
+    modifiers: ['melee'], // Changed from ranged
   },
   luminary: {
     name: 'Luminary',
     hp: 65,
     armor: 2,
-    moveSpeed: 6,
-    attackType: 'ranged',
-    attackRange: 8,
-    attackDamage: 6,
-    attackRate: 1.8,
+    moveSpeed: 10, // Increased from 6 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.1, // Changed from 8 for melee
+    attackDamage: 12, // Increased from 6 for melee
+    attackRate: 2.1, // Increased from 1.8 for faster attacks
     cost: 50,
     abilityName: 'Gravity Well',
     abilityCooldown: 5,
     canDamageStructures: false,
-    modifiers: ['ranged'],
+    modifiers: ['melee'], // Changed from ranged
   },
   photon: {
     name: 'Photon',
     hp: 55,
     armor: 1,
-    moveSpeed: 11,
-    attackType: 'ranged',
-    attackRange: 7,
-    attackDamage: 5,
-    attackRate: 3,
+    moveSpeed: 14, // Increased from 11 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.0, // Changed from 7 for melee
+    attackDamage: 10, // Increased from 5 for melee
+    attackRate: 3.5, // Increased from 3 for faster attacks
     cost: 45,
     abilityName: 'Chain Lightning',
     abilityCooldown: 5,
     canDamageStructures: false,
-    modifiers: ['ranged', 'small'],
+    modifiers: ['melee', 'small'], // Changed from ranged
   },
   starborn: {
     name: 'Starborn',
     hp: 90,
     armor: 3,
-    moveSpeed: 5,
-    attackType: 'ranged',
-    attackRange: 9,
-    attackDamage: 8,
-    attackRate: 1.5,
+    moveSpeed: 8, // Increased from 5 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.2, // Changed from 9 for melee
+    attackDamage: 16, // Increased from 8 for melee
+    attackRate: 1.8, // Increased from 1.5 for faster attacks
     cost: 55,
     abilityName: 'Orbital Strike',
     abilityCooldown: 5,
     canDamageStructures: true,
-    modifiers: ['ranged'],
+    modifiers: ['melee'], // Changed from ranged
   },
   prism: {
     name: 'Prism',
     hp: 50,
     armor: 1,
-    moveSpeed: 8,
-    attackType: 'ranged',
-    attackRange: 8,
-    attackDamage: 4,
-    attackRate: 2.5,
+    moveSpeed: 12, // Increased from 8 for fast gameplay
+    attackType: 'melee', // Changed from ranged to match melee theme
+    attackRange: 1.0, // Changed from 8 for melee
+    attackDamage: 8, // Increased from 4 for melee
+    attackRate: 3, // Increased from 2.5 for faster attacks
     cost: 40,
     abilityName: 'Light Refraction',
     abilityCooldown: 5,
     canDamageStructures: false,
-    modifiers: ['ranged', 'small'],
+    modifiers: ['melee', 'small'], // Changed from ranged
   },
   miningDrone: {
     name: 'Mining Drone',

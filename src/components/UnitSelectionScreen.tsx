@@ -145,6 +145,9 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
                   <div className="text-center">
                     <div className="text-base font-bold orbitron">{FACTION_DEFINITIONS[faction].name}</div>
                     <div className="text-xs text-muted-foreground mt-1">
+                      {FACTION_DEFINITIONS[faction].description}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
                       {FACTION_DEFINITIONS[faction].ability === 'laser' ? 'Giant Laser' : FACTION_DEFINITIONS[faction].ability === 'shield' ? 'Shield Defense' : 'Energy Pulse'}
                     </div>
                     <div className="text-xs text-muted-foreground">
