@@ -2862,7 +2862,10 @@ function updateStructures(state: GameState, deltaTime: number): void {
     }
     
     // Offensive tower - attack nearby enemies
-    if (structure.type === 'offensive' || structure.type.startsWith('faction-')) {
+    if (structure.type === 'offensive' || 
+        structure.type === 'faction-radiant' || 
+        structure.type === 'faction-aurum' || 
+        structure.type === 'faction-solari') {
       if (structure.attackCooldown === 0 && structureDef.attackType === 'ranged') {
         // Find closest enemy unit or base within range
         let closestTarget: { position: Vector2; isUnit: boolean; id: string } | null = null;
@@ -4618,6 +4621,11 @@ function applyBladeSwingDamage(state: GameState, unit: Unit, swing: { direction:
 function performAttack(state: GameState, unit: Unit, target: Unit | Base | import('./types').Structure): void {
   const def = UNIT_DEFINITIONS[unit.type];
   
+  // Type guards for distinguishing target types
+  const isUnit = (t: typeof target): t is Unit => 'type' in t && !('baseType' in t) && !('attackCooldown' in t && 'owner' in t && !('commandQueue' in t));
+  const isBase = (t: typeof target): t is Base => 'baseType' in t;
+  const isStructure = (t: typeof target): t is import('./types').Structure => !isUnit(t) && !isBase(t);
+  
   // Reset attack cooldown
   unit.attackCooldown = 1.0 / def.attackRate;
   
@@ -4633,7 +4641,7 @@ function performAttack(state: GameState, unit: Unit, target: Unit | Base | impor
     } else {
       // Spawn projectile for standard ranged attacks.
       const targetPos = target.position;
-      const targetUnit = 'type' in target && !('baseType' in target) ? (target as Unit) : undefined;
+      const targetUnit = isUnit(target) ? target : undefined;
       const projectile = createProjectile(state, unit, targetPos, targetUnit);
       state.projectiles.push(projectile);
     }
@@ -4663,8 +4671,8 @@ function performAttack(state: GameState, unit: Unit, target: Unit | Base | impor
     // Apply instant damage for melee and create visual effect
     let damage = def.attackDamage * unit.damageMultiplier;
 
-    if ('type' in target && !('baseType' in target) && !('armor' in target && 'attackCooldown' in target)) {
-      const targetUnit = target as Unit;
+    if (isUnit(target)) {
+      const targetUnit = target;
       
       // Apply any active shield dome modifiers for melee hits.
       damage *= getShieldDamageMultiplier(state, targetUnit, 'melee');
@@ -4684,8 +4692,8 @@ function performAttack(state: GameState, unit: Unit, target: Unit | Base | impor
       if (unit.type === 'warrior') {
         createBladeSwing(unit, direction);
       }
-    } else if ('baseType' in target) {
-      const targetBase = target as Base;
+    } else if (isBase(target)) {
+      const targetBase = target;
       // Check if base has active shield (mobile faction)
       if (!targetBase.shieldActive || Date.now() >= targetBase.shieldActive.endTime) {
         const prevHp = targetBase.hp;
@@ -4726,7 +4734,7 @@ function performAttack(state: GameState, unit: Unit, target: Unit | Base | impor
       }
     } else {
       // Target is a structure
-      const targetStructure = target as import('./types').Structure;
+      const targetStructure = target;
       const prevHp = targetStructure.hp;
       targetStructure.hp -= damage;
       

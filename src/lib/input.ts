@@ -1421,7 +1421,7 @@ function handleBuildingPlacement(
   
   // Check if position is valid (not overlapping with other structures, bases, or obstacles)
   const isValidPosition = !state.structures.some(s => 
-    distance(s.position, currentPosition) < (s.id === buildingMenu.workerIds[0] ? 0 : structureDef.size + 1)
+    distance(s.position, currentPosition) < (structureDef.size + 1)
   ) && !state.bases.some(b => 
     distance(b.position, currentPosition) < (BASE_SIZE_METERS + structureDef.size) / 2
   ) && !state.obstacles.some(obs => {

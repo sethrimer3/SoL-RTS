@@ -4547,10 +4547,14 @@ function drawBuildingMenu(ctx: CanvasRenderingContext2D, state: GameState): void
   ctx.stroke();
   
   // Draw four directional options
+  const offensiveDef = STRUCTURE_DEFINITIONS['offensive'];
+  const defensiveDef = STRUCTURE_DEFINITIONS['defensive'];
+  const factionDef = STRUCTURE_DEFINITIONS[`faction-${state.settings.playerFaction}` as import('./types').StructureType];
+  
   const options = [
-    { angle: 180, type: 'offensive' as const, label: 'Offensive\n50L', icon: '⚔️' },
-    { angle: -90, type: 'defensive' as const, label: 'Defensive\n60L', icon: '🛡️' },
-    { angle: 0, type: `faction-${state.settings.playerFaction}` as const, label: 'Special\n75L', icon: '⭐' },
+    { angle: 180, type: 'offensive' as const, label: `Offensive\n${offensiveDef.cost}L`, icon: '⚔️' },
+    { angle: -90, type: 'defensive' as const, label: `Defensive\n${defensiveDef.cost}L`, icon: '🛡️' },
+    { angle: 0, type: `faction-${state.settings.playerFaction}` as const, label: `Special\n${factionDef.cost}L`, icon: '⭐' },
     { angle: 90, type: undefined, label: 'Cancel', icon: '✖️' },
   ];
   
