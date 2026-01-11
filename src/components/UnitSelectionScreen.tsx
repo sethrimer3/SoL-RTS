@@ -13,6 +13,8 @@ interface UnitSelectionScreenProps {
   onFactionChange: (faction: FactionType) => void;
   playerBaseType: BaseType;
   onBaseTypeChange: (baseType: BaseType) => void;
+  controlMode: 'swipe' | 'buttons' | 'radial';
+  onControlModeChange: (mode: 'swipe' | 'buttons' | 'radial') => void;
 }
 
 // Map unit types to their Radiant faction-specific SVG sprite filenames
@@ -32,7 +34,7 @@ const RADIANT_UNIT_SPRITES: Partial<Record<UnitType, string>> = {
   paladin: 'palladin.svg', // Note: typo in filename is intentional to match actual file
 };
 
-export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerColor, playerFaction, onFactionChange, playerBaseType, onBaseTypeChange }: UnitSelectionScreenProps) {
+export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerColor, playerFaction, onFactionChange, playerBaseType, onBaseTypeChange, controlMode, onControlModeChange }: UnitSelectionScreenProps) {
   // Build faction logo URLs with the configured base path for GitHub Pages compatibility.
   const assetBaseUrl = import.meta.env.BASE_URL;
   const [selectedSlot, setSelectedSlot] = useState<'left' | 'up' | 'down' | 'right' | null>(null);
@@ -189,6 +191,52 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Control Mode Selection */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Control Mode:</p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => onControlModeChange('swipe')}
+                className={`p-3 border-2 rounded-lg transition-all text-center ${
+                  controlMode === 'swipe' ? 'ring-4 ring-primary scale-105' : 'hover:scale-105'
+                }`}
+                style={{
+                  borderColor: playerColor || COLORS.playerDefault,
+                  backgroundColor: controlMode === 'swipe' ? `${playerColor || COLORS.playerDefault}40` : `${playerColor || COLORS.playerDefault}20`,
+                }}
+              >
+                <div className="text-sm font-bold orbitron">Swipe</div>
+                <div className="text-xs text-muted-foreground mt-1">Swipe from base to summon units</div>
+              </button>
+              <button
+                onClick={() => onControlModeChange('buttons')}
+                className={`p-3 border-2 rounded-lg transition-all text-center ${
+                  controlMode === 'buttons' ? 'ring-4 ring-primary scale-105' : 'hover:scale-105'
+                }`}
+                style={{
+                  borderColor: playerColor || COLORS.playerDefault,
+                  backgroundColor: controlMode === 'buttons' ? `${playerColor || COLORS.playerDefault}40` : `${playerColor || COLORS.playerDefault}20`,
+                }}
+              >
+                <div className="text-sm font-bold orbitron">Buttons</div>
+                <div className="text-xs text-muted-foreground mt-1">Fixed buttons at screen bottom</div>
+              </button>
+              <button
+                onClick={() => onControlModeChange('radial')}
+                className={`p-3 border-2 rounded-lg transition-all text-center ${
+                  controlMode === 'radial' ? 'ring-4 ring-primary scale-105' : 'hover:scale-105'
+                }`}
+                style={{
+                  borderColor: playerColor || COLORS.playerDefault,
+                  backgroundColor: controlMode === 'radial' ? `${playerColor || COLORS.playerDefault}40` : `${playerColor || COLORS.playerDefault}20`,
+                }}
+              >
+                <div className="text-sm font-bold orbitron">Radial</div>
+                <div className="text-xs text-muted-foreground mt-1">Hold to show radial menu</div>
+              </button>
             </div>
           </div>
 

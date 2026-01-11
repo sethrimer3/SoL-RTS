@@ -84,6 +84,7 @@ function App() {
   const [chessMode, setChessMode] = useKV<boolean>('chess-mode', false);
   const [aiDifficulty, setAiDifficulty] = useKV<'easy' | 'medium' | 'hard'>('ai-difficulty', 'medium');
   const [enableFogOfWar, setEnableFogOfWar] = useKV<boolean>('enable-fog-of-war', false);
+  const [controlMode, setControlMode] = useKV<'swipe' | 'buttons' | 'radial'>('control-mode', 'swipe');
 
   const gameState = gameStateRef.current;
   const lastVictoryStateRef = useRef<boolean>(false);
@@ -157,13 +158,14 @@ function App() {
       chessMode: chessMode ?? false,
       aiDifficulty: aiDifficulty || 'medium',
       enableFogOfWar: enableFogOfWar ?? false,
+      controlMode: controlMode || 'swipe',
     };
     gameStateRef.current.showMinimap = showMinimap ?? true;
     gameStateRef.current.players = gameStateRef.current.players.map((p, i) => ({
       ...p,
       color: i === 0 ? (playerColor || COLORS.playerDefault) : (enemyColor || COLORS.enemyDefault),
     }));
-  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP, showHealthBarsOnlyWhenDamaged, showMinimap, playerFaction, enemyFaction, enableGlowEffects, enableParticleEffects, enableMotionBlur, enableSprites, mirrorAbilityCasting, chessMode, aiDifficulty, enableFogOfWar]);
+  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP, showHealthBarsOnlyWhenDamaged, showMinimap, playerFaction, enemyFaction, enableGlowEffects, enableParticleEffects, enableMotionBlur, enableSprites, mirrorAbilityCasting, chessMode, aiDifficulty, enableFogOfWar, controlMode]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -1705,6 +1707,8 @@ function App() {
           onFactionChange={setPlayerFaction}
           playerBaseType={playerBaseType || 'standard'}
           onBaseTypeChange={setPlayerBaseType}
+          controlMode={controlMode || 'swipe'}
+          onControlModeChange={setControlMode}
         />
       )}
 
@@ -1911,6 +1915,7 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
       enemyFaction: player2Faction,
       playerBaseType: 'standard',
       enemyBaseType: 'standard',
+      controlMode: 'swipe',
     },
     surrenderClicks: 0,
     lastSurrenderClickTime: 0,
@@ -1960,6 +1965,7 @@ function createInitialState(): GameState {
       enemyFaction: 'radiant',
       playerBaseType: 'standard',
       enemyBaseType: 'standard',
+      controlMode: 'swipe',
     },
     surrenderClicks: 0,
     lastSurrenderClickTime: 0,
