@@ -396,7 +396,8 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
       if (touchState.touchedBaseWasSelected) {
         handleSetRallyPoint(state, touchState.touchedBase, { x: dx, y: dy }, canvas);
         delete state.rallyPointPreview; // Clear preview after setting rally point
-      } else {
+      } else if (state.settings.controlMode === 'swipe') {
+        // Only spawn units via swipe in swipe mode
         handleBaseSwipe(state, touchState.touchedBase, { x: dx, y: dy }, playerIndex);
       }
     } else if (touchState.isDragging && dist > SWIPE_THRESHOLD_PX) {
@@ -434,6 +435,14 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
       }
     } else if (elapsed < TAP_TIME_MS && dist < 10) {
       handleTap(state, { x, y }, canvas, playerIndex);
+    } else if (state.settings.controlMode === 'radial' && elapsed >= HOLD_TIME_MS && dist < 20 && !touchState.touchedBase && !touchState.touchedDepot && state.selectedUnits.size === 0) {
+      // Show radial menu for long press in radial mode (not on base or depot, no units selected)
+      const worldPos = screenToWorldPosition(state, canvas, { x, y });
+      state.radialMenu = {
+        worldPosition: worldPos,
+        visible: true,
+        startTime: Date.now(),
+      };
     } else {
       // Clear preview if no valid action was taken
       delete state.abilityCastPreview;
@@ -1316,7 +1325,8 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
     if (mouseState.touchedBaseWasSelected) {
       handleSetRallyPoint(state, mouseState.touchedBase, { x: dx, y: dy }, canvas);
       delete state.rallyPointPreview; // Clear preview after setting rally point
-    } else {
+    } else if (state.settings.controlMode === 'swipe') {
+      // Only spawn units via swipe in swipe mode
       handleBaseSwipe(state, mouseState.touchedBase, { x: dx, y: dy }, playerIndex);
     }
   } else if (mouseState.isDragging && dist > SWIPE_THRESHOLD_PX) {
@@ -1354,6 +1364,14 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
     }
   } else if (elapsed < TAP_TIME_MS && dist < 10) {
     handleTap(state, { x, y }, canvas, playerIndex);
+  } else if (state.settings.controlMode === 'radial' && elapsed >= HOLD_TIME_MS && dist < 20 && !mouseState.touchedBase && !mouseState.touchedDepot && state.selectedUnits.size === 0) {
+    // Show radial menu for long press in radial mode (not on base or depot, no units selected)
+    const worldPos = screenToWorldPosition(state, canvas, { x, y });
+    state.radialMenu = {
+      worldPosition: worldPos,
+      visible: true,
+      startTime: Date.now(),
+    };
   } else {
     // Clear preview if no valid action was taken
     delete state.abilityCastPreview;

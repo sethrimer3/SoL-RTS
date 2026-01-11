@@ -1029,6 +1029,39 @@ function drawBackground(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement
   ctx.fillStyle = COLORS.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // Fill area outside playing field with solid gray for button/radial modes
+  if (state && (state.settings.controlMode === 'buttons' || state.settings.controlMode === 'radial')) {
+    const viewportOffset = getViewportOffset();
+    const viewportDimensions = getViewportDimensions();
+    const playfieldWidthPixels = viewportDimensions.width || metersToPixels(ARENA_WIDTH_METERS);
+    const playfieldHeightPixels = viewportDimensions.height || metersToPixels(getArenaHeight());
+    
+    // Use same gray as border color for consistency
+    ctx.fillStyle = COLORS.borderMain;
+    
+    // Fill top area
+    if (viewportOffset.y > 0) {
+      ctx.fillRect(0, 0, canvas.width, viewportOffset.y);
+    }
+    
+    // Fill bottom area
+    const bottomY = viewportOffset.y + playfieldHeightPixels;
+    if (bottomY < canvas.height) {
+      ctx.fillRect(0, bottomY, canvas.width, canvas.height - bottomY);
+    }
+    
+    // Fill left area
+    if (viewportOffset.x > 0) {
+      ctx.fillRect(0, viewportOffset.y, viewportOffset.x, playfieldHeightPixels);
+    }
+    
+    // Fill right area
+    const rightX = viewportOffset.x + playfieldWidthPixels;
+    if (rightX < canvas.width) {
+      ctx.fillRect(rightX, viewportOffset.y, canvas.width - rightX, playfieldHeightPixels);
+    }
+  }
+
   // Draw nebula clouds for atmospheric effect
   if (state?.nebulaClouds && state.nebulaClouds.length > 0) {
     const time = Date.now() / 1000;

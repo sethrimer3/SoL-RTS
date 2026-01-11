@@ -1166,6 +1166,7 @@ export interface GameState {
     chessMode?: boolean; // Enable chess mode: queue commands, then execute all at once every 10 seconds
     aiDifficulty?: 'easy' | 'medium' | 'hard'; // AI difficulty level
     enableFogOfWar?: boolean; // Enable fog of war (developer mode)
+    controlMode?: 'swipe' | 'buttons' | 'radial'; // Control mode for unit spawning
   };
 
   surrenderClicks: number;
@@ -1215,6 +1216,13 @@ export interface GameState {
   // Double-tap tracking
   lastTapTime?: number;
   lastTapPosition?: Vector2;
+  
+  // Radial menu for unit spawning (radial control mode)
+  radialMenu?: {
+    worldPosition: Vector2;
+    visible: boolean;
+    startTime: number;
+  };
   
   // Background stars for visual effect
   stars?: Array<{
