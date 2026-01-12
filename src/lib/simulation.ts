@@ -634,8 +634,8 @@ function calculateSeparation(unit: Unit, allUnits: Unit[]): Vector2 {
     if (other.id === unit.id || other.owner !== unit.owner) continue;
     
     const dist = distance(unit.position, other.position);
-    // Only apply separation within the separation radius
-    if (dist < SEPARATION_RADIUS && dist > SEPARATION_MIN_DISTANCE) {
+    // Only apply separation within the separation radius and above minimum distance
+    if (dist < SEPARATION_RADIUS && dist >= SEPARATION_MIN_DISTANCE) {
       // Calculate vector away from other unit
       const away = subtract(unit.position, other.position);
       
@@ -644,7 +644,8 @@ function calculateSeparation(unit: Unit, allUnits: Unit[]): Vector2 {
       // Formula: weight = (1 - dist/radius)³ gives strong force at close range
       // but tapers off smoothly, preventing oscillations
       const normalizedDist = dist / SEPARATION_RADIUS;
-      const weight = Math.pow(1 - normalizedDist, 3); // Cubic falloff for smooth, strong separation
+      const base = 1 - normalizedDist;
+      const weight = base * base * base; // Cubic falloff - more efficient than Math.pow
       
       const weightedAway = scale(normalize(away), weight);
       separationForce = add(separationForce, weightedAway);
