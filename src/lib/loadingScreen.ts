@@ -10,7 +10,12 @@
 // This ensures we don't reset the timer if initialization is delayed
 let overlayVisibleTime: number = Date.now();
 let isInitialized = false;
-const MINIMUM_DISPLAY_DURATION = 3000; // 3 seconds
+let safetyTimeoutId: number | undefined = undefined;
+const MINIMUM_DISPLAY_DURATION = 800; // 800ms - enough to see the animation without feeling stuck
+const MAXIMUM_LOADING_TIME = 10000; // 10 seconds - force dismissal if React fails to mount
+const EXIT_ANIMATION_DURATION = 800; // Match the CSS transition duration for exit animation
+const OVERLAY_CLASS_VISIBLE = 'visible';
+const OVERLAY_CLASS_EXITING = 'exiting';
 
 /**
  * Initialize the startup overlay by making it visible.
@@ -34,9 +39,9 @@ export function initializeStartupOverlay(): void {
     isInitialized = true;
     
     // Ensure the visible class is present (may already be from HTML)
-    if (!overlay.classList.contains('visible')) {
+    if (!overlay.classList.contains(OVERLAY_CLASS_VISIBLE)) {
         requestAnimationFrame(() => {
-            overlay.classList.add('visible');
+            overlay.classList.add(OVERLAY_CLASS_VISIBLE);
         });
     }
 }
@@ -52,6 +57,12 @@ export function dismissStartupOverlay(): void {
         return;
     }
 
+    // Clear the safety timeout if it exists, since we're dismissing normally
+    if (safetyTimeoutId !== undefined) {
+        clearTimeout(safetyTimeoutId);
+        safetyTimeoutId = undefined;
+    }
+
     // Mark as initialized if not already (in case this is called before initializeStartupOverlay)
     if (!isInitialized) {
         isInitialized = true;
@@ -64,15 +75,15 @@ export function dismissStartupOverlay(): void {
     // Wait for minimum duration if needed
     setTimeout(() => {
         // Start exit animations
-        overlay.classList.add('exiting');
-        overlay.classList.remove('visible');
+        overlay.classList.add(OVERLAY_CLASS_EXITING);
+        overlay.classList.remove(OVERLAY_CLASS_VISIBLE);
 
         // Remove overlay from DOM after animations complete
         setTimeout(() => {
             if (overlay.parentNode) {
                 overlay.parentNode.removeChild(overlay);
             }
-        }, 800); // Match the CSS transition duration
+        }, EXIT_ANIMATION_DURATION);
     }, remainingTime);
 }
 
@@ -82,4 +93,20 @@ export function dismissStartupOverlay(): void {
 export function resetLoadingScreen(): void {
     overlayVisibleTime = Date.now();
     isInitialized = false;
+}
+
+/**
+ * Set up a safety timeout to ensure the overlay is dismissed even if React fails to mount.
+ * This prevents the loading screen from being stuck indefinitely.
+ * The timeout ID is stored internally and cleaned up automatically.
+ */
+export function setupSafetyTimeout(): void {
+    safetyTimeoutId = window.setTimeout(() => {
+        const overlay = document.getElementById('startup-overlay');
+        // Only dismiss if the overlay still exists and hasn't been removed yet
+        if (overlay && overlay.parentNode && !overlay.classList.contains(OVERLAY_CLASS_EXITING)) {
+            console.warn('Loading screen safety timeout triggered - forcing dismissal');
+            dismissStartupOverlay();
+        }
+    }, MAXIMUM_LOADING_TIME);
 }
