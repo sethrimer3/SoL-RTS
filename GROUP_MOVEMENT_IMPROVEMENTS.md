@@ -276,7 +276,7 @@ const weight = Math.pow(1 - normalizedDist, 3); // Cubic falloff
 - At 0.75m: weight = 0.125 (weak)
 - At 1.5m: weight = 0.0 (none)
 
-The cubic falloff (`x³`) provides:
+The cubic falloff `(1 - normalizedDistance)³` provides:
 - Strong separation when units are too close (prevents sticking)
 - Gentle separation at medium distances (prevents oscillations)
 - Natural tapering as units reach desired spacing

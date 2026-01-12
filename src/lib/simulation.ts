@@ -639,9 +639,9 @@ function calculateSeparation(unit: Unit, allUnits: Unit[]): Vector2 {
       // Calculate vector away from other unit
       const away = subtract(unit.position, other.position);
       
-      // Use smooth exponential-like falloff that never reaches zero
+      // Use smooth cubic falloff that provides continuous separation force
       // This prevents the "dead zone trap" while still being gentle at close range
-      // Formula: weight = (1 - (dist/radius))^3 gives strong force at close range
+      // Formula: weight = (1 - dist/radius)³ gives strong force at close range
       // but tapers off smoothly, preventing oscillations
       const normalizedDist = dist / SEPARATION_RADIUS;
       const weight = Math.pow(1 - normalizedDist, 3); // Cubic falloff for smooth, strong separation
