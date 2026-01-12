@@ -283,7 +283,7 @@ function drawCenteredSprite(
   rotation: number,
   tintColor: string,
   enableGlow: boolean,
-  showOutline: boolean = false,
+  showOutline: boolean,
 ): void {
   ctx.save();
   ctx.translate(center.x, center.y);
