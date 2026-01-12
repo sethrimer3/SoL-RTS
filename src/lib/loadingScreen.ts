@@ -101,12 +101,12 @@ export function resetLoadingScreen(): void {
  * The timeout ID is stored internally and cleaned up automatically.
  */
 export function setupSafetyTimeout(): void {
-    safetyTimeoutId = setTimeout(() => {
+    safetyTimeoutId = window.setTimeout(() => {
         const overlay = document.getElementById('startup-overlay');
         // Only dismiss if the overlay still exists and hasn't been removed yet
         if (overlay && overlay.parentNode && !overlay.classList.contains(OVERLAY_CLASS_EXITING)) {
             console.warn('Loading screen safety timeout triggered - forcing dismissal');
             dismissStartupOverlay();
         }
-    }, MAXIMUM_LOADING_TIME) as unknown as number;
+    }, MAXIMUM_LOADING_TIME);
 }
