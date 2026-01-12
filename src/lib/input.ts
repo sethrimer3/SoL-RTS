@@ -20,7 +20,7 @@ import {
   Vector2,
 } from './types';
 import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId, isVisibleToPlayer } from './gameUtils';
-import { screenToWorld, worldToScreen, zoomCamera } from './camera';
+import { screenToWorld, worldToScreen, zoomCamera, initializeCamera } from './camera';
 import { spawnUnit } from './simulation';
 import { soundManager } from './sound';
 import { applyFormation } from './formations';
@@ -42,7 +42,7 @@ interface TouchState {
 
 const touchStates = new Map<number, TouchState>();
 let mouseState: TouchState | null = null;
-let pinchState: { lastDistance: number } | null = null;
+let pinchState: { lastDistance: number; lastCenter: { x: number; y: number } } | null = null;
 
 const SWIPE_THRESHOLD_PX = 30;
 const TAP_TIME_MS = 300;
@@ -124,6 +124,21 @@ function getPinchDistance(touches: TouchList, rect: DOMRect): number {
   return Math.hypot(secondPos.x - firstPos.x, secondPos.y - firstPos.y);
 }
 
+// Calculate the center point between two touches in screen space
+function getTouchCenter(touches: TouchList, rect: DOMRect): { x: number; y: number } {
+  if (touches.length < 2) {
+    return { x: 0, y: 0 };
+  }
+  
+  const [firstTouch, secondTouch] = [touches[0], touches[1]];
+  const firstPos = transformCoordinates(firstTouch.clientX, firstTouch.clientY, rect);
+  const secondPos = transformCoordinates(secondTouch.clientX, secondTouch.clientY, rect);
+  return {
+    x: (firstPos.x + secondPos.x) / 2,
+    y: (firstPos.y + secondPos.y) / 2
+  };
+}
+
 function getViewportCenterX(): number {
   // Center split should match the letterboxed arena viewport
   const viewportOffset = getViewportOffset();
@@ -177,7 +192,11 @@ export function handleTouchStart(e: TouchEvent, state: GameState, canvas: HTMLCa
   
   // Initialize pinch tracking when a second touch begins
   if (e.touches.length >= 2) {
-    pinchState = { lastDistance: getPinchDistance(e.touches, rect) };
+    const center = getTouchCenter(e.touches, rect);
+    pinchState = { 
+      lastDistance: getPinchDistance(e.touches, rect),
+      lastCenter: center
+    };
   }
 }
 
@@ -187,13 +206,18 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
 
   const rect = canvas.getBoundingClientRect();
 
-  // Handle pinch-to-zoom when two fingers are active
+  // Handle pinch-to-zoom and two-finger pan when two fingers are active
   if (e.touches.length >= 2) {
     const pinchDistance = getPinchDistance(e.touches, rect);
+    const center = getTouchCenter(e.touches, rect);
     
     if (!pinchState) {
-      pinchState = { lastDistance: pinchDistance };
+      pinchState = { 
+        lastDistance: pinchDistance,
+        lastCenter: center
+      };
     } else {
+      // Handle pinch-to-zoom
       const distanceDelta = pinchDistance - pinchState.lastDistance;
       const zoomDelta = distanceDelta / 120;
       
@@ -201,7 +225,34 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
         zoomCamera(state, zoomDelta);
       }
       
+      // Handle two-finger pan
+      const centerDelta = {
+        x: center.x - pinchState.lastCenter.x,
+        y: center.y - pinchState.lastCenter.y
+      };
+      
+      // Convert screen pixels to world units for panning
+      // Negative delta because panning should move the camera opposite to finger movement
+      if (Math.abs(centerDelta.x) > 1 || Math.abs(centerDelta.y) > 1) {
+        if (!state.camera) {
+          initializeCamera(state);
+        }
+        
+        const worldDelta = screenToWorldPosition(state, canvas, center);
+        const worldLastCenter = screenToWorldPosition(state, canvas, pinchState.lastCenter);
+        const panDelta = {
+          x: worldDelta.x - worldLastCenter.x,
+          y: worldDelta.y - worldLastCenter.y
+        };
+        
+        if (state.camera) {
+          state.camera.targetOffset.x += panDelta.x;
+          state.camera.targetOffset.y += panDelta.y;
+        }
+      }
+      
       pinchState.lastDistance = pinchDistance;
+      pinchState.lastCenter = center;
     }
     
     return;
@@ -1312,7 +1363,12 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
     handleMiningDepotDrag(state, mouseState.touchedDepot, mouseState.touchedDepotPos, endWorldPos, playerIndex);
   } else if (mouseState.touchedBase && !mouseState.isDragging) {
     const base = mouseState.touchedBase;
-    if (base.isSelected) {
+    
+    // Check for double-click to deselect base
+    if (isDoubleTap(state, { x, y })) {
+      // Double-click: deselect the base
+      state.bases.forEach((b) => (b.isSelected = false));
+    } else if (base.isSelected) {
       base.isSelected = false;
     } else {
       state.bases.forEach((b) => (b.isSelected = false));

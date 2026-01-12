@@ -2226,6 +2226,8 @@ function updateUnits(state: GameState, deltaTime: number): void {
               unit.commandQueue.push({ type: 'move', position: depot.position });
               unit.miningState.atDepot = false;
             }
+            // Deselect this worker so other selected workers don't automatically follow
+            state.selectedUnits.delete(unit.id);
           }
         }
         
