@@ -259,7 +259,8 @@ const weight = (1 - normalizedDist) * (1 - normalizedDist); // Quadratic falloff
 // After:
 const SEPARATION_MIN_DISTANCE = 0.05; // Only to prevent division by zero
 const normalizedDist = dist / SEPARATION_RADIUS;
-const weight = Math.pow(1 - normalizedDist, 3); // Cubic falloff
+const base = 1 - normalizedDist;
+const weight = base * base * base; // Cubic falloff (optimized)
 ```
 
 **Benefits:**
