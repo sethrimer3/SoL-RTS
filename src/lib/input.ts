@@ -21,7 +21,7 @@ import {
   PIXELS_PER_METER,
 } from './types';
 import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId, isVisibleToPlayer, getViewportScale } from './gameUtils';
-import { screenToWorld, worldToScreen, zoomCamera, initializeCamera } from './camera';
+import { screenToWorld, worldToScreen, zoomCamera, zoomCameraAtPoint, initializeCamera } from './camera';
 import { spawnUnit } from './simulation';
 import { soundManager } from './sound';
 import { applyFormation } from './formations';
@@ -218,12 +218,14 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
         lastCenter: center
       };
     } else {
-      // Handle pinch-to-zoom
+      // Handle pinch-to-zoom - Make it much stronger and faster
       const distanceDelta = pinchDistance - pinchState.lastDistance;
-      const zoomDelta = distanceDelta / 120;
+      // Changed from /120 to /30 for 4x stronger zoom (faster and farther)
+      const zoomDelta = distanceDelta / 30;
       
       if (Math.abs(zoomDelta) > 0.01) {
-        zoomCamera(state, zoomDelta);
+        // Zoom at the pinch center point so it zooms where you're pinching
+        zoomCameraAtPoint(state, zoomDelta, center, canvas);
       }
       
       // Handle two-finger pan
