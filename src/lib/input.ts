@@ -1233,8 +1233,9 @@ function handlePathDrawingEnd(state: GameState, pathDrawing: { nearUnit: Unit; r
     if (state.settings.chessMode && state.chessMode) {
       state.chessMode.pendingCommands.set(unit.id, [{ type: 'follow-path', path: [...smoothed] }]);
     } else {
-      // Clear existing follow-path commands to ensure only one path at a time
-      unit.commandQueue = unit.commandQueue.filter(cmd => cmd.type !== 'follow-path');
+      // Clear existing movement commands (move, attack-move, patrol, follow-path) to ensure only one path at a time
+      // Keep ability commands as they are special actions that should be preserved
+      unit.commandQueue = unit.commandQueue.filter(cmd => cmd.type === 'ability');
       unit.commandQueue.push({ type: 'follow-path', path: [...smoothed] });
       startQueueDrawAnimation(unit);
     }
@@ -1249,8 +1250,9 @@ function handlePathDrawingEnd(state: GameState, pathDrawing: { nearUnit: Unit; r
         { type: 'follow-path', path: [...smoothed] }
       ]);
     } else {
-      // Clear existing follow-path commands to ensure only one path at a time
-      unit.commandQueue = unit.commandQueue.filter(cmd => cmd.type !== 'follow-path');
+      // Clear existing movement commands (move, attack-move, patrol, follow-path) to ensure only one path at a time
+      // Keep ability commands as they are special actions that should be preserved
+      unit.commandQueue = unit.commandQueue.filter(cmd => cmd.type === 'ability');
       // Add move to origin, then follow path
       unit.commandQueue.push({ type: 'move', position: pathOrigin });
       unit.commandQueue.push({ type: 'follow-path', path: [...smoothed] });
