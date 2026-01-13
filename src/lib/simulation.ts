@@ -807,7 +807,8 @@ function applyFlockingBehavior(unit: Unit, baseDirection: Vector2, allUnits: Uni
       // Flocking force has a backward component - project it to be perpendicular to base direction
       // This allows units to move sideways (to avoid each other) but prevents backward motion
       // Projection formula: proj_B(A) = (A · B̂) * B̂ where B̂ is normalized base direction
-      // perpendicular = flockingForce - projection
+      // When dot < 0, projection points backward (opposite to base direction)
+      // perpendicular = flockingForce - projection removes the backward component
       const projection = scale(normalizedBase, dot);
       flockingForce = subtract(flockingForce, projection);
       
