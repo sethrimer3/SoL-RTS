@@ -1,82 +1,78 @@
 # camera.ts
 
 ## Purpose
-Provides camera controls for zooming, panning, and coordinate conversions so gameplay can be centered and scaled consistently across devices.
+Defines the camera system for the game, including initialization, smooth zooming/panning, and coordinate transforms between world and screen space.
 
 ## Dependencies
 ### Imports
-- `./types` - GameState, Vector2, and rendering constants
-- `./gameUtils` - Viewport scale, viewport offset, and viewport dimensions
+- `./types` - GameState and world constants for camera calculations.
+- `./gameUtils` - Viewport scale, offsets, and arena sizing helpers.
 
 ### Used By
-- `App.tsx` - Updates camera each frame and applies zoom/pan controls
+- `src/App.tsx` - Initializes and updates the camera during the game loop.
+- `src/lib/renderer.ts` - Applies camera transforms during rendering.
 
 ## Key Components
 
-### initializeCamera(state: GameState): void
-- **Purpose:** Creates a default camera state when one is not present
-- **Notes:** Sets zoom, target zoom, offsets, and smoothing defaults
+### getMobileButtonBarHeight(state: GameState)
+- **Purpose:** Reserves pixel space for the mobile button action bar when in button mode.
+- **Returns:** Number of pixels to exclude from the visible playfield height.
+- **Notes:** Keeps the minimum zoom aligned with the area above the mobile controls.
 
-### updateCamera(state: GameState, deltaTime: number): void
-- **Purpose:** Smoothly interpolates camera position and zoom over time
-- **Notes:** Clamps zoom to safe min/max values
+### calculateMinZoom(state: GameState)
+- **Purpose:** Computes the smallest allowed zoom that keeps the full arena visible.
+- **Returns:** Minimum zoom factor based on viewport and arena dimensions.
+- **Notes:** Accounts for mobile UI chrome by shrinking the usable height.
 
-### zoomCamera(state: GameState, delta: number): void
-- **Purpose:** Adjusts target zoom based on input
-- **Notes:** Uses a constant speed multiplier and clamps to safe bounds
+### initializeCamera(state: GameState)
+- **Purpose:** Creates the camera state with initial offsets and zoom.
+- **Notes:** On mobile, starts at the minimum zoom so the arena clears the bottom controls.
 
-### panCamera(state: GameState, direction: Vector2, deltaTime: number): void
-- **Purpose:** Applies directional panning based on input
-- **Notes:** Uses meters per second for consistent movement
+### updateCamera(state: GameState, deltaTime: number)
+- **Purpose:** Smoothly interpolates zoom and offset toward targets.
+- **Notes:** Clamps zoom based on dynamic min zoom bounds each frame.
 
-### resetCamera(state: GameState): void
-- **Purpose:** Re-centers the camera and resets zoom
-- **Notes:** Useful for quick recovery from large pan/zoom adjustments
+### zoomCamera / zoomCameraAtPoint
+- **Purpose:** Adjusts target zoom with scroll or pinch gestures.
+- **Notes:** Pinch zoom keeps the pinch center stable in screen space.
 
-### focusCamera(state: GameState, position: Vector2): void
-- **Purpose:** Centers the camera on a world position
-- **Notes:** Converts the focus target into an offset in world space
+### panCamera(state: GameState, direction: Vector2, deltaTime: number)
+- **Purpose:** Shifts camera target offset based on movement input.
 
-### applyCameraTransform(ctx, state, canvas): void
-- **Purpose:** Applies camera transforms to the rendering context
-- **Notes:** Anchors transforms on the letterboxed arena viewport center
+### resetCamera(state: GameState)
+- **Purpose:** Returns camera to default offset and zoom.
 
-### screenToWorld(screenPos, state, canvas): Vector2
-- **Purpose:** Converts screen coordinates to world coordinates
-- **Notes:** Uses viewport center alignment so input stays consistent across aspect ratios
+### focusCamera(state: GameState, position: Vector2)
+- **Purpose:** Centers the camera on a given world position.
 
-### worldToScreen(worldPos, state, canvas): Vector2
-- **Purpose:** Converts world coordinates to screen coordinates
-- **Notes:** Uses viewport center alignment for camera-aware rendering
+### applyCameraTransform / removeCameraTransform
+- **Purpose:** Applies and restores canvas transforms for camera-aware rendering.
+
+### screenToWorld / worldToScreen
+- **Purpose:** Converts between screen and world coordinates respecting camera state.
 
 ## Terminology
-- **Viewport Offset:** Pixel offset that centers the arena within the canvas
-- **Target Zoom:** Desired zoom level interpolated toward over time
-- **Camera Offset:** Translation in world meters applied after zoom
+- **Viewport Scale:** Scaling factor that fits the arena within the current window size.
+- **Zoom:** Camera scale multiplier applied on top of the viewport scale.
+- **Offset:** Camera translation in world-space meters.
 
 ## Implementation Notes
-
 ### Critical Details
-- Camera transformations are centered on the arena viewport, not the full canvas
-- Zoom and pan are smoothed using linear interpolation
-- Screen/world conversions must account for viewport offset and scale
-- Falls back to canvas center if viewport dimensions have not been initialized yet
+- Minimum zoom is recalculated every frame to stay aligned with viewport changes.
+- Mobile button mode reserves UI height to keep the arena fully visible.
 
 ### Known Issues
-- None currently identified
+- None documented.
 
 ## Future Changes
-
 ### Planned
-- None currently scheduled
+- None documented.
 
 ### Needed
-- Consider constraining camera offset to keep the arena fully in view
+- Consider deriving UI reservation height from actual DOM measurements if layouts change.
 
 ## Change History
-- **2026-01-03**: Documented viewport-centered camera transforms and conversions
+- **2025-03-24:** Added mobile button bar reservation to the minimum zoom calculation.
 
 ## Watch Out For
-- Always call updateViewportScale() before relying on viewport dimensions
-- Camera offsets are in world meters, not pixels
-- Be consistent with viewport-centered conversions when adding new camera features
+- Keep zoom bounds in sync with any UI layout changes that affect the playfield size.
