@@ -11,15 +11,31 @@ const PAN_SPEED = 10; // meters per second
 const CAMERA_SMOOTHING = 0.15; // Lerp factor for smooth transitions
 
 /**
- * Calculate minimum zoom level to show the entire playing field
- * This ensures players can't zoom out beyond seeing the whole arena
+ * Estimate the pixel height reserved for the bottom action bar on mobile button mode.
+ * This keeps the zoom bounds aligned with the visible playfield above the controls.
  */
-function calculateMinZoom(): number {
+function getMobileButtonBarHeight(state: GameState): number {
+  // Only reserve space when the mobile button-based control mode is active.
+  if (!state.isMobile || state.settings.controlMode !== 'buttons') {
+    return 0;
+  }
+
+  // Mirror the button row sizing (70px buttons + padding) with a conservative buffer.
+  return 110;
+}
+
+/**
+ * Calculate minimum zoom level to show the entire playing field.
+ * This ensures players can't zoom out beyond seeing the whole arena.
+ */
+function calculateMinZoom(state: GameState): number {
   const viewportDimensions = getViewportDimensions();
   const arenaHeight = getArenaHeight();
+  const reservedHeight = getMobileButtonBarHeight(state);
+  const availableHeight = Math.max(0, viewportDimensions.height - reservedHeight);
   
-  if (viewportDimensions.width <= 0 || viewportDimensions.height <= 0) {
-    return 0.3; // Fallback value
+  if (viewportDimensions.width <= 0 || availableHeight <= 0) {
+    return MIN_ZOOM; // Fallback value
   }
   
   // Calculate the zoom level where the entire arena fits in the viewport
@@ -28,10 +44,10 @@ function calculateMinZoom(): number {
   const arenaHeightPixels = arenaHeight * PIXELS_PER_METER * getViewportScale();
   
   const zoomX = viewportDimensions.width / arenaWidthPixels;
-  const zoomY = viewportDimensions.height / arenaHeightPixels;
+  const zoomY = availableHeight / arenaHeightPixels;
   
   // Use the smaller zoom to ensure entire field is visible
-  return Math.max(0.3, Math.min(zoomX, zoomY));
+  return Math.max(MIN_ZOOM, Math.min(zoomX, zoomY));
 }
 
 const MIN_ZOOM = 0.3; // Absolute minimum fallback
@@ -43,8 +59,8 @@ const MAX_ZOOM = 3.0; // Allow zooming in really far as requested
  */
 export function initializeCamera(state: GameState): void {
   if (!state.camera) {
-    // On mobile, zoom out to 0.7x so the entire playing field fits above the button toolbar
-    const initialZoom = state.isMobile ? 0.7 : 1.0;
+    // On mobile, start zoomed out to the minimum allowed so the field clears the bottom controls.
+    const initialZoom = state.isMobile ? calculateMinZoom(state) : 1.0;
     
     state.camera = {
       offset: { x: 0, y: 0 },
@@ -67,7 +83,7 @@ export function updateCamera(state: GameState, deltaTime: number): void {
   state.camera.zoom += zoomDiff * state.camera.smoothing;
 
   // Clamp zoom to valid range (recalculate min zoom for dynamic bounds)
-  const minZoom = calculateMinZoom();
+  const minZoom = calculateMinZoom(state);
   state.camera.zoom = Math.max(minZoom, Math.min(MAX_ZOOM, state.camera.zoom));
   state.camera.targetZoom = Math.max(minZoom, Math.min(MAX_ZOOM, state.camera.targetZoom));
 
@@ -87,7 +103,7 @@ export function zoomCamera(state: GameState, delta: number): void {
     initializeCamera(state);
   }
   
-  const minZoom = calculateMinZoom();
+  const minZoom = calculateMinZoom(state);
   state.camera!.targetZoom += delta * ZOOM_SPEED;
   state.camera!.targetZoom = Math.max(minZoom, Math.min(MAX_ZOOM, state.camera!.targetZoom));
 }
@@ -105,7 +121,7 @@ export function zoomCameraAtPoint(state: GameState, delta: number, screenPoint: 
   const oldZoom = camera.targetZoom;
   
   // Calculate new zoom level
-  const minZoom = calculateMinZoom();
+  const minZoom = calculateMinZoom(state);
   const newZoom = Math.max(minZoom, Math.min(MAX_ZOOM, oldZoom + delta * ZOOM_SPEED));
   
   if (newZoom === oldZoom) return; // No zoom change
