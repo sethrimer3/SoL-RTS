@@ -753,6 +753,23 @@ function calculateAlignment(unit: Unit, allUnits: Unit[], currentDirection: Vect
 }
 
 /**
+ * Helper function to clamp a force vector to a maximum magnitude
+ * @param force - The force vector to clamp
+ * @param maxMagnitude - Maximum allowed magnitude
+ * @returns Clamped force vector and its magnitude
+ */
+function clampForce(force: Vector2, maxMagnitude: number): { force: Vector2; magnitude: number } {
+  const magnitude = distance({ x: 0, y: 0 }, force);
+  if (magnitude > maxMagnitude) {
+    return {
+      force: scale(normalize(force), maxMagnitude),
+      magnitude: maxMagnitude
+    };
+  }
+  return { force, magnitude };
+}
+
+/**
  * Apply flocking forces to a movement direction for smooth group movement
  * @param unit - The unit to apply flocking to
  * @param baseDirection - The base movement direction (toward target)
@@ -771,10 +788,34 @@ function applyFlockingBehavior(unit: Unit, baseDirection: Vector2, allUnits: Uni
   flockingForce = add(flockingForce, cohesion);
   flockingForce = add(flockingForce, alignment);
   
-  // Clamp flocking force to max magnitude before smoothing
-  const forceMagnitude = distance({ x: 0, y: 0 }, flockingForce);
-  if (forceMagnitude > FLOCKING_MAX_FORCE) {
-    flockingForce = scale(normalize(flockingForce), FLOCKING_MAX_FORCE);
+  // Clamp flocking force to max magnitude
+  let clampResult = clampForce(flockingForce, FLOCKING_MAX_FORCE);
+  flockingForce = clampResult.force;
+  
+  // Prevent flocking forces from pushing units backward relative to their movement direction
+  // This fixes the bug where units in large groups start moving backward
+  // Ensure base direction is not zero before attempting projection
+  const baseMagnitude = distance({ x: 0, y: 0 }, baseDirection);
+  if (baseMagnitude > MIN_FORCE_THRESHOLD) {
+    // Normalize base direction for accurate projection math
+    const normalizedBase = normalize(baseDirection);
+    
+    // Calculate dot product to check if flocking force opposes base direction
+    const dot = flockingForce.x * normalizedBase.x + flockingForce.y * normalizedBase.y;
+    // Only apply projection if force is significant and pointing backward
+    if (dot < 0 && clampResult.magnitude > MIN_FORCE_THRESHOLD) {
+      // Flocking force has a backward component - project it to be perpendicular to base direction
+      // This allows units to move sideways (to avoid each other) but prevents backward motion
+      // Projection formula: proj_B(A) = (A · B̂) * B̂ where B̂ is normalized base direction
+      // When dot < 0, projection points backward (opposite to base direction)
+      // perpendicular = flockingForce - projection removes the backward component
+      const projection = scale(normalizedBase, dot);
+      flockingForce = subtract(flockingForce, projection);
+      
+      // Re-clamp after projection
+      clampResult = clampForce(flockingForce, FLOCKING_MAX_FORCE);
+      flockingForce = clampResult.force;
+    }
   }
   
   // Apply force smoothing to prevent oscillations
