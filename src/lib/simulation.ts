@@ -777,6 +777,25 @@ function applyFlockingBehavior(unit: Unit, baseDirection: Vector2, allUnits: Uni
     flockingForce = scale(normalize(flockingForce), FLOCKING_MAX_FORCE);
   }
   
+  // Prevent flocking forces from pushing units backward relative to their movement direction
+  // This fixes the bug where units in large groups start moving backward
+  // Calculate dot product to check if flocking force opposes base direction
+  const dot = flockingForce.x * baseDirection.x + flockingForce.y * baseDirection.y;
+  if (dot < 0 && forceMagnitude > MIN_FORCE_THRESHOLD) {
+    // Flocking force has a backward component - project it to be perpendicular to base direction
+    // This allows units to move sideways (to avoid each other) but prevents backward motion
+    // perpendicular = flockingForce - (dot * baseDirection)
+    const projectionScale = dot; // How much force is in the base direction
+    const projection = scale(baseDirection, projectionScale);
+    flockingForce = subtract(flockingForce, projection);
+    
+    // Re-clamp after projection
+    const newMagnitude = distance({ x: 0, y: 0 }, flockingForce);
+    if (newMagnitude > FLOCKING_MAX_FORCE) {
+      flockingForce = scale(normalize(flockingForce), FLOCKING_MAX_FORCE);
+    }
+  }
+  
   // Apply force smoothing to prevent oscillations
   if (unit.previousFlockingForce) {
     // Blend previous force with current force for smooth transitions
