@@ -1202,7 +1202,17 @@ function startQueueDrawAnimation(unit: Unit): void {
   unit.queueDrawReverse = false;
 }
 
+// Helper function to filter command queue to keep only ability commands
+// Used when drawing a new path to clear all movement commands (move, attack-move, patrol, follow-path)
+function keepOnlyAbilityCommands(unit: Unit): void {
+  unit.commandQueue = unit.commandQueue.filter(cmd => cmd.type === 'ability');
+}
+
 // Helper function to handle path drawing end and assign path to units
+// Note: Path drawing replaces existing movement commands (not queued)
+// This is different from other movement commands which queue up to QUEUE_MAX_LENGTH
+// Clears: move, attack-move, patrol, follow-path (preserves ability commands)
+// This ensures only one drawn path exists per unit at any time
 function handlePathDrawingEnd(state: GameState, pathDrawing: { nearUnit: Unit; rawPath: Vector2[] }): void {
   const selectedUnitsArray = state.units.filter(unit => state.selectedUnits.has(unit.id));
   
@@ -1229,12 +1239,12 @@ function handlePathDrawingEnd(state: GameState, pathDrawing: { nearUnit: Unit; r
   
   // Units near the path get the path directly
   nearUnits.forEach(unit => {
-    if (unit.commandQueue.length >= QUEUE_MAX_LENGTH) return;
-    
     // In chess mode, add to pending commands instead of immediate queue
     if (state.settings.chessMode && state.chessMode) {
       state.chessMode.pendingCommands.set(unit.id, [{ type: 'follow-path', path: [...smoothed] }]);
     } else {
+      // Replace existing movement commands with new path
+      keepOnlyAbilityCommands(unit);
       unit.commandQueue.push({ type: 'follow-path', path: [...smoothed] });
       startQueueDrawAnimation(unit);
     }
@@ -1242,8 +1252,6 @@ function handlePathDrawingEnd(state: GameState, pathDrawing: { nearUnit: Unit; r
   
   // Far units first move toward the path origin, then follow the path
   farUnits.forEach(unit => {
-    if (unit.commandQueue.length >= QUEUE_MAX_LENGTH) return;
-    
     // In chess mode, add to pending commands instead of immediate queue
     if (state.settings.chessMode && state.chessMode) {
       state.chessMode.pendingCommands.set(unit.id, [
@@ -1251,7 +1259,8 @@ function handlePathDrawingEnd(state: GameState, pathDrawing: { nearUnit: Unit; r
         { type: 'follow-path', path: [...smoothed] }
       ]);
     } else {
-      // Add move to origin, then follow path
+      // Replace existing movement commands with move-to-origin + path
+      keepOnlyAbilityCommands(unit);
       unit.commandQueue.push({ type: 'move', position: pathOrigin });
       unit.commandQueue.push({ type: 'follow-path', path: [...smoothed] });
       startQueueDrawAnimation(unit);
