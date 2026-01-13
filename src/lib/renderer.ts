@@ -4138,8 +4138,6 @@ function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState
     }
   });
 }
-  });
-}
 
 function drawAbilityRangeIndicators(ctx: CanvasRenderingContext2D, state: GameState): void {
   // Only draw for selected player units.
