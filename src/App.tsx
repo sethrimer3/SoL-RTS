@@ -1728,7 +1728,7 @@ function App() {
                 <div className="flex flex-col gap-4 w-80 max-w-[90vw] my-auto">
                 <div className="flex justify-center mb-4 animate-in fade-in zoom-in-95 duration-700">
                   <img 
-                    src={`${assetBaseUrl}ASSETS/sprites/menus/mainMenuTitle.png`} 
+                    src={`${assetBaseUrl}ASSETS/sprites/menus/mainMenuTitle.svg`} 
                     alt="Speed of Light RTS"
                     className="w-full max-w-md neon-glow"
                     style={{

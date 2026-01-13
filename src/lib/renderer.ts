@@ -95,14 +95,14 @@ const radiantBaseSpritePaths: Partial<Record<BaseType, string>> = {
   defense: `${assetBaseUrl}ASSETS/sprites/factions/radiant/bases/radiantBaseAdvanced.svg`,
 };
 const radiantMiningDroneSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/radiant/mining/radiantMiningDrone.svg`;
-const radiantMiningDepotSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/radiant/mining/miningDepot.png`;
-const radiantResourceDepositSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/radiant/mining/resourceDeposit.png`;
+const radiantMiningDepotSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/radiant/mining/miningDepot.svg`;
+const radiantResourceDepositSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/radiant/mining/resourceDeposit.svg`;
 
-// Aurum faction mining sprites
+// Aurum faction mining sprites (no SVG versions available, using PNG)
 const aurumMiningDroneSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/aurum/mining/aurumMiningDrone.png`;
 const aurumMiningDepotSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/aurum/mining/aurumMiningDepot.png`;
 
-// Solari faction mining sprites
+// Solari faction mining sprites (no SVG versions available, using PNG)
 const solariMiningDroneSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/solari/mining/solariMiningDrone.png`;
 const solariMiningDepotSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/solari/mining/solariMiningDepot.png`;
 const solariResourceDepositSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/solari/mining/solariResource.png`;
@@ -4130,106 +4130,14 @@ function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: str
 }
 
 function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState): void {
-  const time = Date.now() / 1000;
-  const now = Date.now();
-  
+  // Selection indicators disabled - units no longer show glowing boxes when selected
+  // Clear any existing selection rings
   state.units.forEach((unit) => {
-    if (!state.selectedUnits.has(unit.id)) {
-      // Clear selection ring if unit is deselected
+    if (unit.selectionRing) {
       delete unit.selectionRing;
-      return;
     }
-    
-    // Initialize selection ring animation if newly selected
-    if (!unit.selectionRing) {
-      unit.selectionRing = { startTime: now };
-    }
-
-    const screenPos = positionToPixels(unit.position);
-    const baseRadius = metersToPixels(UNIT_SIZE_METERS / 2) + 4;
-    const color = state.players[unit.owner].color;
-
-    // Animated pulsing effect
-    const pulse = Math.sin(time * 3) * 0.2 + 0.8; // Pulse between 0.6 and 1.0
-    const radius = baseRadius * (1 + pulse * 0.15); // Pulse size slightly
-
-    ctx.save();
-    
-    // Draw expanding selection ring on initial selection (first 0.5 seconds)
-    const selectionAge = (now - unit.selectionRing.startTime) / 1000;
-    if (selectionAge < 0.5) {
-      const expandProgress = selectionAge / 0.5;
-      const expandRadius = baseRadius + expandProgress * baseRadius * 1.2;
-      const expandAlpha = 1 - expandProgress;
-      
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      ctx.globalAlpha = expandAlpha * 0.6;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 20;
-      
-      ctx.beginPath();
-      ctx.arc(screenPos.x, screenPos.y, expandRadius, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    
-    // Draw outer rotating ring
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.3;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 12;
-    ctx.setLineDash([8, 8]);
-    ctx.lineDashOffset = time * 20; // Rotate clockwise
-    
-    ctx.beginPath();
-    ctx.arc(screenPos.x, screenPos.y, radius + 6, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // Draw outer glow ring
-    ctx.lineWidth = 3;
-    ctx.globalAlpha = pulse * 0.4;
-    ctx.shadowBlur = 15;
-    ctx.setLineDash([]);
-    
-    ctx.beginPath();
-    ctx.arc(screenPos.x, screenPos.y, radius + 3, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Draw main selection ring
-    ctx.globalAlpha = 1;
-    ctx.lineWidth = 2;
-    ctx.shadowBlur = 10;
-    ctx.setLineDash([4, 4]);
-    ctx.lineDashOffset = -time * 10; // Animate dash counter-clockwise
-    
-    ctx.beginPath();
-    ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // Draw corner markers for a more tactical look
-    ctx.setLineDash([]);
-    ctx.lineWidth = 2;
-    ctx.shadowBlur = 8;
-    const markerSize = 6;
-    const markerDist = radius + 2;
-    
-    // Draw 4 corner brackets that rotate slightly
-    for (let i = 0; i < 4; i++) {
-      const angle = (i * Math.PI / 2) + Math.PI / 4 + Math.sin(time * 2) * 0.05;
-      const x = screenPos.x + Math.cos(angle) * markerDist;
-      const y = screenPos.y + Math.sin(angle) * markerDist;
-      
-      // Draw bracket with enhanced glow
-      ctx.globalAlpha = 0.8 + pulse * 0.2;
-      ctx.beginPath();
-      ctx.moveTo(x - markerSize * Math.cos(angle - Math.PI / 4), y - markerSize * Math.sin(angle - Math.PI / 4));
-      ctx.lineTo(x, y);
-      ctx.lineTo(x - markerSize * Math.cos(angle + Math.PI / 4), y - markerSize * Math.sin(angle + Math.PI / 4));
-      ctx.stroke();
-    }
-
-    ctx.restore();
+  });
+}
   });
 }
 
