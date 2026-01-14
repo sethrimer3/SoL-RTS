@@ -41,4 +41,4 @@ If you see errors about missing commands, make sure you've run `npm install` fir
 
 ### Spark authentication errors in console
 
-The game uses GitHub Spark for optional user authentication. If you see "Failed to fetch user data" errors in the browser console, this is expected in local development and the game will work fine with a generated user ID.
+The game optionally uses GitHub Spark (https://githubnext.com/projects/spark) for cloud features like user authentication and online multiplayer. If you see "Failed to fetch user data" errors in the browser console during local development, this is expected behavior. The game automatically falls back to using a locally generated user ID, and all features will work normally in single-player and local modes.

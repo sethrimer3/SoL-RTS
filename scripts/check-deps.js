@@ -14,7 +14,8 @@ const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
 const nodeModulesPath = join(projectRoot, 'node_modules');
 
-// ANSI color codes: \x1b[31m = red, \x1b[33m = yellow, \x1b[32m = green, \x1b[0m = reset
+// ANSI color codes for terminal output: 
+// \x1b[31m = red (errors), \x1b[33m = yellow (warnings), \x1b[32m = green (success), \x1b[0m = reset
 if (!existsSync(nodeModulesPath)) {
   console.error('\x1b[31m%s\x1b[0m', '❌ Error: node_modules directory not found!');
   console.error('\x1b[33m%s\x1b[0m', '⚠️  Please run "npm install" first to install dependencies.');
