@@ -298,12 +298,16 @@ function drawCenteredSprite(
     const outlineWidth = 1.5; // Thin stroke width
     const whiteSprite = getWhiteOutlineSprite(tintedSprite, sprite, tintColor);
     
-    // Draw white outline in 8 directions for a smooth outline
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const offsetX = Math.cos(angle) * outlineWidth;
-      const offsetY = Math.sin(angle) * outlineWidth;
-      ctx.drawImage(whiteSprite, -size / 2 + offsetX, -size / 2 + offsetY, size, size);
+    // Draw white outline in 4 cardinal directions (optimized from 8 for performance)
+    const offsets = [
+      { x: -outlineWidth, y: 0 },
+      { x: outlineWidth, y: 0 },
+      { x: 0, y: -outlineWidth },
+      { x: 0, y: outlineWidth },
+    ];
+    
+    for (const offset of offsets) {
+      ctx.drawImage(whiteSprite, -size / 2 + offset.x, -size / 2 + offset.y, size, size);
     }
   }
   
