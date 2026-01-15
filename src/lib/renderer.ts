@@ -1419,7 +1419,7 @@ function drawMiningDepots(ctx: CanvasRenderingContext2D, state: GameState): void
       depositSprite = radiantDepositSprite;
     } else if (faction === 'aurum') {
       depotSprite = aurumDepotSprite;
-      depositSprite = null; // Aurum doesn't have deposit sprites
+      depositSprite = null; // Aurum doesn't have separate deposit sprites (deposits use fallback rendering)
     } else if (faction === 'solari') {
       depotSprite = solariDepotSprite;
       depositSprite = solariDepositSprite;
