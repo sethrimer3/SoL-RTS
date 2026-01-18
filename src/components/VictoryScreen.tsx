@@ -110,15 +110,20 @@ export function VictoryScreen({ gameState, onContinue, onRematch }: VictoryScree
                 {stats.map((stat, index) => (
                   <div
                     key={stat.label}
-                    className={`flex justify-between items-center px-4 py-2 rounded-md bg-secondary/30 transition-all duration-300 ${
-                      index < visibleStats ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
+                    className={`flex justify-between items-center px-4 py-2 rounded-md bg-secondary/30 border border-primary/10 transition-all duration-500 ${
+                      index < visibleStats 
+                        ? 'opacity-100 translate-x-0 scale-100' 
+                        : 'opacity-0 -translate-x-8 scale-95'
                     }`}
                     style={{
-                      transitionDelay: `${index * 50}ms`
+                      transitionDelay: `${index * 50}ms`,
+                      boxShadow: index < visibleStats ? '0 0 10px rgba(var(--primary), 0.1)' : 'none',
                     }}
                   >
-                    <span className="text-sm font-medium">{stat.label}</span>
-                    <span className="text-lg font-bold orbitron">{stat.value}</span>
+                    <span className="text-sm font-medium text-muted-foreground">{stat.label}</span>
+                    <span className="text-lg font-bold orbitron text-primary drop-shadow-[0_0_4px_currentColor]">
+                      {stat.value}
+                    </span>
                   </div>
                 ))}
               </div>

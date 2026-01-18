@@ -26,6 +26,7 @@ import {
   ARENA_HEIGHT_METERS,
   Floater,
   FOG_OF_WAR_VISION_RANGE,
+  PIXELS_PER_METER,
 } from './types';
 import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract, getViewportOffset, getViewportDimensions, getArenaHeight, getPlayfieldRotationRadians, isVisibleToPlayer } from './gameUtils';
 import { applyCameraTransform, removeCameraTransform, worldToScreen } from './camera';
@@ -118,6 +119,10 @@ const compositedOutlineSpriteCache = new Map<string, HTMLCanvasElement>();
 
 // Cache key separator - using null byte as it cannot appear in URLs
 const CACHE_KEY_SEPARATOR = '\0';
+
+// Visual effect constants
+const DAMAGE_FLASH_DURATION = 0.15; // seconds for damage flash effect on units
+const DAMAGE_FLASH_RADIUS_SCALE = 0.3; // scale increase for flash radius expansion
 
 // Outline offset directions for creating sprite outlines (4 cardinal directions)
 const OUTLINE_OFFSET_DIRECTIONS = [
@@ -3320,6 +3325,25 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.globalAlpha = 0.3;
     }
 
+    // Apply damage flash effect
+    if (unit.damageFlash && Date.now() < unit.damageFlash.endTime) {
+      const flashProgress = 1 - (unit.damageFlash.endTime - Date.now()) / (DAMAGE_FLASH_DURATION * 1000);
+      // Flash starts bright and fades out
+      const flashAlpha = 1 - flashProgress;
+      
+      // Draw bright flash layer
+      ctx.save();
+      ctx.globalAlpha = flashAlpha * 0.6;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 20;
+      const flashRadius = UNIT_SIZE_METERS * PIXELS_PER_METER * 0.7;
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, flashRadius * (1 + flashProgress * DAMAGE_FLASH_RADIUS_SCALE), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
     ctx.save();
     ctx.fillStyle = color;
     ctx.strokeStyle = color;
@@ -4272,12 +4296,41 @@ function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: str
 }
 
 function drawSelectionIndicators(ctx: CanvasRenderingContext2D, state: GameState): void {
-  // Selection indicators disabled - units no longer show glowing boxes when selected
-  // Clear any existing selection rings
-  state.units.forEach((unit) => {
-    if (unit.selectionRing) {
-      delete unit.selectionRing;
-    }
+  const time = Date.now() / 1000;
+  const selectedUnits = Array.from(state.selectedUnits)
+    .map(id => state.units.find(u => u.id === id))
+    .filter(u => u) as Unit[];
+  
+  selectedUnits.forEach(unit => {
+    const screenPos = positionToPixels(unit.position);
+    const radius = UNIT_SIZE_METERS * PIXELS_PER_METER * 0.7;
+    
+    // Pulsing animation for selected units
+    const pulse = 0.8 + Math.sin(time * 3) * 0.2; // Pulses between 0.6 and 1.0
+    
+    ctx.save();
+    
+    // Draw glowing selection ring
+    const color = unit.owner === 0 ? state.players[0].color : state.players[1].color;
+    
+    // Outer glow
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3 * pulse;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 15 * pulse;
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Inner ring
+    ctx.lineWidth = 1.5;
+    ctx.shadowBlur = 8;
+    ctx.globalAlpha = 0.6 * pulse;
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, radius - 4, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    ctx.restore();
   });
 }
 
@@ -5944,7 +5997,8 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
     ctx.shadowBlur = 0;
   });
   
-  // Draw units with slight glow
+  // Draw units with pulsing glow
+  const unitPulse = Math.sin(time * 4) * 0.3 + 0.7; // Faster pulse for units
   state.units.forEach(unit => {
     // Hide cloaked enemy units from the player's minimap view.
     if (unit.cloaked && unit.owner !== 0) {
@@ -5954,8 +6008,17 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
     const pos = toMinimapPos(unit.position);
     const color = state.players[unit.owner].color;
     
+    // Draw outer glow
     ctx.fillStyle = color;
     ctx.shadowColor = color;
+    ctx.shadowBlur = 5 * unitPulse;
+    ctx.globalAlpha = 0.4 * unitPulse;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, MINIMAP_UNIT_SIZE * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw unit dot
+    ctx.globalAlpha = 1;
     ctx.shadowBlur = 3;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, MINIMAP_UNIT_SIZE, 0, Math.PI * 2);

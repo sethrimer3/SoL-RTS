@@ -118,6 +118,15 @@ canvas {
   }
 }
 
+@keyframes gradient-shift {
+  0%, 100% { 
+    transform: translate(-10%, -10%) rotate(0deg); 
+  }
+  50% { 
+    transform: translate(10%, 10%) rotate(180deg); 
+  }
+}
+
 @keyframes float {
   0%, 100% {
     transform: translateY(0px);

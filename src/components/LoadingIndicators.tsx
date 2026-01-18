@@ -43,17 +43,25 @@ interface LoadingOverlayProps {
 
 export function LoadingOverlay({ message = 'Loading...', progress }: LoadingOverlayProps) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-background/95 backdrop-blur-sm z-50 animate-in fade-in duration-300">
-      <div className="text-center space-y-4">
+    <div className="absolute inset-0 flex items-center justify-center bg-background/95 backdrop-blur-sm z-50 animate-in fade-in duration-300 overflow-hidden">
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-transparent to-secondary/30 animate-pulse" />
+        <div 
+          className="absolute inset-0 bg-gradient-to-tr from-transparent via-primary/20 to-transparent animate-[gradient-shift_3s_ease-in-out_infinite]"
+        />
+      </div>
+      
+      <div className="relative text-center space-y-4">
         <LoadingSpinner size="lg" />
         <div className="space-y-2">
-          <p className="text-lg font-semibold orbitron uppercase tracking-wider text-primary">
+          <p className="text-lg font-semibold orbitron uppercase tracking-wider text-primary drop-shadow-[0_0_8px_currentColor]">
             {message}
           </p>
           {progress !== undefined && (
-            <div className="w-64 h-2 bg-muted rounded-full overflow-hidden">
+            <div className="w-64 h-2 bg-muted/50 rounded-full overflow-hidden border border-primary/20">
               <div
-                className="h-full bg-primary transition-all duration-300"
+                className="h-full bg-gradient-to-r from-primary via-primary/80 to-primary transition-all duration-300 shadow-[0_0_8px_currentColor]"
                 style={{ width: `${progress}%` }}
               />
             </div>

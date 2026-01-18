@@ -2,7 +2,7 @@
  * Multiplayer game integration - handles command synchronization between players
  */
 
-import { GameState, CommandNode, Unit, LASER_RANGE, LASER_WIDTH, LASER_DAMAGE_UNIT, LASER_DAMAGE_BASE, LASER_COOLDOWN, BASE_SIZE_METERS, UnitType, UNIT_DEFINITIONS, UNIT_SIZE_METERS } from './types';
+import { GameState, CommandNode, Unit, LASER_RANGE, LASER_WIDTH, LASER_DAMAGE_UNIT, LASER_DAMAGE_BASE, LASER_COOLDOWN, BASE_SIZE_METERS, UnitType, UNIT_DEFINITIONS, UNIT_SIZE_METERS, DEBUG_MODE } from './types';
 import { MultiplayerManager, GameCommand } from './multiplayer';
 import { spawnUnit } from './simulation';
 import { applyFormation } from './formations';
@@ -321,13 +321,13 @@ export async function updateMultiplayerSync(
     // Update network status - successfully connected
     if (!wasConnected) {
       // Reconnected after being disconnected
-      console.log('Reconnected to multiplayer backend');
+      if (DEBUG_MODE) console.log('Reconnected to multiplayer backend');
     }
     state.networkStatus.connected = true;
     state.networkStatus.lastSync = now;
     state.networkStatus.latency = Date.now() - syncStart;
   } catch (error) {
-    console.warn('Error fetching opponent commands:', error);
+    if (DEBUG_MODE) console.warn('Error fetching opponent commands:', error);
     
     // Mark as disconnected
     state.networkStatus.connected = false;
@@ -367,6 +367,6 @@ export async function syncGameState(
       winner: state.winner,
     });
   } catch (error) {
-    console.warn('Error syncing game state:', error);
+    if (DEBUG_MODE) console.warn('Error syncing game state:', error);
   }
 }

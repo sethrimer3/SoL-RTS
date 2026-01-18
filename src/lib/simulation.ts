@@ -221,6 +221,7 @@ const IMPACT_EFFECT_DURATION = 0.5; // seconds for impact ring animation
 const IMPACT_EFFECT_CLEANUP_TIME = 1.0; // seconds before old effects are removed
 const DAMAGE_NUMBER_DURATION = 0.8; // seconds for damage number animation
 const DAMAGE_NUMBER_CLEANUP_TIME = 1.0; // seconds before old numbers are removed
+const DAMAGE_FLASH_DURATION = 0.15; // seconds for damage flash effect on units
 const SCREEN_SHAKE_BASE_DAMAGE = 10; // base damage divisor for shake intensity
 const SCREEN_SHAKE_MAX_INTENSITY = 8; // maximum shake intensity
 const SCREEN_SHAKE_DURATION_SHORT = 0.2; // seconds for unit death shakes
@@ -239,6 +240,13 @@ const STUCK_TIMEOUT = 2.5; // Seconds before a stuck unit cancels its command qu
 export const QUEUE_FADE_DURATION = 1.0; // Seconds for command queue fade animation
 export const QUEUE_DRAW_DURATION = 0.5; // Seconds for command queue draw-in animation
 export const QUEUE_UNDRAW_DURATION = 0.5; // Seconds for command queue reverse un-draw animation
+
+/**
+ * Applies a damage flash effect to a unit
+ */
+function applyDamageFlash(unit: Unit): void {
+  unit.damageFlash = { endTime: Date.now() + DAMAGE_FLASH_DURATION * 1000 };
+}
 
 /**
  * Derives the playable arena bounds from boundary obstacles.
@@ -1273,6 +1281,7 @@ function applyInstantMarineHit(state: GameState, unit: Unit, target: Unit | Base
     const finalDamage = calculateDamageWithArmor(baseDamage, targetUnit.armor, false, targetDef.modifiers) * shieldMultiplier;
 
     targetUnit.hp -= finalDamage;
+    applyDamageFlash(targetUnit);
     createDamageNumber(state, impactPosition, finalDamage, color);
     createHitSparks(state, impactPosition, color, 6);
     // Spawn ricochet bullets on every marine hit to keep the impact visible.
