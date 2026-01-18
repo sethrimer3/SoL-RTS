@@ -4504,7 +4504,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.font = '12px Space Mono, monospace';
     const netStatus = state.networkStatus;
     const statusColor = netStatus.connected ? 'oklch(0.70 0.20 140)' : 'oklch(0.62 0.28 25)';
-    const timeSinceSync = Date.now() - netStatus.lastSync;
+    const timeSinceSync = netStatus.lastSync ? Date.now() - netStatus.lastSync : Infinity;
     
     // Show warning if sync is stale (> 5 seconds)
     const isStale = timeSinceSync > 5000;
@@ -4553,9 +4553,11 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
             .slice(0, 3) // Show top 3 unit types
             .map(([type, count]) => {
               const def = UNIT_DEFINITIONS[type as UnitType];
+              if (!def || !def.name) return null;
               const shortName = def.name.substring(0, 3).toUpperCase();
               return `${shortName}:${count}`;
             })
+            .filter(entry => entry !== null)
             .join(' ');
           
           ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
