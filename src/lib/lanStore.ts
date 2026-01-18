@@ -1,5 +1,6 @@
 import Peer, { DataConnection } from 'peerjs';
 import { RealtimeKVStore } from './realtimeStore';
+import { DEBUG_MODE } from './types';
 
 // Timeout for peer-to-peer requests
 const P2P_REQUEST_TIMEOUT_MS = 5000;
@@ -82,12 +83,12 @@ export class LANKVStore implements RealtimeKVStore {
           clearTimeout(timeout);
           this.peerId = id;
           this.connected = true;
-          console.log('LAN Host initialized with peer ID:', id);
+          if (DEBUG_MODE) console.log('LAN Host initialized with peer ID:', id);
           resolve(id);
         });
 
         this.peer.on('connection', (conn) => {
-          console.log('Guest connected:', conn.peer);
+          if (DEBUG_MODE) console.log('Guest connected:', conn.peer);
           this.connection = conn;
           this.setupConnectionHandlers(conn);
         });
@@ -141,7 +142,7 @@ export class LANKVStore implements RealtimeKVStore {
 
         this.peer.on('open', (id) => {
           this.peerId = id;
-          console.log('LAN Guest initialized with peer ID:', id);
+          if (DEBUG_MODE) console.log('LAN Guest initialized with peer ID:', id);
           
           // Connect to host
           const conn = this.peer!.connect(hostPeerId, { reliable: true });
@@ -152,7 +153,7 @@ export class LANKVStore implements RealtimeKVStore {
           conn.on('open', () => {
             clearTimeout(timeout);
             this.connected = true;
-            console.log('Connected to host:', hostPeerId);
+            if (DEBUG_MODE) console.log('Connected to host:', hostPeerId);
             resolve();
           });
 
@@ -235,7 +236,7 @@ export class LANKVStore implements RealtimeKVStore {
     });
 
     conn.on('close', () => {
-      console.log('Connection closed');
+      if (DEBUG_MODE) console.log('Connection closed');
       this.connected = false;
     });
 
@@ -458,7 +459,7 @@ export class LANKVStore implements RealtimeKVStore {
         if (tempPeer) {
           tempPeer.destroy();
         }
-        console.log('Game discovery completed, found', games.length, 'games');
+        if (DEBUG_MODE) console.log('Game discovery completed, found', games.length, 'games');
         resolve(games);
       }, 5000); // 5 second timeout for discovery
 
@@ -473,15 +474,15 @@ export class LANKVStore implements RealtimeKVStore {
         });
 
         tempPeer.on('open', () => {
-          console.log('Discovery peer opened, listing all peers...');
+          if (DEBUG_MODE) console.log('Discovery peer opened, listing all peers...');
           
           // List all peers on the server
           tempPeer!.listAllPeers((peerIds: string[]) => {
-            console.log('Found', peerIds.length, 'total peers');
+            if (DEBUG_MODE) console.log('Found', peerIds.length, 'total peers');
             
             // Filter for game host peers
             const hostPeerIds = peerIds.filter(id => id.startsWith(GAME_HOST_PREFIX));
-            console.log('Found', hostPeerIds.length, 'game hosts');
+            if (DEBUG_MODE) console.log('Found', hostPeerIds.length, 'game hosts');
             
             if (hostPeerIds.length === 0) {
               clearTimeout(timeout);

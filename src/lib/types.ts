@@ -1,3 +1,6 @@
+// Debug mode - set to false for production builds
+export const DEBUG_MODE = false;
+
 export const PIXELS_PER_METER = 20;
 // Base footprint for structures
 export const BASE_SIZE_METERS = 3;
@@ -143,6 +146,7 @@ export interface Unit {
   meleeAttackEffect?: { endTime: number; targetPos: Vector2 }; // Visual effect for melee attacks
   attackCooldown?: number; // Time until next attack
   selectionRing?: { startTime: number }; // Selection ring animation
+  damageFlash?: { endTime: number }; // Damage flash animation
   rotation?: number; // Current rotation angle in radians (0 = facing right)
   targetRotation?: number; // Target rotation angle for smooth interpolation
   velocity?: Vector2; // Current velocity for smooth acceleration/deceleration
