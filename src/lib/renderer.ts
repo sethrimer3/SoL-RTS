@@ -3560,7 +3560,18 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.fillStyle = COLORS.white;
       ctx.font = '10px Space Mono, monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`${unit.damageMultiplier.toFixed(1)}x`, screenPos.x, screenPos.y + 20);
+      
+      // Add glow effect for high multipliers
+      if (unit.damageMultiplier > 1.5) {
+        ctx.save();
+        ctx.shadowColor = COLORS.photon;
+        ctx.shadowBlur = 10 + (unit.damageMultiplier - 1.5) * 5;
+        ctx.fillStyle = COLORS.photon;
+        ctx.fillText(`${unit.damageMultiplier.toFixed(1)}x`, screenPos.x, screenPos.y + 20);
+        ctx.restore();
+      } else {
+        ctx.fillText(`${unit.damageMultiplier.toFixed(1)}x`, screenPos.x, screenPos.y + 20);
+      }
     }
   });
 }
