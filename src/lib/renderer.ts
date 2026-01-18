@@ -122,6 +122,7 @@ const CACHE_KEY_SEPARATOR = '\0';
 
 // Visual effect constants
 const DAMAGE_FLASH_DURATION = 0.15; // seconds for damage flash effect on units
+const DAMAGE_FLASH_RADIUS_SCALE = 0.3; // scale increase for flash radius expansion
 
 // Outline offset directions for creating sprite outlines (4 cardinal directions)
 const OUTLINE_OFFSET_DIRECTIONS = [
@@ -3338,7 +3339,7 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.shadowBlur = 20;
       const flashRadius = UNIT_SIZE_METERS * PIXELS_PER_METER * 0.7;
       ctx.beginPath();
-      ctx.arc(screenPos.x, screenPos.y, flashRadius * (1 + flashProgress * 0.3), 0, Math.PI * 2);
+      ctx.arc(screenPos.x, screenPos.y, flashRadius * (1 + flashProgress * DAMAGE_FLASH_RADIUS_SCALE), 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }

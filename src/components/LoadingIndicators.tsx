@@ -48,10 +48,7 @@ export function LoadingOverlay({ message = 'Loading...', progress }: LoadingOver
       <div className="absolute inset-0 opacity-20">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-transparent to-secondary/30 animate-pulse" />
         <div 
-          className="absolute inset-0 bg-gradient-to-tr from-transparent via-primary/20 to-transparent"
-          style={{
-            animation: 'gradient-shift 3s ease-in-out infinite',
-          }}
+          className="absolute inset-0 bg-gradient-to-tr from-transparent via-primary/20 to-transparent animate-[gradient-shift_3s_ease-in-out_infinite]"
         />
       </div>
       
@@ -71,13 +68,6 @@ export function LoadingOverlay({ message = 'Loading...', progress }: LoadingOver
           )}
         </div>
       </div>
-      
-      <style>{`
-        @keyframes gradient-shift {
-          0%, 100% { transform: translate(-10%, -10%) rotate(0deg); }
-          50% { transform: translate(10%, 10%) rotate(180deg); }
-        }
-      `}</style>
     </div>
   );
 }
