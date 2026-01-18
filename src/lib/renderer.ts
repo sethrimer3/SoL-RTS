@@ -5996,7 +5996,8 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
     ctx.shadowBlur = 0;
   });
   
-  // Draw units with slight glow
+  // Draw units with pulsing glow
+  const unitPulse = Math.sin(time * 4) * 0.3 + 0.7; // Faster pulse for units
   state.units.forEach(unit => {
     // Hide cloaked enemy units from the player's minimap view.
     if (unit.cloaked && unit.owner !== 0) {
@@ -6006,8 +6007,17 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
     const pos = toMinimapPos(unit.position);
     const color = state.players[unit.owner].color;
     
+    // Draw outer glow
     ctx.fillStyle = color;
     ctx.shadowColor = color;
+    ctx.shadowBlur = 5 * unitPulse;
+    ctx.globalAlpha = 0.4 * unitPulse;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, MINIMAP_UNIT_SIZE * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw unit dot
+    ctx.globalAlpha = 1;
     ctx.shadowBlur = 3;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, MINIMAP_UNIT_SIZE, 0, Math.PI * 2);
