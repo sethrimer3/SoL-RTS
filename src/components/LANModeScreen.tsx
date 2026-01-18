@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
-import { ArrowLeft, Copy, Check, MagnifyingGlass } from '@phosphor-icons/react';
+import { ArrowLeft, Copy, Check, MagnifyingGlass, CircleNotch } from '@phosphor-icons/react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
@@ -122,10 +122,13 @@ export function LANModeScreen({
               variant="default"
               disabled={isLoading}
             >
-              <div className="text-left">
-                <div>Host Game</div>
-                <div className="text-xs opacity-70 normal-case font-normal tracking-normal">
-                  Start a game and share your Peer ID
+              <div className="text-left flex items-center gap-2">
+                {isLoading && <CircleNotch size={24} className="animate-spin" />}
+                <div>
+                  <div>Host Game</div>
+                  <div className="text-xs opacity-70 normal-case font-normal tracking-normal">
+                    {isLoading ? 'Starting host...' : 'Start a game and share your Peer ID'}
+                  </div>
                 </div>
               </div>
             </Button>
@@ -137,11 +140,11 @@ export function LANModeScreen({
               disabled={isLoading}
             >
               <div className="text-left flex items-center gap-2">
-                <MagnifyingGlass size={24} />
+                {isLoading ? <CircleNotch size={24} className="animate-spin" /> : <MagnifyingGlass size={24} />}
                 <div>
                   <div>Browse Games</div>
                   <div className="text-xs opacity-70 normal-case font-normal tracking-normal">
-                    Discover available games on the network
+                    {isLoading ? 'Loading...' : 'Discover available games on the network'}
                   </div>
                 </div>
               </div>
@@ -163,7 +166,8 @@ export function LANModeScreen({
                 variant="default"
                 disabled={isLoading || !joinPeerId.trim()}
               >
-                Connect to Host
+                {isLoading && <CircleNotch size={20} className="animate-spin mr-2" />}
+                {isLoading ? 'Connecting...' : 'Connect to Host'}
               </Button>
             </div>
 
@@ -330,8 +334,8 @@ export function LANModeScreen({
                   variant="secondary"
                   disabled={isScanning}
                 >
-                  <MagnifyingGlass className="mr-2" size={20} />
-                  Scan Again
+                  {isScanning ? <CircleNotch className="mr-2 animate-spin" size={20} /> : <MagnifyingGlass className="mr-2" size={20} />}
+                  {isScanning ? 'Scanning...' : 'Scan Again'}
                 </Button>
 
                 <Button

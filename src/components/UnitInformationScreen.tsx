@@ -29,7 +29,7 @@ function getAbilityDescription(unitType: UnitType): string {
     artillery: 'Launches a bombardment at target location after 1.5s delay, dealing area damage. Also fires a laser dealing 10 damage.',
     medic: 'Heals all friendly units within 5m radius for 50 HP and bases for 100 HP. Also fires a laser dealing 10 damage.',
     interceptor: 'Fires up to 6 missiles at nearby enemies in target direction, each dealing 15 damage (max range: 12m). Also fires a laser dealing 10 damage.',
-    guardian: 'Fires a laser dealing 10 damage. Protect allies ability (placeholder - full implementation pending).',
+    guardian: 'Shields all friendly units within 5m for 6 seconds, reducing incoming melee damage by 70%. Also fires a laser dealing 10 damage.',
     marksman: 'Fires a precise long-range shot at the furthest enemy in direction, dealing 50 damage (max range: 18m). Also fires a laser dealing 10 damage.',
     engineer: 'Deploys a stationary turret at target location that lasts 10 seconds and attacks enemies. Also fires a laser dealing 10 damage.',
     skirmisher: 'Quickly retreats 8m in opposite direction and cloaks for 2 seconds. Also fires a laser dealing 10 damage.',
