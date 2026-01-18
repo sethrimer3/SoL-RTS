@@ -2316,6 +2316,23 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
           }
 
           ctx.restore();
+        } else if (!canAfford && !base.isSelected) {
+          // Show dim red indicator for unaffordable units
+          ctx.save();
+          ctx.fillStyle = 'rgba(255, 50, 50, 0.2)';
+          ctx.globalAlpha = 0.4;
+
+          if (door.y < screenPos.y) {
+            ctx.fillRect(door.x - doorSize / 2, door.y, doorSize, 2);
+          } else if (door.y > screenPos.y) {
+            ctx.fillRect(door.x - doorSize / 2, door.y - 2, doorSize, 2);
+          } else if (door.x < screenPos.x) {
+            ctx.fillRect(door.x, door.y - doorSize / 2, 2, doorSize);
+          } else if (door.x > screenPos.x) {
+            ctx.fillRect(door.x - 2, door.y - doorSize / 2, 2, doorSize);
+          }
+
+          ctx.restore();
         }
       });
 
@@ -4419,18 +4436,6 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.fillStyle = fpsColor;
     ctx.fillText(`${state.fps} FPS`, ctx.canvas.width - 10, 20);
     
-    // Draw network status for online games
-    if (state.vsMode === 'online' && state.networkStatus) {
-      ctx.font = '12px Space Mono, monospace';
-      const netStatus = state.networkStatus;
-      const statusColor = netStatus.connected ? 'oklch(0.70 0.20 140)' : 'oklch(0.62 0.28 25)';
-      ctx.fillStyle = statusColor;
-      const statusText = netStatus.connected 
-        ? `Online ${netStatus.latency ? `(${netStatus.latency}ms)` : ''}`
-        : 'Disconnected';
-      ctx.fillText(statusText, ctx.canvas.width - 10, 35);
-    }
-    
     // Draw detailed performance stats if enabled
     if (state.performanceProfiling?.enabled) {
       const yOffset = state.vsMode === 'online' && state.networkStatus ? 15 : 0;
@@ -4482,6 +4487,30 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.textAlign = 'left';
   }
   
+  // Draw network status for online games (always visible)
+  if (state.vsMode === 'online' && state.networkStatus) {
+    ctx.textAlign = 'right';
+    ctx.font = '12px Space Mono, monospace';
+    const netStatus = state.networkStatus;
+    const statusColor = netStatus.connected ? 'oklch(0.70 0.20 140)' : 'oklch(0.62 0.28 25)';
+    const timeSinceSync = Date.now() - netStatus.lastSync;
+    
+    // Show warning if sync is stale (> 5 seconds)
+    const isStale = timeSinceSync > 5000;
+    ctx.fillStyle = isStale ? 'oklch(0.85 0.20 95)' : statusColor;
+    ctx.shadowColor = statusColor;
+    ctx.shadowBlur = 8;
+    
+    const statusIcon = netStatus.connected ? '●' : '○';
+    const statusText = netStatus.connected 
+      ? `${statusIcon} Online ${netStatus.latency ? `${netStatus.latency}ms` : ''}`
+      : `${statusIcon} Disconnected`;
+    
+    ctx.fillText(statusText, ctx.canvas.width - 10, ctx.canvas.height - 10);
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'left';
+  }
+  
   // Draw control group indicators at bottom left
   if (state.controlGroups) {
     ctx.textAlign = 'left';
@@ -4497,25 +4526,39 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
         );
         
         if (livingUnits.length > 0) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-          ctx.fillText(`${i}: ${livingUnits.length}`, 10, yOffset);
-          
-          // Draw small colored bar indicating unit types
-          const barWidth = 40;
-          const barHeight = 4;
-          const barX = 35;
-          const barY = yOffset - 8;
-          
           // Count unit types in group
-          const unitTypes = livingUnits.map(id => {
+          const unitTypeCounts = new Map<string, number>();
+          livingUnits.forEach(id => {
             const unit = state.units.find(u => u.id === id);
-            return unit ? unit.type : null;
-          }).filter(t => t !== null);
+            if (unit) {
+              const count = unitTypeCounts.get(unit.type) || 0;
+              unitTypeCounts.set(unit.type, count + 1);
+            }
+          });
           
-          ctx.fillStyle = state.players[0].color;
-          ctx.fillRect(barX, barY, barWidth, barHeight);
+          // Create compact display with unit type counts
+          const typeDisplay = Array.from(unitTypeCounts.entries())
+            .sort((a, b) => b[1] - a[1]) // Sort by count
+            .slice(0, 3) // Show top 3 unit types
+            .map(([type, count]) => {
+              const def = UNIT_DEFINITIONS[type as UnitType];
+              const shortName = def.name.substring(0, 3).toUpperCase();
+              return `${shortName}:${count}`;
+            })
+            .join(' ');
           
-          yOffset -= 15;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.fillText(`[${i}] ${livingUnits.length}`, 10, yOffset);
+          
+          // Draw unit type details
+          if (typeDisplay) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '10px Space Mono, monospace';
+            ctx.fillText(typeDisplay, 10, yOffset + 11);
+            ctx.font = '12px Space Mono, monospace';
+          }
+          
+          yOffset -= 22;
         }
       }
     }
