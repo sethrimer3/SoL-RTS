@@ -1844,6 +1844,10 @@ function App() {
               <CardTitle className="orbitron text-2xl">Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="text-xs text-muted-foreground space-y-1 border-b pb-2">
+                <p><strong>Colors:</strong></p>
+              </div>
+              
               <div className="space-y-2">
                 <Label>Player Color</Label>
                 <div className="flex gap-2">
@@ -1892,6 +1896,10 @@ function App() {
                     />
                   ))}
                 </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                <p><strong>Audio:</strong></p>
               </div>
 
               <div className="flex items-center justify-between">
@@ -1953,6 +1961,10 @@ function App() {
                     className="w-full"
                   />
                 </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                <p><strong>HUD Display:</strong></p>
               </div>
 
               <div className="flex items-center justify-between">
