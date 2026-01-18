@@ -4504,7 +4504,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.font = '12px Space Mono, monospace';
     const netStatus = state.networkStatus;
     const statusColor = netStatus.connected ? 'oklch(0.70 0.20 140)' : 'oklch(0.62 0.28 25)';
-    const timeSinceSync = netStatus.lastSync ? Date.now() - netStatus.lastSync : Infinity;
+    const timeSinceSync = (typeof netStatus.lastSync === 'number') ? Date.now() - netStatus.lastSync : Infinity;
     
     // Show warning if sync is stale (> 5 seconds)
     const isStale = timeSinceSync > 5000;
