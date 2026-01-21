@@ -647,8 +647,16 @@ function drawRadiantBaseSprite(
     return false;
   }
 
+  // Apply health-based opacity: 100% HP = 100% opaque, 0% HP = 20% opaque
+  const healthPercent = base.hp / base.maxHp;
+  const baseOpacity = 0.2 + (healthPercent * 0.8);
+  ctx.save();
+  ctx.globalAlpha = baseOpacity;
+  
   const spriteSize = size * BASE_SPRITE_SCALE;
   drawCenteredSprite(ctx, sprite, screenPos, spriteSize, 0, color, !!state.settings.enableGlowEffects, isSelected);
+  
+  ctx.restore();
   return true;
 }
 
@@ -2181,6 +2189,10 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.restore();
     }
 
+    // Apply health-based opacity for base: 100% HP = 100% opaque, 0% HP = 20% opaque
+    const healthPercent = base.hp / base.maxHp;
+    const baseOpacity = 0.2 + (healthPercent * 0.8); // Range from 0.2 to 1.0
+
     const factionDef = FACTION_DEFINITIONS[base.faction];
     // Draw the sprite art for Radiant bases when enabled; fallback to vector base shapes otherwise.
     const spriteDrawn = spritesEnabled && base.faction === 'radiant'
@@ -2261,7 +2273,7 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
     }
 
     if (!spriteDrawn) {
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha = baseOpacity * 0.3; // Use health-based opacity
       if (factionDef.baseShape === 'circle') {
         ctx.beginPath();
         ctx.arc(screenPos.x, screenPos.y, size / 2, 0, Math.PI * 2);
@@ -3380,6 +3392,11 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
 
     if (unit.cloaked) {
       ctx.globalAlpha = 0.3;
+    } else {
+      // Apply health-based opacity: 100% HP = 100% opaque, 0% HP = 20% opaque
+      const healthPercent = unit.hp / unit.maxHp;
+      const opacity = 0.2 + (healthPercent * 0.8); // Range from 0.2 to 1.0
+      ctx.globalAlpha = opacity;
     }
 
     // Apply damage flash effect
