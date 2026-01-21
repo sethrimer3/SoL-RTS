@@ -2133,12 +2133,13 @@ function updateIncome(state: GameState, deltaTime: number): void {
     // NEW SYSTEM: Solar-based mining
     // Mining drones (solar mirrors) generate +1 photon/sec when they have clear LOS to both sun and base
     if (state.sun) {
+      const sun = state.sun; // Local reference for TypeScript null check
       const ownerBase = state.bases.find(b => b.owner === playerIndex);
       if (ownerBase) {
         state.units.forEach((unit) => {
           if (unit.type === 'miningDrone' && unit.owner === playerIndex && unit.hp > 0) {
             // Check line of sight from drone to sun
-            const hasLOStoSun = hasLineOfSight(unit.position, state.sun.position, state.obstacles);
+            const hasLOStoSun = hasLineOfSight(unit.position, sun.position, state.obstacles);
             // Check line of sight from drone to base
             const hasLOStoBase = hasLineOfSight(unit.position, ownerBase.position, state.obstacles);
             
@@ -2192,6 +2193,7 @@ function updateIncome(state: GameState, deltaTime: number): void {
     
     // Create income popups for producing drones
     if (state.sun) {
+      const sun = state.sun; // Local reference for TypeScript null check
       state.units.forEach((unit) => {
         if (unit.type === 'miningDrone' && unit.miningState && (unit.miningState as any).isProducing) {
           state.miningIncomePopups!.push({

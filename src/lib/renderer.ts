@@ -960,6 +960,102 @@ function drawFogOfWar(ctx: CanvasRenderingContext2D, state: GameState, canvas: H
   ctx.restore();
 }
 
+function drawMiningDroneEffects(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.sun) return;
+  
+  const sun = state.sun; // Local reference for TypeScript null check
+  const time = Date.now() / 1000;
+  
+  state.units.forEach((unit) => {
+    if (unit.type !== 'miningDrone' || !unit.miningState) return;
+    
+    const isProducing = (unit.miningState as any).isProducing;
+    if (!isProducing) return;
+    
+    const dronePos = positionToPixels(unit.position);
+    const sunPos = positionToPixels(sun.position);
+    const ownerBase = state.bases.find(b => b.owner === unit.owner);
+    if (!ownerBase) return;
+    const basePos = positionToPixels(ownerBase.position);
+    
+    // Draw subtle line to sun (light beam reflection)
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 230, 100, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(dronePos.x, dronePos.y);
+    ctx.lineTo(sunPos.x, sunPos.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Draw subtle line to base (energy transfer)
+    const playerColor = state.players[unit.owner].color;
+    ctx.strokeStyle = addAlphaToColor(playerColor, 0.2);
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(dronePos.x, dronePos.y);
+    ctx.lineTo(basePos.x, basePos.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Draw pulsing glow around producing drones
+    const pulseIntensity = Math.sin(time * 3) * 0.3 + 0.7;
+    const gradient = ctx.createRadialGradient(dronePos.x, dronePos.y, 0, dronePos.x, dronePos.y, 15);
+    gradient.addColorStop(0, `rgba(255, 230, 100, ${0.3 * pulseIntensity})`);
+    gradient.addColorStop(1, 'rgba(255, 230, 100, 0)');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(dronePos.x, dronePos.y, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawMiningIncomePopups(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.sun || !state.miningIncomePopups) return;
+  
+  const time = Date.now();
+  
+  // Render each active popup
+  state.miningIncomePopups.forEach((popup: any, index: number) => {
+    const elapsed = (time - popup.startTime) / 1000;
+    const duration = 1.0; // 1 second animation
+    
+    if (elapsed >= duration) {
+      // Remove expired popups
+      state.miningIncomePopups!.splice(index, 1);
+      return;
+    }
+    
+    const progress = elapsed / duration;
+    const opacity = 1 - progress; // Fade out
+    const yOffset = progress * 30; // Rise up 30 pixels
+    
+    const pos = positionToPixels(popup.position);
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    
+    // Draw photon icon (bright dot)
+    ctx.fillStyle = 'rgba(255, 230, 100, 1)';
+    ctx.shadowColor = 'rgba(255, 230, 100, 0.8)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(pos.x - 10, pos.y - yOffset, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw +1 text
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = '#FFF';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('+1', pos.x, pos.y - yOffset);
+    
+    ctx.restore();
+  });
+}
+
 export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canvas: HTMLCanvasElement, selectionRect?: { x1: number; y1: number; x2: number; y2: number } | null): void {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1729,101 +1825,8 @@ function drawMiningDepots(ctx: CanvasRenderingContext2D, state: GameState): void
 function drawResourceOrbs(ctx: CanvasRenderingContext2D, state: GameState): void {
 
 // Draw visual effects for producing mining drones (solar mirrors)
-function drawMiningDroneEffects(ctx: CanvasRenderingContext2D, state: GameState): void {
-  if (!state.sun) return;
-  
-  const time = Date.now() / 1000;
-  
-  state.units.forEach((unit) => {
-    if (unit.type !== 'miningDrone' || !unit.miningState) return;
-    
-    const isProducing = (unit.miningState as any).isProducing;
-    if (!isProducing) return;
-    
-    const dronePos = positionToPixels(unit.position);
-    const sunPos = positionToPixels(state.sun.position);
-    const ownerBase = state.bases.find(b => b.owner === unit.owner);
-    if (!ownerBase) return;
-    const basePos = positionToPixels(ownerBase.position);
-    
-    // Draw subtle line to sun (light beam reflection)
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 230, 100, 0.15)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(dronePos.x, dronePos.y);
-    ctx.lineTo(sunPos.x, sunPos.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
-    // Draw subtle line to base (energy transfer)
-    const playerColor = state.players[unit.owner].color;
-    ctx.strokeStyle = addAlphaToColor(playerColor, 0.2);
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(dronePos.x, dronePos.y);
-    ctx.lineTo(basePos.x, basePos.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
-    // Draw pulsing glow around producing drones
-    const pulseIntensity = Math.sin(time * 3) * 0.3 + 0.7;
-    const gradient = ctx.createRadialGradient(dronePos.x, dronePos.y, 0, dronePos.x, dronePos.y, 15);
-    gradient.addColorStop(0, `rgba(255, 230, 100, ${0.3 * pulseIntensity})`);
-    gradient.addColorStop(1, 'rgba(255, 230, 100, 0)');
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(dronePos.x, dronePos.y, 15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  });
-}
 
 // Draw +1 photon popup icons for producing drones every second
-function drawMiningIncomePopups(ctx: CanvasRenderingContext2D, state: GameState): void {
-  if (!state.sun || !state.miningIncomePopups) return;
-  
-  const time = Date.now();
-  
-  // Render each active popup
-  state.miningIncomePopups.forEach((popup: any, index: number) => {
-    const elapsed = (time - popup.startTime) / 1000;
-    const duration = 1.0; // 1 second animation
-    
-    if (elapsed >= duration) {
-      // Remove expired popups
-      state.miningIncomePopups!.splice(index, 1);
-      return;
-    }
-    
-    const progress = elapsed / duration;
-    const opacity = 1 - progress; // Fade out
-    const yOffset = progress * 30; // Rise up 30 pixels
-    
-    const pos = positionToPixels(popup.position);
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    
-    // Draw photon icon (bright dot)
-    ctx.fillStyle = 'rgba(255, 230, 100, 1)';
-    ctx.shadowColor = 'rgba(255, 230, 100, 0.8)';
-    ctx.shadowBlur = 10;
-    ctx.beginPath();
-    ctx.arc(pos.x - 10, pos.y - yOffset, 3, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Draw +1 text
-    ctx.shadowBlur = 5;
-    ctx.fillStyle = '#FFF';
-    ctx.font = 'bold 14px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText('+1', pos.x, pos.y - yOffset);
-    
-    ctx.restore();
-  });
-}
   if (!state.resourceOrbs || state.resourceOrbs.length === 0) return;
   
   const now = Date.now();
