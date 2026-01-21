@@ -2104,27 +2104,79 @@ export function updateGame(state: GameState, deltaTime: number): void {
   checkVictory(state);
 }
 
+// Helper function to check line of sight between two points (for sun-based mining)
+// Returns true if there's a clear line of sight (no obstacles blocking)
+function hasLineOfSight(from: Vector2, to: Vector2, obstacles: import('./maps').Obstacle[]): boolean {
+  // Simple ray casting: check if any obstacle intersects the line
+  const dir = normalize(subtract(to, from));
+  const dist = distance(from, to);
+  
+  // Sample points along the line
+  const samples = Math.ceil(dist * 2); // 2 samples per meter
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const point = add(from, scale(dir, dist * t));
+    
+    // Check if this point collides with any obstacle
+    if (checkObstacleCollision(point, 0.1, obstacles)) {
+      return false; // Line is blocked
+    }
+  }
+  
+  return true; // Clear line of sight
+}
+
 function updateIncome(state: GameState, deltaTime: number): void {
   state.players.forEach((player, playerIndex) => {
-    // Calculate mining income from active mining drones (only source of income)
     let miningIncome = 0;
-    state.miningDepots.forEach((depot) => {
-      if (depot.owner === playerIndex) {
-        depot.deposits.forEach((deposit) => {
-          const activeWorkers = (deposit.workerIds ?? []).filter((workerId) => {
-            // Check if each worker is still alive
-            const worker = state.units.find(u => u.id === workerId);
-            return !!worker;
-          });
-
-          // Update worker list to remove dead drones
-          deposit.workerIds = activeWorkers;
-
-          // Each active drone adds +2 income
-          miningIncome += activeWorkers.length * 2;
+    
+    // NEW SYSTEM: Solar-based mining
+    // Mining drones (solar mirrors) generate +1 photon/sec when they have clear LOS to both sun and base
+    if (state.sun) {
+      const ownerBase = state.bases.find(b => b.owner === playerIndex);
+      if (ownerBase) {
+        state.units.forEach((unit) => {
+          if (unit.type === 'miningDrone' && unit.owner === playerIndex && unit.hp > 0) {
+            // Check line of sight from drone to sun
+            const hasLOStoSun = hasLineOfSight(unit.position, state.sun.position, state.obstacles);
+            // Check line of sight from drone to base
+            const hasLOStoBase = hasLineOfSight(unit.position, ownerBase.position, state.obstacles);
+            
+            if (hasLOStoSun && hasLOStoBase) {
+              // Drone is producing: +1 photon/second
+              miningIncome += 1;
+              
+              // Mark the drone as producing for visual effects
+              if (!unit.miningState) {
+                unit.miningState = {
+                  depotId: '',
+                  depositId: '',
+                  atDepot: true,
+                };
+              }
+              // Use a flag to indicate this drone is currently producing
+              (unit.miningState as any).isProducing = true;
+            } else if (unit.miningState) {
+              (unit.miningState as any).isProducing = false;
+            }
+          }
         });
       }
-    });
+    } else {
+      // OLD SYSTEM: Depot-based mining (fallback for compatibility)
+      state.miningDepots.forEach((depot) => {
+        if (depot.owner === playerIndex) {
+          depot.deposits.forEach((deposit) => {
+            const activeWorkers = (deposit.workerIds ?? []).filter((workerId) => {
+              const worker = state.units.find(u => u.id === workerId);
+              return !!worker;
+            });
+            deposit.workerIds = activeWorkers;
+            miningIncome += activeWorkers.length * 2;
+          });
+        }
+      });
+    }
     
     player.incomeRate = miningIncome;
   });

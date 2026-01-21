@@ -3,6 +3,7 @@ import {
   Unit,
   Base,
   BaseType,
+  Sun,
   COLORS,
   UNIT_SIZE_METERS,
   BASE_SIZE_METERS,
@@ -998,6 +999,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
 
   if (state.mode === 'game' || state.mode === 'countdown') {
     drawObstacles(ctx, state);
+    drawSun(ctx, state); // Draw the central sun
     drawMiningDepots(ctx, state);
     drawResourceOrbs(ctx, state);
     drawBases(ctx, state);
@@ -1410,6 +1412,61 @@ function drawPlayfieldBorder(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasEl
   ctx.restore();
 }
 
+
+// Draw the central sun for the new solar mining system
+function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.sun) return;
+  
+  const pixels = positionToPixels(state.sun.position);
+  const radiusPixels = metersToPixels(state.sun.radius);
+  
+  ctx.save();
+  
+  // Draw outer glow
+  const gradient = ctx.createRadialGradient(pixels.x, pixels.y, 0, pixels.x, pixels.y, radiusPixels * 2);
+  gradient.addColorStop(0, 'rgba(255, 220, 100, 0.8)');
+  gradient.addColorStop(0.3, 'rgba(255, 180, 50, 0.4)');
+  gradient.addColorStop(0.6, 'rgba(255, 140, 30, 0.2)');
+  gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+  
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(pixels.x, pixels.y, radiusPixels * 2, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw core
+  const coreGradient = ctx.createRadialGradient(pixels.x, pixels.y, 0, pixels.x, pixels.y, radiusPixels);
+  coreGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  coreGradient.addColorStop(0.5, 'rgba(255, 230, 120, 1)');
+  coreGradient.addColorStop(1, 'rgba(255, 180, 50, 0.9)');
+  
+  ctx.fillStyle = coreGradient;
+  ctx.beginPath();
+  ctx.arc(pixels.x, pixels.y, radiusPixels, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Add animated rays
+  const time = Date.now() / 1000;
+  const rayCount = 12;
+  ctx.strokeStyle = 'rgba(255, 220, 100, 0.3)';
+  ctx.lineWidth = 2;
+  
+  for (let i = 0; i < rayCount; i++) {
+    const angle = (i / rayCount) * Math.PI * 2 + time * 0.5;
+    const rayLength = radiusPixels * (1.5 + Math.sin(time * 2 + i) * 0.3);
+    const startX = pixels.x + Math.cos(angle) * radiusPixels;
+    const startY = pixels.y + Math.sin(angle) * radiusPixels;
+    const endX = pixels.x + Math.cos(angle) * rayLength;
+    const endY = pixels.y + Math.sin(angle) * rayLength;
+    
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+  }
+  
+  ctx.restore();
+}
 function drawObstacles(ctx: CanvasRenderingContext2D, state: GameState): void {
   state.obstacles.forEach((obstacle) => {
     // Skip drawing boundary obstacles (they're invisible)

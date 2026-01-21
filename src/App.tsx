@@ -2388,6 +2388,12 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
   
   // Create initial mining drones on diagonal deposits
   const initialDrones = createInitialMiningDrones(miningDepots);
+  
+  // Create the central sun for the new mining system
+  const sun = {
+    position: { x: arenaWidth / 2, y: arenaHeight / 2 },
+    radius: 5, // 5 meters diameter sun
+  };
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
 
@@ -2399,6 +2405,7 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
     shells: [],
     obstacles: obstacles,
     miningDepots: miningDepots,
+    sun: sun, // Add the central sun
     bases: [
       {
         id: generateId(),
@@ -2541,6 +2548,12 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
   
   // Create initial mining drones on diagonal deposits
   const initialDrones = createInitialMiningDrones(miningDepots);
+  
+  // Create the central sun for the new mining system
+  const sun = {
+    position: { x: arenaWidth / 2, y: arenaHeight / 2 },
+    radius: 5, // 5 meters diameter sun
+  };
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.playerBaseType || 'standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.enemyBaseType || 'standard'];
@@ -2554,6 +2567,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     structures: [],
     obstacles: obstacles,
     miningDepots: miningDepots,
+    sun: sun, // Add the central sun
     bases: [
       {
         id: generateId(),
@@ -2646,6 +2660,12 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
   
   // Create initial mining drones on diagonal deposits
   const initialDrones = createInitialMiningDrones(miningDepots);
+  
+  // Create the central sun for the new mining system
+  const sun = {
+    position: { x: arenaWidth / 2, y: arenaHeight / 2 },
+    radius: 5, // 5 meters diameter sun
+  };
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.playerBaseType || 'standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.enemyBaseType || 'standard'];
@@ -2658,6 +2678,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
     shells: [],
     obstacles: obstacles,
     miningDepots: miningDepots,
+    sun: sun, // Add the central sun
     bases: [
       {
         id: generateId(),
@@ -2738,6 +2759,12 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
   
   // Create initial mining drones on diagonal deposits
   const initialDrones = createInitialMiningDrones(miningDepots);
+  
+  // Create the central sun for the new mining system
+  const sun = {
+    position: { x: arenaWidth / 2, y: arenaHeight / 2 },
+    radius: 5, // 5 meters diameter sun
+  };
 
   // For online games, use standard base type for now
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
@@ -2751,6 +2778,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
     shells: [],
     obstacles: obstacles,
     miningDepots: miningDepots,
+    sun: sun, // Add the central sun
     bases: [
       {
         id: generateId(),
@@ -2848,6 +2876,12 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
   
   // Create initial mining drones on diagonal deposits
   const initialDrones = createInitialMiningDrones(miningDepots);
+  
+  // Create the central sun for the new mining system
+  const sun = {
+    position: { x: arenaWidth / 2, y: arenaHeight / 2 },
+    radius: 5, // 5 meters diameter sun
+  };
 
   // For online games, use standard base type for now
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
@@ -2861,6 +2895,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     shells: [],
     obstacles: obstacles,
     miningDepots: miningDepots,
+    sun: sun, // Add the central sun
     bases: [
       {
         id: generateId(),
