@@ -2131,7 +2131,7 @@ function updateIncome(state: GameState, deltaTime: number): void {
     let miningIncome = 0;
     
     // NEW SYSTEM: Solar-based mining
-    // Mining drones (solar mirrors) generate +1 photon/sec when they have clear LOS to both sun and base
+    // Mining drones (solar mirrors) generate +1 HP/sec to base when they have clear LOS to both sun and base
     if (state.sun) {
       const sun = state.sun; // Local reference for TypeScript null check
       const ownerBase = state.bases.find(b => b.owner === playerIndex);
@@ -2144,7 +2144,7 @@ function updateIncome(state: GameState, deltaTime: number): void {
             const hasLOStoBase = hasLineOfSight(unit.position, ownerBase.position, state.obstacles);
             
             if (hasLOStoSun && hasLOStoBase) {
-              // Drone is producing: +1 photon/second
+              // Drone is producing: +1 HP/second added to base capacity
               miningIncome += 1;
               
               // Mark the drone as producing for visual effects
@@ -2156,9 +2156,9 @@ function updateIncome(state: GameState, deltaTime: number): void {
                 };
               }
               // Use a flag to indicate this drone is currently producing
-              (unit.miningState as any).isProducing = true;
+              unit.miningState.isProducing = true;
             } else if (unit.miningState) {
-              (unit.miningState as any).isProducing = false;
+              unit.miningState.isProducing = false;
             }
           }
         });
@@ -2195,7 +2195,7 @@ function updateIncome(state: GameState, deltaTime: number): void {
     if (state.sun) {
       const sun = state.sun; // Local reference for TypeScript null check
       state.units.forEach((unit) => {
-        if (unit.type === 'miningDrone' && unit.miningState && (unit.miningState as any).isProducing) {
+        if (unit.type === 'miningDrone' && unit.miningState && unit.miningState.isProducing) {
           state.miningIncomePopups!.push({
             position: { ...unit.position },
             startTime: Date.now(),

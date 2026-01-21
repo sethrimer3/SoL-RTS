@@ -969,7 +969,7 @@ function drawMiningDroneEffects(ctx: CanvasRenderingContext2D, state: GameState)
   state.units.forEach((unit) => {
     if (unit.type !== 'miningDrone' || !unit.miningState) return;
     
-    const isProducing = (unit.miningState as any).isProducing;
+    const isProducing = unit.miningState.isProducing;
     if (!isProducing) return;
     
     const dronePos = positionToPixels(unit.position);
@@ -1823,10 +1823,6 @@ function drawMiningDepots(ctx: CanvasRenderingContext2D, state: GameState): void
 }
 
 function drawResourceOrbs(ctx: CanvasRenderingContext2D, state: GameState): void {
-
-// Draw visual effects for producing mining drones (solar mirrors)
-
-// Draw +1 photon popup icons for producing drones every second
   if (!state.resourceOrbs || state.resourceOrbs.length === 0) return;
   
   const now = Date.now();

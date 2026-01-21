@@ -202,6 +202,7 @@ export interface Unit {
     cadenceDelay?: number; // Optional delay to keep drones alternating when sharing a deposit
     carryingOrb?: boolean; // true when carrying a secondary resource orb
     targetOrbId?: string; // ID of the orb being targeted for collection
+    isProducing?: boolean; // true when solar mirror has clear LOS to both sun and base (new system)
   };
 }
 
