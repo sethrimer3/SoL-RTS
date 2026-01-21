@@ -314,6 +314,7 @@ export interface Base {
   position: Vector2;
   hp: number;
   maxHp: number;
+  startingHp: number; // Starting HP for calculating max capacity (10x starting)
   armor: number; // Reduces damage from ranged attacks
   movementTarget: Vector2 | null;
   rallyPoint: Vector2; // Rally point where spawned units will go
@@ -341,6 +342,12 @@ export interface MiningDepot {
   position: Vector2;
   owner: number; // 0 for player side, 1 for enemy side
   deposits: ResourceDeposit[]; // 8 resource deposits around the depot
+}
+
+// Central sun entity for the new solar mining system
+export interface Sun {
+  position: Vector2; // Center of the arena
+  radius: number; // Size of the sun for rendering
 }
 
 // Structure types for buildable towers
@@ -1129,7 +1136,8 @@ export interface GameState {
   dyingUnits?: Unit[]; // Units that have died but are still showing queue un-draw animation
   bases: Base[];
   structures: Structure[]; // Player-built structures (towers)
-  miningDepots: MiningDepot[]; // Mining depots for resource gathering
+  miningDepots: MiningDepot[]; // Mining depots for resource gathering (deprecated in favor of sun)
+  sun?: Sun; // Central sun for new solar mining system
   obstacles: import('./maps').Obstacle[];
   projectiles: Projectile[]; // Active projectiles in the game
   shells?: Shell[]; // Ejected shell casings from marine shots

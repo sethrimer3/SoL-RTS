@@ -2405,7 +2405,8 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
         owner: 0,
         position: basePositions.player,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
@@ -2420,7 +2421,8 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
         owner: 1,
         position: basePositions.enemy,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
@@ -2558,7 +2560,8 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
         owner: 0,
         position: basePositions.player,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
@@ -2573,7 +2576,8 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
         owner: 1,
         position: basePositions.enemy,
         hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp,
+        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: enemyBaseTypeDef.hp,
         armor: enemyBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
@@ -2660,7 +2664,8 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
         owner: 0,
         position: basePositions.player,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
@@ -2675,7 +2680,8 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
         owner: 1,
         position: basePositions.enemy,
         hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp,
+        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: enemyBaseTypeDef.hp,
         armor: enemyBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
@@ -2751,7 +2757,8 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
         owner: 0,
         position: basePositions.player,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
@@ -2766,7 +2773,8 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
         owner: 1,
         position: basePositions.enemy,
         hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp,
+        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: enemyBaseTypeDef.hp,
         armor: enemyBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
@@ -2859,7 +2867,8 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
         owner: 0,
         position: basePositions.player,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
@@ -2874,7 +2883,8 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
         owner: 1,
         position: basePositions.enemy,
         hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp,
+        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: enemyBaseTypeDef.hp,
         armor: enemyBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),

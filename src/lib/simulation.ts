@@ -2133,7 +2133,21 @@ function updateIncome(state: GameState, deltaTime: number): void {
   if (state.lastIncomeTime >= 1.0) {
     state.lastIncomeTime -= 1.0;
     state.players.forEach((player, index) => {
-      player.photons += player.incomeRate;
+      // Add income to base HP AND player photons
+      const base = state.bases.find(b => b.owner === index);
+      if (base) {
+        // Add income to base HP, capped at max HP
+        const newHp = Math.min(base.hp + player.incomeRate, base.maxHp);
+        const actualIncome = newHp - base.hp;
+        base.hp = newHp;
+        
+        // Also update player photons for UI/stats
+        player.photons += actualIncome;
+      } else {
+        // Fallback if no base found
+        player.photons += player.incomeRate;
+      }
+      
       if (index === 0) {
         soundManager.playIncomeTick();
       }
@@ -5177,10 +5191,22 @@ function checkTimeLimit(state: GameState): void {
 
 export function spawnUnit(state: GameState, owner: number, type: UnitType, spawnPos: { x: number; y: number }, rallyPos: { x: number; y: number }): boolean {
   const def = UNIT_DEFINITIONS[type];
-
-  if (state.players[owner].photons < def.cost) return false;
+  
+  // Find the owner's base
+  const ownerBase = state.bases.find(b => b.owner === owner);
+  if (!ownerBase) return false;
+  
+  // Calculate minimum HP (10% of starting HP)
+  const minHp = ownerBase.startingHp * 0.1;
+  
+  // Check if base has enough HP to spawn the unit (cannot spend below 10%)
+  if (ownerBase.hp - def.cost < minHp) return false;
   if (!state.settings.enabledUnits.has(type)) return false;
 
+  // Spend base HP instead of photons
+  ownerBase.hp -= def.cost;
+  
+  // Still track photons spent for statistics
   state.players[owner].photons -= def.cost;
 
   if (state.matchStats && owner === 0) {
