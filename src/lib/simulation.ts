@@ -2184,6 +2184,24 @@ function updateIncome(state: GameState, deltaTime: number): void {
   state.lastIncomeTime += deltaTime;
   if (state.lastIncomeTime >= 1.0) {
     state.lastIncomeTime -= 1.0;
+    
+    // Initialize popups array if needed
+    if (!state.miningIncomePopups) {
+      state.miningIncomePopups = [];
+    }
+    
+    // Create income popups for producing drones
+    if (state.sun) {
+      state.units.forEach((unit) => {
+        if (unit.type === 'miningDrone' && unit.miningState && (unit.miningState as any).isProducing) {
+          state.miningIncomePopups!.push({
+            position: { ...unit.position },
+            startTime: Date.now(),
+          });
+        }
+      });
+    }
+    
     state.players.forEach((player, index) => {
       // Add income to base HP AND player photons
       const base = state.bases.find(b => b.owner === index);

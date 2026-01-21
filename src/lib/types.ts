@@ -1138,6 +1138,7 @@ export interface GameState {
   structures: Structure[]; // Player-built structures (towers)
   miningDepots: MiningDepot[]; // Mining depots for resource gathering (deprecated in favor of sun)
   sun?: Sun; // Central sun for new solar mining system
+  miningIncomePopups?: Array<{ position: Vector2; startTime: number }>; // +1 photon popups for producing drones
   obstacles: import('./maps').Obstacle[];
   projectiles: Projectile[]; // Active projectiles in the game
   shells?: Shell[]; // Ejected shell casings from marine shots
