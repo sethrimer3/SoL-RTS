@@ -36,7 +36,8 @@ Handles initialization and simulation of ambient field particles that provide mi
 ## Implementation Notes
 ### Critical Details
 - Particles are clamped to arena boundaries with a soft bounce to keep them in-bounds.
-- Particle colors default to neutral grey and switch to player colors within influence zones.
+- Particle colors fade from neutral grey into blended player colors based on influence strength and overlap.
+- Influence tinting converts OKLCH team colors into sRGB for mixing.
 
 ### Known Issues
 - None noted.
@@ -50,6 +51,7 @@ Handles initialization and simulation of ambient field particles that provide mi
 
 ## Change History
 - **2026-01-22:** Increased particle count, removed density bias, and expanded repulsion sources (structures, mining depots, shells, warp gates).
+- **2025-03-26:** Reduced particle size/opacity and blended influence colors with distance-based fades.
 
 ## Watch Out For
 - Ensure any new repulsion sources maintain stable forces to avoid extreme particle velocities.

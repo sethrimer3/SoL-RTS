@@ -3,9 +3,9 @@ import { generateId, getArenaHeight, distance, normalize, subtract } from './gam
 
 // Field particle constants
 const FIELD_PARTICLE_BASE_COUNT = 1000; // Base number of particles
-const FIELD_PARTICLE_SIZE = 0.15; // Size in meters
+const FIELD_PARTICLE_SIZE = 0.075; // Size in meters
 const FIELD_PARTICLE_MASS = 0.05; // Very low mass for easy repulsion
-const FIELD_PARTICLE_OPACITY = 0.6; // Opacity for white particles
+const FIELD_PARTICLE_OPACITY = 0.4; // Opacity for white particles
 
 // Repulsion constants
 const UNIT_REPULSION_RADIUS = 3.0; // Distance at which units repel particles (meters)
@@ -30,6 +30,93 @@ const PARTICLE_MAX_SPEED_SQUARED = PARTICLE_MAX_SPEED * PARTICLE_MAX_SPEED; // S
 const BOUNDARY_MARGIN = 2.0; // Margin from arena edges
 const BOUNCE_DAMPING_FACTOR = 0.5; // Velocity reduction factor on boundary bounce
 const MIN_REPULSION_DISTANCE = 0.01; // Minimum distance to avoid division by zero
+
+// RGB color structure for influence blending.
+type RgbColor = { r: number; g: number; b: number };
+
+// Regex for parsing oklch colors like "oklch(0.65 0.25 240 / 0.8)".
+const OKLCH_REGEX = /oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\)/;
+
+/**
+ * Clamp a value into the 0-1 range for safe color math.
+ */
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+/**
+ * Convert OKLCH color components into linear sRGB.
+ */
+function oklchToSrgb(lightness: number, chroma: number, hueDegrees: number): RgbColor {
+  // Convert OKLCH to OKLab (using polar to Cartesian conversion for chroma).
+  const hueRadians = (hueDegrees * Math.PI) / 180;
+  const a = chroma * Math.cos(hueRadians);
+  const b = chroma * Math.sin(hueRadians);
+
+  // Convert OKLab to linear sRGB using the official conversion matrix.
+  const l_ = lightness + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = lightness - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = lightness - 0.0894841775 * a - 1.291485548 * b;
+
+  const l = l_ * l_ * l_;
+  const m = m_ * m_ * m_;
+  const s = s_ * s_ * s_;
+
+  const r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const bOut = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+
+  return {
+    r: clamp01(r),
+    g: clamp01(g),
+    b: clamp01(bOut),
+  };
+}
+
+/**
+ * Parse a color string into RGB for blending (supports OKLCH and hex).
+ */
+function parseColorToRgb(color: string): RgbColor {
+  // Handle OKLCH colors used throughout the game palette.
+  const oklchMatch = color.match(OKLCH_REGEX);
+  if (oklchMatch) {
+    return oklchToSrgb(parseFloat(oklchMatch[1]), parseFloat(oklchMatch[2]), parseFloat(oklchMatch[3]));
+  }
+
+  // Handle hex colors when needed (fallback for unexpected palettes).
+  if (color.startsWith('#')) {
+    const hex = color.replace('#', '');
+    const expandedHex = hex.length === 3 ? hex.split('').map((char) => char + char).join('') : hex;
+    const hexValue = parseInt(expandedHex, 16);
+    return {
+      r: ((hexValue >> 16) & 255) / 255,
+      g: ((hexValue >> 8) & 255) / 255,
+      b: (hexValue & 255) / 255,
+    };
+  }
+
+  // Default to neutral white if the color format is unexpected.
+  return { r: 1, g: 1, b: 1 };
+}
+
+/**
+ * Blend two RGB colors using a normalized influence value.
+ */
+function mixRgb(base: RgbColor, target: RgbColor, influence: number): RgbColor {
+  const clampedInfluence = clamp01(influence);
+  return {
+    r: base.r + (target.r - base.r) * clampedInfluence,
+    g: base.g + (target.g - base.g) * clampedInfluence,
+    b: base.b + (target.b - base.b) * clampedInfluence,
+  };
+}
+
+/**
+ * Convert RGB color values into a CSS-compatible rgb() string.
+ */
+function rgbToCss(color: RgbColor): string {
+  return `rgb(${Math.round(color.r * 255)} ${Math.round(color.g * 255)} ${Math.round(color.b * 255)})`;
+}
 
 /**
  * Initialize field particles evenly distributed across the arena.
@@ -70,6 +157,8 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
   
   const arenaWidth = ARENA_WIDTH_METERS;
   const arenaHeight = getArenaHeight();
+  const neutralDustColor = parseColorToRgb(COLORS.grey);
+  const playerColorCache = new Map<number, RgbColor>();
   
   // Calculate boundaries that keep particles inside the playable area.
   const minX = BOUNDARY_MARGIN;
@@ -209,18 +298,47 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
       particle.velocity.x = -Math.abs(particle.velocity.x) * BOUNCE_DAMPING_FACTOR;
     }
     
-    // Update particle color based on influence zones
-    particle.color = COLORS.grey; // Default to grey (neutral/no influence)
+    // Update particle color based on influence zones.
+    particle.color = COLORS.grey; // Default to grey (neutral/no influence).
     
     // Check if particle is in any player's influence zone
     if (state.influenceZones) {
+      let combinedWeight = 0;
+      let blendedInfluenceColor: RgbColor = { r: 0, g: 0, b: 0 };
+
       for (const zone of state.influenceZones) {
         const dist = distance(particle.position, zone.position);
         if (dist <= zone.radius) {
-          // Particle is in this influence zone - use player color
-          particle.color = state.players[zone.owner].color;
-          break; // Use first matching zone (player zones should take priority)
+          // Measure influence strength so color fades from grey at the edge to full color at the center.
+          const influenceStrength = 1 - dist / zone.radius;
+          const ownerIndex = zone.owner;
+          const ownerColor = playerColorCache.get(ownerIndex) ?? parseColorToRgb(state.players[ownerIndex].color);
+
+          // Cache the parsed player color to avoid repeated conversions.
+          if (!playerColorCache.has(ownerIndex)) {
+            playerColorCache.set(ownerIndex, ownerColor);
+          }
+
+          // Accumulate weighted color contributions for overlapping influence zones.
+          blendedInfluenceColor = {
+            r: blendedInfluenceColor.r + ownerColor.r * influenceStrength,
+            g: blendedInfluenceColor.g + ownerColor.g * influenceStrength,
+            b: blendedInfluenceColor.b + ownerColor.b * influenceStrength,
+          };
+          combinedWeight += influenceStrength;
         }
+      }
+
+      // Blend between neutral grey and the combined influence color, clamping overlap to full intensity.
+      if (combinedWeight > 0) {
+        const normalizedInfluenceColor: RgbColor = {
+          r: blendedInfluenceColor.r / combinedWeight,
+          g: blendedInfluenceColor.g / combinedWeight,
+          b: blendedInfluenceColor.b / combinedWeight,
+        };
+        const influenceOpacity = clamp01(combinedWeight);
+        const finalColor = mixRgb(neutralDustColor, normalizedInfluenceColor, influenceOpacity);
+        particle.color = rgbToCss(finalColor);
       }
     }
   }
