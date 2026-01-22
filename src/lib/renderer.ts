@@ -74,6 +74,14 @@ const SPRITE_ROTATION_OFFSET = Math.PI / 2;
 const SUN_LIGHT_RAY_COUNT = 160;
 // Small angle offset to prevent rays from skipping along occluder edges.
 const SUN_LIGHT_RAY_EPSILON = 0.0001;
+// Lens-flare effect constants for subtle visual enhancement
+const LENS_FLARE_HALO_COUNT = 3;
+const LENS_FLARE_BASE_RADIUS = 2.5;
+const LENS_FLARE_RADIUS_INCREMENT = 0.8;
+const LENS_FLARE_BASE_ALPHA = 0.08;
+const LENS_FLARE_ALPHA_DECREMENT = 0.02;
+const LENS_FLARE_STREAK_COUNT = 4;
+const LENS_FLARE_STREAK_LENGTH = 3.5;
 
 type LightSegment = { start: Vector2; end: Vector2 };
 
@@ -1779,10 +1787,9 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   
   // Add subtle lens-flare effect when sun is visible
   // Create multiple halos with decreasing intensity
-  const flareCount = 3;
-  for (let i = 0; i < flareCount; i++) {
-    const flareRadius = radiusPixels * (2.5 + i * 0.8);
-    const flareAlpha = 0.08 - i * 0.02; // Decreasing opacity for subtle effect
+  for (let i = 0; i < LENS_FLARE_HALO_COUNT; i++) {
+    const flareRadius = radiusPixels * (LENS_FLARE_BASE_RADIUS + i * LENS_FLARE_RADIUS_INCREMENT);
+    const flareAlpha = LENS_FLARE_BASE_ALPHA - i * LENS_FLARE_ALPHA_DECREMENT;
     const flareGradient = ctx.createRadialGradient(
       pixels.x, pixels.y, flareRadius * 0.8,
       pixels.x, pixels.y, flareRadius
@@ -1799,10 +1806,9 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   // Add subtle star-like lens streaks
   ctx.strokeStyle = 'rgba(255, 245, 220, 0.12)';
   ctx.lineWidth = 1.5;
-  const streakCount = 4;
-  for (let i = 0; i < streakCount; i++) {
-    const streakAngle = (i / streakCount) * Math.PI;
-    const streakLength = radiusPixels * 3.5;
+  for (let i = 0; i < LENS_FLARE_STREAK_COUNT; i++) {
+    const streakAngle = (i / LENS_FLARE_STREAK_COUNT) * Math.PI;
+    const streakLength = radiusPixels * LENS_FLARE_STREAK_LENGTH;
     
     ctx.beginPath();
     ctx.moveTo(
