@@ -177,5 +177,20 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
       particle.position.x = arenaWidth - BOUNDARY_MARGIN;
       particle.velocity.x = -Math.abs(particle.velocity.x) * BOUNCE_DAMPING_FACTOR;
     }
+    
+    // Update particle color based on influence zones
+    particle.color = undefined; // Reset to default (white)
+    
+    // Check if particle is in any player's influence zone
+    if (state.influenceZones) {
+      for (const zone of state.influenceZones) {
+        const dist = distance(particle.position, zone.position);
+        if (dist <= zone.radius) {
+          // Particle is in this influence zone - use player color
+          particle.color = state.players[zone.owner].color;
+          break; // Use first matching zone (player zones should take priority)
+        }
+      }
+    }
   }
 }

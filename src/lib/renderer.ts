@@ -27,6 +27,10 @@ import {
   ARENA_HEIGHT_METERS,
   Floater,
   PIXELS_PER_METER,
+  WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS,
+  WARP_GATE_HOLD_TIME_MS,
+  WARP_GATE_MAX_SIZE_METERS,
+  WARP_GATE_BUILDING_ICON_SIZE_PIXELS,
 } from './types';
 import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract, getViewportOffset, getViewportDimensions, getArenaHeight, getPlayfieldRotationRadians, isEnemyUnitVisible } from './gameUtils';
 import { applyCameraTransform, removeCameraTransform, worldToScreen } from './camera';
@@ -1101,6 +1105,9 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       drawDamageNumbers(ctx, state);
       drawMiningDroneEffects(ctx, state); // Draw LOS lines for producing drones
       drawMiningIncomePopups(ctx, state); // Draw photon popups
+      drawWarpGate(ctx, state); // Draw warp gate
+      drawInfluenceErrorRings(ctx, state); // Draw influence error rings
+      drawPhotonSiphoning(ctx, state); // Draw photon siphoning
       drawSelectionIndicators(ctx, state);
       drawAbilityRangeIndicators(ctx, state);
       drawAbilityCastPreview(ctx, state);
@@ -6056,9 +6063,10 @@ function drawFieldParticles(ctx: CanvasRenderingContext2D, state: GameState): vo
     ctx.save();
     ctx.globalAlpha = particle.opacity;
     
-    // Draw white particle with subtle glow
-    ctx.fillStyle = COLORS.white;
-    ctx.shadowColor = COLORS.white;
+    // Use particle color if in influence zone, otherwise use white
+    const color = particle.color || COLORS.white;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
     ctx.shadowBlur = size * 3;
     
     ctx.beginPath();
@@ -6533,4 +6541,212 @@ function drawMinimap(ctx: CanvasRenderingContext2D, state: GameState, canvas: HT
   ctx.shadowBlur = 0;
   
   ctx.restore();
+}
+
+/**
+ * Draw warp gate visual effect (swirling energy circle)
+ */
+function drawWarpGate(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.warpGate) return;
+  
+  const warpGate = state.warpGate;
+  const currentTime = Date.now();
+  const elapsed = currentTime - warpGate.startTime;
+  const playerColor = state.players[warpGate.owner].color;
+  
+  const warpPos = positionToPixels(warpGate.position);
+  
+  // Calculate size based on stage and elapsed time
+  let size = 0;
+  let alpha = 1.0;
+  
+  if (warpGate.stage === 'initial-shockwave') {
+    // Growing from 0 to small size in first second
+    const progress = elapsed / WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS;
+    size = progress * 1.5; // Start with small size
+    alpha = 1.0 - progress * 0.3; // Slight fade
+  } else if (warpGate.stage === 'growing') {
+    // Growing from small to full size over 4 seconds (1s-5s)
+    const growElapsed = elapsed - WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS;
+    const growDuration = WARP_GATE_HOLD_TIME_MS - WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS;
+    const progress = Math.min(1.0, growElapsed / growDuration);
+    size = 1.5 + progress * (WARP_GATE_MAX_SIZE_METERS - 1.5);
+    alpha = 0.7 + progress * 0.3;
+  } else if (warpGate.stage === 'building-selected') {
+    // Full size while building
+    size = WARP_GATE_MAX_SIZE_METERS;
+    alpha = 0.8;
+  }
+  
+  const sizePixels = size * PIXELS_PER_METER;
+  
+  ctx.save();
+  
+  // Draw swirling energy effect
+  const swirlAngle = warpGate.swirlAngle || 0;
+  const numSwirls = 6;
+  
+  for (let i = 0; i < numSwirls; i++) {
+    const angle = swirlAngle + (i / numSwirls) * Math.PI * 2;
+    const radius = sizePixels * 0.5;
+    
+    ctx.beginPath();
+    ctx.strokeStyle = playerColor;
+    ctx.globalAlpha = alpha * (0.3 + (i / numSwirls) * 0.4);
+    ctx.lineWidth = 3;
+    
+    // Draw spiral arc
+    for (let t = 0; t < 1; t += 0.05) {
+      const r = radius * (0.2 + t * 0.8);
+      const a = angle + t * Math.PI * 2;
+      const x = warpPos.x + Math.cos(a) * r;
+      const y = warpPos.y + Math.sin(a) * r;
+      
+      if (t === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    
+    ctx.stroke();
+  }
+  
+  // Draw outer glow
+  ctx.globalAlpha = alpha * 0.3;
+  ctx.beginPath();
+  ctx.arc(warpPos.x, warpPos.y, sizePixels * 0.5, 0, Math.PI * 2);
+  ctx.strokeStyle = playerColor;
+  ctx.lineWidth = 10;
+  ctx.stroke();
+  
+  // Draw inner glow
+  ctx.globalAlpha = alpha * 0.6;
+  ctx.beginPath();
+  ctx.arc(warpPos.x, warpPos.y, sizePixels * 0.25, 0, Math.PI * 2);
+  ctx.fillStyle = playerColor;
+  ctx.fill();
+  
+  ctx.restore();
+  
+  // Draw building icons if warp gate is fully open
+  if (warpGate.stage === 'growing' && elapsed >= WARP_GATE_HOLD_TIME_MS) {
+    drawBuildingIcons(ctx, state, warpGate);
+  }
+}
+
+/**
+ * Draw building icons around fully open warp gate
+ */
+function drawBuildingIcons(ctx: CanvasRenderingContext2D, state: GameState, warpGate: NonNullable<GameState['warpGate']>): void {
+  const warpPos = positionToPixels(warpGate.position);
+  const iconRadius = WARP_GATE_MAX_SIZE_METERS * 0.8 * PIXELS_PER_METER;
+  const iconSize = WARP_GATE_BUILDING_ICON_SIZE_PIXELS;
+  
+  const playerFaction = state.settings.playerFaction;
+  const buildings: Array<{ type: import('./types').StructureType; angle: number; label: string }> = [
+    { type: 'offensive', angle: Math.PI, label: 'ATK' }, // Left
+    { type: `faction-${playerFaction}` as import('./types').StructureType, angle: 0, label: 'FAC' }, // Right
+    { type: 'defensive', angle: -Math.PI / 2, label: 'DEF' }, // Up
+  ];
+  
+  buildings.forEach(building => {
+    const x = warpPos.x + Math.cos(building.angle) * iconRadius;
+    const y = warpPos.y + Math.sin(building.angle) * iconRadius;
+    
+    ctx.save();
+    
+    // Draw icon background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.strokeStyle = state.players[warpGate.owner].color;
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    ctx.arc(x, y, iconSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Draw label
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(building.label, x, y);
+    
+    ctx.restore();
+  });
+}
+
+/**
+ * Draw influence error rings (showing where player can build)
+ */
+function drawInfluenceErrorRings(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.influenceErrorRings || state.influenceErrorRings.length === 0) return;
+  
+  const currentTime = Date.now();
+  
+  state.influenceErrorRings = state.influenceErrorRings.filter(ring => {
+    const elapsed = (currentTime - ring.startTime) / 1000;
+    if (elapsed >= ring.duration) return false;
+    
+    const progress = elapsed / ring.duration;
+    const alpha = 1.0 - progress; // Fade out
+    
+    const ringPos = positionToPixels(ring.position);
+    const radiusPixels = ring.radius * PIXELS_PER_METER;
+    
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = ring.color;
+    ctx.lineWidth = 3;
+    
+    // Draw pulsing ring
+    const pulseScale = 1.0 + Math.sin(currentTime / 200) * 0.1;
+    
+    ctx.beginPath();
+    ctx.arc(ringPos.x, ringPos.y, radiusPixels * pulseScale, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Draw inner glow
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    
+    ctx.restore();
+    
+    return true;
+  });
+}
+
+/**
+ * Draw photon siphoning visual effect (small circles from base to building)
+ */
+function drawPhotonSiphoning(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.warpGate || state.warpGate.stage !== 'building-selected') return;
+  if (!state.warpGate.photonsAbsorbed) return;
+  
+  const warpGate = state.warpGate;
+  const ownerBase = state.bases.find(b => b.owner === warpGate.owner);
+  if (!ownerBase) return;
+  
+  const warpPos = positionToPixels(warpGate.position);
+  const basePos = positionToPixels(ownerBase.position);
+  const playerColor = state.players[warpGate.owner].color;
+  
+  // Draw 5 photons traveling from base to warp gate
+  const numPhotons = 5;
+  for (let i = 0; i < numPhotons; i++) {
+    const offset = (Date.now() / 1000 + i * 0.2) % 1; // Stagger photons
+    const x = basePos.x + (warpPos.x - basePos.x) * offset;
+    const y = basePos.y + (warpPos.y - basePos.y) * offset;
+    
+    ctx.save();
+    ctx.fillStyle = playerColor;
+    ctx.shadowColor = playerColor;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 }

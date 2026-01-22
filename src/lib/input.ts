@@ -19,8 +19,14 @@ import {
   STRUCTURE_DEFINITIONS,
   Vector2,
   PIXELS_PER_METER,
+  WARP_GATE_HOLD_TIME_MS,
+  WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS,
+  WARP_GATE_MAX_SIZE_METERS,
+  WARP_GATE_MAX_HP,
+  INFLUENCE_ERROR_RING_DURATION_MS,
+  WARP_GATE_BUILDING_ICON_SIZE_METERS,
 } from './types';
-import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId, isEnemyUnitVisible, getViewportScale } from './gameUtils';
+import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId, isEnemyUnitVisible, getViewportScale, isPositionInInfluence, getPlayerInfluenceZones } from './gameUtils';
 import { screenToWorld, worldToScreen, zoomCamera, zoomCameraAtPoint, initializeCamera } from './camera';
 import { spawnUnit } from './simulation';
 import { soundManager } from './sound';
@@ -299,7 +305,7 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
           currentPosition: worldStart,
           startTime: Date.now(),
         };
-        soundManager.play('menu-selection');
+        soundManager.playButtonClick();
       }
       
       // In path drawing mode, check if we're starting a path near a selected unit
@@ -436,6 +442,56 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
     
     // Update base ability preview when base is selected and dragging (but not from the base itself)
     updateBaseAbilityPreview(state, touchState.isDragging, touchState.touchedBase, touchState.startPos, dx, dy, canvas);
+    
+    // Check for warp gate initiation on hold (no dragging, no other actions)
+    const elapsed = Date.now() - touchState.startTime;
+    const playerIndex = resolvePlayerIndex(state, touchState.startPos.x);
+    
+    if (!touchState.isDragging && 
+        elapsed >= WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS && 
+        !state.warpGate && 
+        !state.buildingMenu && 
+        !touchState.touchedBase && 
+        !touchState.touchedDepot && 
+        state.selectedUnits.size === 0 &&
+        dist < 10) { // Must not have moved significantly
+      const worldStart = screenToWorldPosition(state, canvas, touchState.startPos);
+      
+      // Check if position is within player's influence
+      if (isPositionInInfluence(worldStart, playerIndex, state)) {
+        // Initialize warp gate
+        state.warpGate = {
+          position: worldStart,
+          owner: playerIndex,
+          startTime: Date.now(),
+          stage: 'initial-shockwave',
+          hp: WARP_GATE_MAX_HP,
+          maxHp: WARP_GATE_MAX_HP,
+          swirlAngle: 0,
+        };
+        soundManager.playBuildingPlace();
+        // Create initial shockwave visual effect
+        createEnergyPulse(state, worldStart, state.players[playerIndex].color, 3, 0.5);
+      } else {
+        // Out of influence - show error
+        soundManager.playError();
+        // Create influence error rings
+        const playerZones = getPlayerInfluenceZones(playerIndex, state);
+        if (!state.influenceErrorRings) {
+          state.influenceErrorRings = [];
+        }
+        playerZones.forEach(zone => {
+          state.influenceErrorRings!.push({
+            id: generateId(),
+            position: zone.position,
+            radius: zone.radius,
+            color: state.players[playerIndex].color,
+            startTime: Date.now(),
+            duration: INFLUENCE_ERROR_RING_DURATION_MS / 1000,
+          });
+        });
+      }
+    }
   });
 }
 
@@ -457,6 +513,40 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
     const elapsed = Date.now() - touchState.startTime;
 
     const playerIndex = resolvePlayerIndex(state, touchState.startPos.x);
+    
+    // Handle warp gate cancellation on tap away from buttons
+    if (state.warpGate && elapsed < TAP_TIME_MS && dist < 10) {
+      // Check if tapping on a building icon (when warp gate is fully open)
+      const warpGateElapsed = Date.now() - state.warpGate.startTime;
+      if (warpGateElapsed >= WARP_GATE_HOLD_TIME_MS && state.warpGate.stage === 'growing') {
+        // Warp gate is fully open - check if tapping a building icon
+        // Building icons will be shown around the warp gate
+        // For now, we'll handle building selection in a separate function
+        const worldPos = screenToWorldPosition(state, canvas, { x, y });
+        const buildingType = getTappedBuildingIcon(state, worldPos);
+        
+        if (buildingType) {
+          // Building selected - start construction
+          state.warpGate.stage = 'building-selected';
+          state.warpGate.selectedBuilding = buildingType;
+          state.warpGate.buildingHp = 0;
+          state.warpGate.photonsAbsorbed = 0;
+          soundManager.playButtonClick();
+          // Don't delete touchState yet - fall through to normal tap handling
+        } else {
+          // Tapped away - cancel warp gate
+          delete state.warpGate;
+          soundManager.playError();
+        }
+      } else {
+        // Warp gate still opening - cancel on any tap
+        delete state.warpGate;
+        soundManager.playError();
+      }
+      // Clear touch state and return early to prevent other tap actions
+      touchStates.delete(touch.identifier);
+      return;
+    }
     
     // Add visual feedback for drag if moved significantly
     if (touchState.isDragging && dist > 10) {
@@ -1696,7 +1786,7 @@ function handleBuildingPlacement(
   
   // Check if player has enough Latticite
   if (!player.secondaryResource || player.secondaryResource < structureDef.cost) {
-    soundManager.play('error');
+    soundManager.playError();
     return;
   }
   
@@ -1713,7 +1803,7 @@ function handleBuildingPlacement(
   });
   
   if (!isValidPosition) {
-    soundManager.play('error');
+    soundManager.playError();
     return;
   }
   
@@ -1861,4 +1951,29 @@ function findUnitNearPosition(state: GameState, worldPos: Vector2, playerIndex: 
     if (!state.selectedUnits.has(unit.id)) return false;
     return distance(unit.position, worldPos) < maxDistance;
   });
+}
+
+// Helper function to get the building type that was tapped (from building icons around warp gate)
+function getTappedBuildingIcon(state: GameState, worldPos: Vector2): import('./types').StructureType | null {
+  if (!state.warpGate) return null;
+  
+  const warpGatePos = state.warpGate.position;
+  const iconRadius = WARP_GATE_MAX_SIZE_METERS * 0.8; // Icons are 80% of warp gate radius away
+  const iconSize = WARP_GATE_BUILDING_ICON_SIZE_METERS;
+  
+  // Building icons are positioned at 4 cardinal directions around the warp gate
+  const playerFaction = state.settings.playerFaction;
+  const buildingPositions: Array<{ type: import('./types').StructureType; position: Vector2 }> = [
+    { type: 'offensive', position: { x: warpGatePos.x - iconRadius, y: warpGatePos.y } }, // Left
+    { type: `faction-${playerFaction}` as import('./types').StructureType, position: { x: warpGatePos.x + iconRadius, y: warpGatePos.y } }, // Right
+    { type: 'defensive', position: { x: warpGatePos.x, y: warpGatePos.y - iconRadius } }, // Up
+  ];
+  
+  for (const building of buildingPositions) {
+    if (distance(worldPos, building.position) < iconSize) {
+      return building.type;
+    }
+  }
+  
+  return null;
 }

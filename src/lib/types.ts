@@ -45,6 +45,22 @@ export const PROMOTION_DISTANCE_THRESHOLD = 10;
 export const PROMOTION_MULTIPLIER = 1.1;
 export const QUEUE_BONUS_PER_NODE = 0.1;
 
+// Warp gate building placement constants
+export const WARP_GATE_HOLD_TIME_MS = 5000; // 5 seconds to fully open warp gate
+export const WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS = 1000; // 1 second for initial shockwave
+export const WARP_GATE_MAX_SIZE_METERS = 5; // 5 meters wide when fully open (size of a building)
+export const WARP_GATE_MAX_HP = 10; // Can be destroyed with any damage during growth
+export const WARP_GATE_SWIRL_SPEED = 2; // Rotations per second for swirling energy
+export const WARP_GATE_PHOTON_SIPHON_RATE = 20; // Photons per second during construction
+export const WARP_GATE_BUILDING_ICON_SIZE_METERS = 1.5; // Size of building icon hitbox in meters
+export const WARP_GATE_BUILDING_ICON_SIZE_PIXELS = 30; // Size of building icon in pixels
+
+// Influence system constants
+export const INFLUENCE_RADIUS_BASE = 12; // Influence radius around bases
+export const INFLUENCE_RADIUS_STRUCTURE = 8; // Influence radius around structures
+export const INFLUENCE_RADIUS_SOLAR_MIRROR = 6; // Influence radius around solar mirrors
+export const INFLUENCE_ERROR_RING_DURATION_MS = 2000; // How long error rings are visible
+
 // Fog of war vision range in meters
 
 export const COLORS = {
@@ -56,6 +72,7 @@ export const COLORS = {
   laser: 'oklch(0.70 0.30 320)',
   telegraph: 'oklch(0.75 0.18 200)',
   white: 'oklch(0.98 0 0)',
+  warpGate: 'oklch(0.80 0.25 280)', // Purple-ish color for warp gate energy
   borderMain: 'oklch(0.30 0 0)',
   borderHighlight: 'oklch(0.40 0 0)',
   borderShadow: 'oklch(0.20 0 0)',
@@ -1127,6 +1144,7 @@ export interface FieldParticle {
   mass: number; // Very low mass for easy repulsion
   size: number;
   opacity: number;
+  color?: string; // Color based on influence zone (undefined = white/default)
 }
 
 // Resource orb dropped by units on death (secondary resource)
@@ -1472,6 +1490,39 @@ export interface GameState {
     selectedType?: StructureType; // Type of structure being previewed (based on drag direction)
     startTime: number; // Timestamp when hold started
   };
+  
+  // Warp gate for building placement (hold to initiate, grows over 5 seconds)
+  warpGate?: {
+    position: Vector2; // World position where warp gate is opening
+    owner: number; // Player who initiated the warp gate
+    startTime: number; // When the warp gate started opening
+    stage: 'initial-shockwave' | 'growing' | 'building-selected' | 'warping-in'; // Current stage of warp gate
+    hp?: number; // Hit points during growing stage (can be damaged to cancel)
+    maxHp?: number; // Maximum hit points
+    selectedBuilding?: StructureType; // Building type selected from menu
+    buildingHp?: number; // Current HP of building being warped in
+    photonsAbsorbed?: number; // Number of photons absorbed for construction
+    swirlAngle?: number; // Rotation angle for swirling energy effect
+  };
+  
+  // Influence zones for building placement validation
+  influenceZones?: Array<{
+    position: Vector2; // Center of influence zone
+    radius: number; // Radius of influence
+    owner: number; // Player who owns this influence
+    sourceType: 'base' | 'structure' | 'solar-mirror'; // What generates this influence
+    sourceId: string; // ID of the source entity
+  }>;
+  
+  // Influence error feedback (rings showing influence zones)
+  influenceErrorRings?: Array<{
+    id: string;
+    position: Vector2;
+    radius: number;
+    color: string;
+    startTime: number;
+    duration: number; // How long the ring lasts
+  }>;
   
   // Multiplayer manager for online games (typed as any to avoid circular dependency with multiplayer.ts)
   multiplayerManager?: import('./multiplayer').MultiplayerManager;
