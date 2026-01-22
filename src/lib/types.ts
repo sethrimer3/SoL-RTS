@@ -194,7 +194,7 @@ export interface Unit {
     direction: Vector2;
     knifeFired: boolean;
   };
-  miningState?: { // Mining drone specific state
+  miningState?: { // Solar mirror specific state
     depotId: string; // ID of the mining depot
     depositId: string; // ID of the resource deposit being mined
     atDepot: boolean; // true when at depot, false when at deposit
@@ -202,6 +202,8 @@ export interface Unit {
     carryingOrb?: boolean; // true when carrying a secondary resource orb
     targetOrbId?: string; // ID of the orb being targeted for collection
     isProducing?: boolean; // true when solar mirror has clear LOS to both sun and base (new system)
+    isInSunlight?: boolean; // true when solar mirror is currently in direct sunlight
+    photonYield?: number; // Current photons-per-second output when producing (1-5)
   };
 }
 
@@ -1089,7 +1091,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     modifiers: ['melee', 'small'], // Changed from ranged
   },
   miningDrone: {
-    name: 'Mining Drone',
+    name: 'Solar Mirror',
     hp: 20,
     armor: 0,
     moveSpeed: 6,
@@ -1098,7 +1100,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackDamage: 0,
     attackRate: 0,
     cost: 10,
-    abilityName: 'Mine Resources',
+    abilityName: 'Solar Reflection',
     abilityCooldown: 0,
     canDamageStructures: false,
     modifiers: ['small', 'flying'],
@@ -1151,7 +1153,7 @@ export interface GameState {
   miningDepots: MiningDepot[]; // Mining depots for resource gathering (deprecated in favor of sun)
   sun?: Sun; // Central sun for new solar mining system
   asteroids?: Asteroid[]; // Asteroids that block sunlight and are visible in shadow near friendly units
-  miningIncomePopups?: Array<{ position: Vector2; startTime: number }>; // +1 photon popups for producing drones
+  miningIncomePopups?: Array<{ position: Vector2; startTime: number; amount: number }>; // Photon popups for producing solar mirrors
   obstacles: import('./maps').Obstacle[];
   projectiles: Projectile[]; // Active projectiles in the game
   shells?: Shell[]; // Ejected shell casings from marine shots
