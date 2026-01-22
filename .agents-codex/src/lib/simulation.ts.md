@@ -117,16 +117,15 @@ Multiple functions for unit abilities:
 - All abilities have unique implementations and effects
 - Blade (warrior) now skips the shared laser effect and triggers a knife volley instead
 - Combat uses attack rate to determine damage intervals
-- Bases can move but slowly (for gameplay balance)
+- Bases can move but slowly (for gameplay balance), with dedicated acceleration/deceleration tuning
 - Spawn rally points are clamped inside the 1m boundary to prevent off-screen movement targets
 - Ability commands execute after the unit reaches the queued anchor, moving the unit toward that point if needed
 - Ability cooldowns are temporarily disabled, so ability use is no longer blocked by cooldown timers
 - Tank shield domes now reduce ranged damage for allies in range and projectiles curve toward nearby enemy tanks
 - Dagger units remain cloaked by default, revealing briefly to throw an ambush knife before recloaking
-- Mining income now counts every active worker id per deposit, and dead drones are pruned from deposit worker lists
 - Solar mirror income now scales from 1-5 photons per second based on distance to the base when in sunlight and clear LOS
 - Solar mirror mining state stores sunlight visibility and photon yield for renderer effects
-- Mining drones can wait briefly using cadence delays so paired drones alternate between depot and deposit
+- Solar mirrors accelerate and decelerate slowly to keep their motion deliberate
 - Unit movement collision checks now block on any unit overlap without attempting friendly sliding paths
 - Local collision push keeps units from overlapping while allowing them to keep moving through crowds
 - Obstacle collisions still block movement to prevent clipping through walls
@@ -158,6 +157,7 @@ Multiple functions for unit abilities:
 - Implemented 8 unique unit abilities
 - Added match statistics tracking
 - Added time limit support
+- **2026-01-22**: Removed mining depot/orb handling, added slow solar mirror acceleration, and slowed base movement rates
 - **2025-12-31**: Added particle physics system for marines with 10 particles per unit that orbit using attraction forces
 - **2026-01-01**: Clamped spawn rally points to playable bounds to prevent stuck units
 - **2026-01-05**: Executed queued abilities from current position to avoid stalled ability commands

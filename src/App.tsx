@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useKV } from './hooks/useKV';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { GameState, COLORS, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS, FactionType, FACTION_DEFINITIONS, BASE_TYPE_DEFINITIONS, BaseType, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, STRUCTURE_DEFINITIONS, StructureType, Structure } from './lib/types';
-import { generateId, generateTopographyLines, generateStarfield, generateNebulaClouds, shouldUsePortraitCoordinates, updateViewportScale, calculateDefaultRallyPoint, createMiningDepots, createInitialMiningDrones, getArenaHeight, createAsteroids } from './lib/gameUtils';
+import { generateId, generateTopographyLines, generateStarfield, generateNebulaClouds, shouldUsePortraitCoordinates, updateViewportScale, calculateDefaultRallyPoint, createInitialSolarMirrors, getArenaHeight, createAsteroids } from './lib/gameUtils';
 import { updateGame, spawnUnit } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
@@ -2365,12 +2365,6 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
   const stars = generateStarfield(canvas.width, canvas.height);
   const nebulaClouds = generateNebulaClouds(canvas.width, canvas.height);
   
-  // Create mining depots in corners
-  const miningDepots = createMiningDepots(arenaWidth, arenaHeight);
-  
-  // Create initial mining drones on diagonal deposits
-  const initialDrones = createInitialMiningDrones(miningDepots);
-  
   // Create the central sun for the new mining system
   const sun = {
     position: { x: arenaWidth / 2, y: arenaHeight / 2 },
@@ -2381,51 +2375,53 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
   const asteroids = createAsteroids(arenaWidth, arenaHeight);
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
+  const bases = [
+    {
+      id: generateId(),
+      owner: 0,
+      position: basePositions.player,
+      hp: playerBaseTypeDef.hp,
+      maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+      startingHp: playerBaseTypeDef.hp,
+      armor: playerBaseTypeDef.armor,
+      movementTarget: null,
+      rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
+      isSelected: false,
+      laserCooldown: 0,
+      faction: player1Faction,
+      baseType: 'standard',
+      autoAttackCooldown: 0,
+    },
+    {
+      id: generateId(),
+      owner: 1,
+      position: basePositions.enemy,
+      hp: playerBaseTypeDef.hp,
+      maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+      startingHp: playerBaseTypeDef.hp,
+      armor: playerBaseTypeDef.armor,
+      movementTarget: null,
+      rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
+      isSelected: false,
+      laserCooldown: 0,
+      faction: player2Faction,
+      baseType: 'standard',
+      autoAttackCooldown: 0,
+    },
+  ];
+  const initialMirrors = createInitialSolarMirrors(bases, sun, obstacles);
 
   return {
     mode: 'game',
     vsMode: 'ai',
-    units: initialDrones,
+    units: initialMirrors,
     projectiles: [],
     shells: [],
     obstacles: obstacles,
-    miningDepots: miningDepots,
+    miningDepots: [],
     sun: sun, // Add the central sun
     asteroids: asteroids, // Add asteroids
-    bases: [
-      {
-        id: generateId(),
-        owner: 0,
-        position: basePositions.player,
-        hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
-        startingHp: playerBaseTypeDef.hp,
-        armor: playerBaseTypeDef.armor,
-        movementTarget: null,
-        rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
-        isSelected: false,
-        laserCooldown: 0,
-        faction: player1Faction,
-        baseType: 'standard',
-        autoAttackCooldown: 0,
-      },
-      {
-        id: generateId(),
-        owner: 1,
-        position: basePositions.enemy,
-        hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
-        startingHp: playerBaseTypeDef.hp,
-        armor: playerBaseTypeDef.armor,
-        movementTarget: null,
-        rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
-        isSelected: false,
-        laserCooldown: 0,
-        faction: player2Faction,
-        baseType: 'standard',
-        autoAttackCooldown: 0,
-      },
-    ],
+    bases: bases,
     structures: [], // Empty structures array for background battle
     players: [
       { photons: 200, incomeRate: 0, color: COLORS.playerDefault },
@@ -2528,12 +2524,6 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
   const stars = generateStarfield(canvas.width, canvas.height);
   const nebulaClouds = generateNebulaClouds(canvas.width, canvas.height);
   
-  // Create mining depots in corners
-  const miningDepots = createMiningDepots(arenaWidth, arenaHeight);
-  
-  // Create initial mining drones on diagonal deposits
-  const initialDrones = createInitialMiningDrones(miningDepots);
-  
   // Create the central sun for the new mining system
   const sun = {
     position: { x: arenaWidth / 2, y: arenaHeight / 2 },
@@ -2546,51 +2536,54 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.playerBaseType || 'standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.enemyBaseType || 'standard'];
 
+  const bases = [
+    {
+      id: generateId(),
+      owner: 0,
+      position: basePositions.player,
+      hp: playerBaseTypeDef.hp,
+      maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+      startingHp: playerBaseTypeDef.hp,
+      armor: playerBaseTypeDef.armor,
+      movementTarget: null,
+      rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
+      isSelected: false,
+      laserCooldown: 0,
+      faction: settings.playerFaction || 'radiant',
+      baseType: settings.playerBaseType || 'standard',
+      autoAttackCooldown: 0,
+    },
+    {
+      id: generateId(),
+      owner: 1,
+      position: basePositions.enemy,
+      hp: enemyBaseTypeDef.hp,
+      maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+      startingHp: enemyBaseTypeDef.hp,
+      armor: enemyBaseTypeDef.armor,
+      movementTarget: null,
+      rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
+      isSelected: false,
+      laserCooldown: 0,
+      faction: settings.enemyFaction || 'radiant',
+      baseType: settings.enemyBaseType || 'standard',
+      autoAttackCooldown: 0,
+    },
+  ];
+  const initialMirrors = createInitialSolarMirrors(bases, sun, obstacles);
+
   return {
     mode: 'countdown',
     vsMode: mode,
-    units: initialDrones,
+    units: initialMirrors,
     projectiles: [],
     shells: [],
     structures: [],
     obstacles: obstacles,
-    miningDepots: miningDepots,
+    miningDepots: [],
     sun: sun, // Add the central sun
     asteroids: asteroids, // Add asteroids
-    bases: [
-      {
-        id: generateId(),
-        owner: 0,
-        position: basePositions.player,
-        hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
-        startingHp: playerBaseTypeDef.hp,
-        armor: playerBaseTypeDef.armor,
-        movementTarget: null,
-        rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
-        isSelected: false,
-        laserCooldown: 0,
-        faction: settings.playerFaction || 'radiant',
-        baseType: settings.playerBaseType || 'standard',
-        autoAttackCooldown: 0,
-      },
-      {
-        id: generateId(),
-        owner: 1,
-        position: basePositions.enemy,
-        hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
-        startingHp: enemyBaseTypeDef.hp,
-        armor: enemyBaseTypeDef.armor,
-        movementTarget: null,
-        rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
-        isSelected: false,
-        laserCooldown: 0,
-        faction: settings.enemyFaction || 'radiant',
-        baseType: settings.enemyBaseType || 'standard',
-        autoAttackCooldown: 0,
-      },
-    ],
+    bases: bases,
     players: [
       { photons: 50, incomeRate: 0, color: settings.playerColor },
       { photons: 50, incomeRate: 0, color: settings.enemyColor },
@@ -2643,12 +2636,6 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
   // Keep base placement aligned to the shared portrait coordinate system
   const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles, shouldUsePortraitCoordinates());
   
-  // Create mining depots in corners
-  const miningDepots = createMiningDepots(arenaWidth, arenaHeight);
-  
-  // Create initial mining drones on diagonal deposits
-  const initialDrones = createInitialMiningDrones(miningDepots);
-  
   // Create the central sun for the new mining system
   const sun = {
     position: { x: arenaWidth / 2, y: arenaHeight / 2 },
@@ -2661,50 +2648,53 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.playerBaseType || 'standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.enemyBaseType || 'standard'];
 
+  const bases = [
+    {
+      id: generateId(),
+      owner: 0,
+      position: basePositions.player,
+      hp: playerBaseTypeDef.hp,
+      maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+      startingHp: playerBaseTypeDef.hp,
+      armor: playerBaseTypeDef.armor,
+      movementTarget: null,
+      rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
+      isSelected: false,
+      laserCooldown: 0,
+      faction: settings.playerFaction || 'radiant',
+      baseType: settings.playerBaseType || 'standard',
+      autoAttackCooldown: 0,
+    },
+    {
+      id: generateId(),
+      owner: 1,
+      position: basePositions.enemy,
+      hp: enemyBaseTypeDef.hp,
+      maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+      startingHp: enemyBaseTypeDef.hp,
+      armor: enemyBaseTypeDef.armor,
+      movementTarget: null,
+      rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
+      isSelected: false,
+      laserCooldown: 0,
+      faction: settings.enemyFaction || 'radiant',
+      baseType: settings.enemyBaseType || 'standard',
+      autoAttackCooldown: 0,
+    },
+  ];
+  const initialMirrors = createInitialSolarMirrors(bases, sun, obstacles);
+
   return {
     mode: 'game',
     vsMode: mode,
-    units: initialDrones,
+    units: initialMirrors,
     projectiles: [],
     shells: [],
     obstacles: obstacles,
-    miningDepots: miningDepots,
+    miningDepots: [],
     sun: sun, // Add the central sun
     asteroids: asteroids, // Add asteroids
-    bases: [
-      {
-        id: generateId(),
-        owner: 0,
-        position: basePositions.player,
-        hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
-        startingHp: playerBaseTypeDef.hp,
-        armor: playerBaseTypeDef.armor,
-        movementTarget: null,
-        rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
-        isSelected: false,
-        laserCooldown: 0,
-        faction: settings.playerFaction || 'radiant',
-        baseType: settings.playerBaseType || 'standard',
-        autoAttackCooldown: 0,
-      },
-      {
-        id: generateId(),
-        owner: 1,
-        position: basePositions.enemy,
-        hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
-        startingHp: enemyBaseTypeDef.hp,
-        armor: enemyBaseTypeDef.armor,
-        movementTarget: null,
-        rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
-        isSelected: false,
-        laserCooldown: 0,
-        faction: settings.enemyFaction || 'radiant',
-        baseType: settings.enemyBaseType || 'standard',
-        autoAttackCooldown: 0,
-      },
-    ],
+    bases: bases,
     players: [
       { photons: 50, incomeRate: 0, color: settings.playerColor },
       { photons: 50, incomeRate: 0, color: settings.enemyColor },
@@ -2745,12 +2735,6 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
   // Keep base placement aligned to the shared portrait coordinate system
   const basePositions = getValidBasePositions(arenaWidth, arenaHeight, obstacles, shouldUsePortraitCoordinates());
   
-  // Create mining depots in corners
-  const miningDepots = createMiningDepots(arenaWidth, arenaHeight);
-  
-  // Create initial mining drones on diagonal deposits
-  const initialDrones = createInitialMiningDrones(miningDepots);
-  
   // Create the central sun for the new mining system
   const sun = {
     position: { x: arenaWidth / 2, y: arenaHeight / 2 },
@@ -2764,50 +2748,53 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
 
+  const bases = [
+    {
+      id: generateId(),
+      owner: 0,
+      position: basePositions.player,
+      hp: playerBaseTypeDef.hp,
+      maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+      startingHp: playerBaseTypeDef.hp,
+      armor: playerBaseTypeDef.armor,
+      movementTarget: null,
+      rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
+      isSelected: false,
+      laserCooldown: 0,
+      faction: 'radiant',
+      baseType: 'standard',
+      autoAttackCooldown: 0,
+    },
+    {
+      id: generateId(),
+      owner: 1,
+      position: basePositions.enemy,
+      hp: enemyBaseTypeDef.hp,
+      maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+      startingHp: enemyBaseTypeDef.hp,
+      armor: enemyBaseTypeDef.armor,
+      movementTarget: null,
+      rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
+      isSelected: false,
+      laserCooldown: 0,
+      faction: 'radiant',
+      baseType: 'standard',
+      autoAttackCooldown: 0,
+    },
+  ];
+  const initialMirrors = createInitialSolarMirrors(bases, sun, obstacles);
+
   return {
     mode: 'game',
     vsMode: 'online',
-    units: initialDrones,
+    units: initialMirrors,
     projectiles: [],
     shells: [],
     obstacles: obstacles,
-    miningDepots: miningDepots,
+    miningDepots: [],
     sun: sun, // Add the central sun
     asteroids: asteroids, // Add asteroids
-    bases: [
-      {
-        id: generateId(),
-        owner: 0,
-        position: basePositions.player,
-        hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
-        startingHp: playerBaseTypeDef.hp,
-        armor: playerBaseTypeDef.armor,
-        movementTarget: null,
-        rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
-        isSelected: false,
-        laserCooldown: 0,
-        faction: 'radiant',
-        baseType: 'standard',
-        autoAttackCooldown: 0,
-      },
-      {
-        id: generateId(),
-        owner: 1,
-        position: basePositions.enemy,
-        hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
-        startingHp: enemyBaseTypeDef.hp,
-        armor: enemyBaseTypeDef.armor,
-        movementTarget: null,
-        rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
-        isSelected: false,
-        laserCooldown: 0,
-        faction: 'radiant',
-        baseType: 'standard',
-        autoAttackCooldown: 0,
-      },
-    ],
+    bases: bases,
     players: [
       { photons: 50, incomeRate: 0, color: isHost ? lobby.hostColor : lobby.guestColor || COLORS.playerDefault },
       { photons: 50, incomeRate: 0, color: isHost ? lobby.guestColor || COLORS.enemyDefault : lobby.hostColor },
@@ -2865,12 +2852,6 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
   const stars = generateStarfield(canvas.width, canvas.height);
   const nebulaClouds = generateNebulaClouds(canvas.width, canvas.height);
   
-  // Create mining depots in corners
-  const miningDepots = createMiningDepots(arenaWidth, arenaHeight);
-  
-  // Create initial mining drones on diagonal deposits
-  const initialDrones = createInitialMiningDrones(miningDepots);
-  
   // Create the central sun for the new mining system
   const sun = {
     position: { x: arenaWidth / 2, y: arenaHeight / 2 },
@@ -2884,50 +2865,53 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
 
+  const bases = [
+    {
+      id: generateId(),
+      owner: 0,
+      position: basePositions.player,
+      hp: playerBaseTypeDef.hp,
+      maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+      startingHp: playerBaseTypeDef.hp,
+      armor: playerBaseTypeDef.armor,
+      movementTarget: null,
+      rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
+      isSelected: false,
+      laserCooldown: 0,
+      faction: 'radiant',
+      baseType: 'standard',
+      autoAttackCooldown: 0,
+    },
+    {
+      id: generateId(),
+      owner: 1,
+      position: basePositions.enemy,
+      hp: enemyBaseTypeDef.hp,
+      maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+      startingHp: enemyBaseTypeDef.hp,
+      armor: enemyBaseTypeDef.armor,
+      movementTarget: null,
+      rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
+      isSelected: false,
+      laserCooldown: 0,
+      faction: 'radiant',
+      baseType: 'standard',
+      autoAttackCooldown: 0,
+    },
+  ];
+  const initialMirrors = createInitialSolarMirrors(bases, sun, obstacles);
+
   return {
     mode: 'countdown',
     vsMode: 'online',
-    units: initialDrones,
+    units: initialMirrors,
     projectiles: [],
     shells: [],
     obstacles: obstacles,
-    miningDepots: miningDepots,
+    miningDepots: [],
     sun: sun, // Add the central sun
     asteroids: asteroids, // Add asteroids
-    bases: [
-      {
-        id: generateId(),
-        owner: 0,
-        position: basePositions.player,
-        hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
-        startingHp: playerBaseTypeDef.hp,
-        armor: playerBaseTypeDef.armor,
-        movementTarget: null,
-        rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
-        isSelected: false,
-        laserCooldown: 0,
-        faction: 'radiant',
-        baseType: 'standard',
-        autoAttackCooldown: 0,
-      },
-      {
-        id: generateId(),
-        owner: 1,
-        position: basePositions.enemy,
-        hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
-        startingHp: enemyBaseTypeDef.hp,
-        armor: enemyBaseTypeDef.armor,
-        movementTarget: null,
-        rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
-        isSelected: false,
-        laserCooldown: 0,
-        faction: 'radiant',
-        baseType: 'standard',
-        autoAttackCooldown: 0,
-      },
-    ],
+    bases: bases,
     players: [
       { photons: 50, incomeRate: 0, color: isHost ? lobby.hostColor : lobby.guestColor || COLORS.playerDefault },
       { photons: 50, incomeRate: 0, color: isHost ? lobby.guestColor || COLORS.enemyDefault : lobby.hostColor },

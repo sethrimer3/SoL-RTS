@@ -161,7 +161,7 @@ export function TutorialScreen({ onBack }: TutorialScreenProps) {
       icon: <KeyReturn size={32} className="text-indigo-400" />,
       title: "Strategic Tips",
       content: [
-        "Economy: Collect photons from mining depots in the corners for bonus income",
+        "Economy: Solar mirrors near your base reflect sunlight for bonus income",
         "Composition: Mix melee and ranged units for balanced army",
         "Scouting: Use fast/cloaked Dagger units to see enemy movements",
         "Abilities: Save powerful abilities for key moments",

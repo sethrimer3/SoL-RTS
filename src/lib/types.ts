@@ -195,8 +195,8 @@ export interface Unit {
     knifeFired: boolean;
   };
   miningState?: { // Solar mirror specific state
-    depotId: string; // ID of the mining depot
-    depositId: string; // ID of the resource deposit being mined
+    depotId?: string; // Optional ID of the mining depot (deprecated)
+    depositId?: string; // Optional ID of the resource deposit (deprecated)
     atDepot: boolean; // true when at depot, false when at deposit
     cadenceDelay?: number; // Optional delay to keep drones alternating when sharing a deposit
     carryingOrb?: boolean; // true when carrying a secondary resource orb
@@ -255,7 +255,7 @@ export const BASE_TYPE_DEFINITIONS: Record<BaseType, BaseTypeDefinition> = {
     description: 'Fast mobile base with enhanced shield',
     hp: 800,
     armor: 10,
-    moveSpeed: 9, // Faster than standard (doubled from 4.5)
+    moveSpeed: 3.4, // Slower top speed for mobile bases
     ability: 'shield',
     canMove: true,
   },
@@ -264,7 +264,7 @@ export const BASE_TYPE_DEFINITIONS: Record<BaseType, BaseTypeDefinition> = {
     description: 'Slow base with regeneration aura',
     hp: 1200,
     armor: 20,
-    moveSpeed: 2.0, // Doubled from 1.0
+    moveSpeed: 1.0, // Slower top speed for mobile bases
     ability: 'regeneration',
     canMove: true,
   },
@@ -284,7 +284,7 @@ export const FACTION_DEFINITIONS: Record<FactionType, FactionDefinition> = {
   radiant: {
     name: 'Radiant',
     description: 'Focused on long-range attacks and overall balanced gameplay',
-    baseMoveSpeed: 3.0, // Doubled from 1.5
+    baseMoveSpeed: 1.6, // Slower cruising speed for mobile bases
     baseShape: 'square',
     ability: 'laser',
     availableUnits: ['marine', 'warrior', 'tank', 'scout', 'artillery', 'medic', 'interceptor', 'guardian', 'marksman', 'engineer', 'skirmisher', 'paladin'],
@@ -293,7 +293,7 @@ export const FACTION_DEFINITIONS: Record<FactionType, FactionDefinition> = {
   aurum: {
     name: 'Aurum',
     description: 'Focused on strategic gameplay and advanced spell casting',
-    baseMoveSpeed: 6.0, // Doubled from 3.0
+    baseMoveSpeed: 2.2, // Slower cruising speed for mobile bases
     baseShape: 'triangle',
     ability: 'shield',
     availableUnits: ['snaker', 'berserker', 'assassin', 'juggernaut', 'striker', 'reaper', 'oracle', 'harbinger', 'gladiator', 'ravager', 'warlord', 'duelist'],
@@ -302,7 +302,7 @@ export const FACTION_DEFINITIONS: Record<FactionType, FactionDefinition> = {
   solari: {
     name: 'Solari',
     description: 'Focused on fast gameplay and melee combat',
-    baseMoveSpeed: 4.0, // Doubled from 2.0
+    baseMoveSpeed: 1.9, // Slower cruising speed for mobile bases
     baseShape: 'circle',
     ability: 'pulse',
     availableUnits: ['flare', 'nova', 'eclipse', 'corona', 'supernova', 'zenith', 'pulsar', 'celestial', 'voidwalker', 'chronomancer', 'nebula', 'quasar', 'luminary', 'photon', 'starborn', 'prism'],
@@ -1094,7 +1094,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     name: 'Solar Mirror',
     hp: 20,
     armor: 0,
-    moveSpeed: 6,
+    moveSpeed: 2.5,
     attackType: 'none',
     attackRange: 0,
     attackDamage: 0,

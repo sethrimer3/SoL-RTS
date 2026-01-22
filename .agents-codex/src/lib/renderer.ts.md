@@ -149,6 +149,8 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - Laser beam sprites place begin/end caps once and tile the middle sprite only between those caps to avoid overextending the beam.
 - Sun lighting uses a visibility polygon generated from ray intersections against asteroids, obstacles, bases, mining depots, and structures so the playfield brightens in lit regions while shadows remain behind occluders.
 - Solar mirrors render a directional white sheen on the sun-facing side when in sunlight, with brightness scaled by photon yield.
+- Solar mirrors draw a small thruster flame aligned to their travel direction while moving.
+- Solar mirrors rotate to face the sun only when they are in direct sunlight.
 - Sun rendering now prefers the environment SVG sprite for the core, falling back to a gradient when the sprite is not ready.
 
 ### Rendering Optimizations
@@ -164,6 +166,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 
 ### Known Issues
 - Large unit counts may impact performance, especially when many effects are enabled
+- Mining depot/deposit render paths remain, but depots are no longer spawned in match setup
 
 ## Future Changes
 
@@ -211,6 +214,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **2025-03-24**: Added enemy ship sprites for Aurum units and clarified the shared sprite-forward rotation offset.
 - **2025-03-24**: Corrected laser sprite tiling so the middle segment repeats only between single begin/end caps.
 - **2025-03-24**: Clipped background and world rendering to the playfield while filling the exterior with neutral gray.
+- **2026-01-22**: Added solar mirror thruster flames and sun-facing rotation when mirrors are lit.
 
 ## Watch Out For
 - Always convert game positions to pixels before drawing
