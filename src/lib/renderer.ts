@@ -74,6 +74,15 @@ const SPRITE_ROTATION_OFFSET = Math.PI / 2;
 const SUN_LIGHT_RAY_COUNT = 160;
 // Small angle offset to prevent rays from skipping along occluder edges.
 const SUN_LIGHT_RAY_EPSILON = 0.0001;
+// Lens-flare effect constants for subtle visual enhancement
+const LENS_FLARE_HALO_COUNT = 3;
+const LENS_FLARE_BASE_RADIUS = 2.5;
+const LENS_FLARE_RADIUS_INCREMENT = 0.8;
+const LENS_FLARE_BASE_ALPHA = 0.08;
+const LENS_FLARE_ALPHA_DECREMENT = 0.02;
+const LENS_FLARE_STREAK_COUNT = 4;
+const LENS_FLARE_STREAK_LENGTH = 3.5;
+const LENS_FLARE_INNER_RADIUS_RATIO = 0.8;
 
 type LightSegment = { start: Vector2; end: Vector2 };
 
@@ -1774,6 +1783,45 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     ctx.lineTo(endX, endY);
+    ctx.stroke();
+  }
+  
+  // Add subtle lens-flare effect when sun is visible
+  // Create multiple halos with decreasing intensity
+  for (let i = 0; i < LENS_FLARE_HALO_COUNT; i++) {
+    const flareRadius = radiusPixels * (LENS_FLARE_BASE_RADIUS + i * LENS_FLARE_RADIUS_INCREMENT);
+    const flareAlpha = Math.max(0, LENS_FLARE_BASE_ALPHA - i * LENS_FLARE_ALPHA_DECREMENT);
+    const flareGradient = ctx.createRadialGradient(
+      pixels.x, pixels.y, flareRadius * LENS_FLARE_INNER_RADIUS_RATIO,
+      pixels.x, pixels.y, flareRadius
+    );
+    flareGradient.addColorStop(0, `rgba(255, 240, 200, ${flareAlpha})`);
+    flareGradient.addColorStop(1, 'rgba(255, 240, 200, 0)');
+    
+    ctx.fillStyle = flareGradient;
+    ctx.beginPath();
+    ctx.arc(pixels.x, pixels.y, flareRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Add subtle star-like lens streaks
+  // 4 full-diameter lines create an 8-pointed star appearance (each line spans from one side to the opposite)
+  // Using π radians for 4 streaks gives us angles: 0°, 45°, 90°, 135° which create 8 visible points
+  ctx.strokeStyle = 'rgba(255, 245, 220, 0.12)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < LENS_FLARE_STREAK_COUNT; i++) {
+    const streakAngle = (i / LENS_FLARE_STREAK_COUNT) * Math.PI;
+    const streakLength = radiusPixels * LENS_FLARE_STREAK_LENGTH;
+    
+    ctx.beginPath();
+    ctx.moveTo(
+      pixels.x - Math.cos(streakAngle) * streakLength,
+      pixels.y - Math.sin(streakAngle) * streakLength
+    );
+    ctx.lineTo(
+      pixels.x + Math.cos(streakAngle) * streakLength,
+      pixels.y + Math.sin(streakAngle) * streakLength
+    );
     ctx.stroke();
   }
   

@@ -22,9 +22,9 @@ export const MINING_DRONE_SIZE_MULTIPLIER = 0.67; // 3x smaller than before
 
 // Fixed arena dimensions in meters for consistent gameplay across all devices
 export const ARENA_WIDTH_METERS = 60;  // Fixed logical width in meters
-export const ARENA_HEIGHT_METERS = 90; // Fixed logical height in meters (desktop/default)
-// Mobile uses a taller arena to match 20:9 aspect ratio
-export const ARENA_HEIGHT_METERS_MOBILE = 133.33; // 60 * (20/9) for 20:9 height:width ratio
+export const ARENA_HEIGHT_METERS = 60; // Fixed logical height in meters (desktop/default) - made square
+// Mobile uses the same square arena
+export const ARENA_HEIGHT_METERS_MOBILE = 60; // Square arena for mobile as well
 
 export const ABILITY_MAX_RANGE = 10;
 export const QUEUE_MAX_LENGTH = 3;
