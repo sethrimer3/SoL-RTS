@@ -287,8 +287,17 @@ function App() {
           };
           soundManager.playMatchStart();
           
-          // Initialize camera for game
-          initializeCamera(gameStateRef.current);
+          // Initialize the camera to start zoomed in on the local player's base.
+          const localPlayerIndex = gameStateRef.current.vsMode === 'online'
+            ? (multiplayerManagerRef.current?.getIsHost() ? 0 : 1)
+            : 0;
+          const localPlayerBase = gameStateRef.current.bases.find(base => base.owner === localPlayerIndex);
+          
+          // Default to centering on the origin if no base exists yet.
+          initializeCamera(gameStateRef.current, {
+            initialZoom: 3,
+            focusPosition: localPlayerBase?.position,
+          });
           
           delete gameStateRef.current.countdownStartTime;
           delete gameStateRef.current.countdownSeconds;

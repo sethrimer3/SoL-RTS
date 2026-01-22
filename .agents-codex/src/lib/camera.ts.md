@@ -24,9 +24,9 @@ Defines the camera system for the game, including initialization, smooth zooming
 - **Returns:** Minimum zoom factor based on viewport and arena dimensions.
 - **Notes:** Accounts for mobile UI chrome by shrinking the usable height.
 
-### initializeCamera(state: GameState)
+### initializeCamera(state: GameState, options?: CameraInitializationOptions)
 - **Purpose:** Creates the camera state with initial offsets and zoom.
-- **Notes:** On mobile, starts at the minimum zoom so the arena clears the bottom controls.
+- **Notes:** On mobile, starts at the minimum zoom so the arena clears the bottom controls, unless an explicit initial zoom/focus override is provided.
 
 ### updateCamera(state: GameState, deltaTime: number)
 - **Purpose:** Smoothly interpolates zoom and offset toward targets.
@@ -60,6 +60,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 ### Critical Details
 - Minimum zoom is recalculated every frame to stay aligned with viewport changes.
 - Mobile button mode reserves UI height to keep the arena fully visible.
+- The minimum zoom now matches the full-field fit exactly so players cannot zoom out past the full arena.
 - Pinch zoom alignment uses target offsets to keep the pinch center anchored during smoothing.
 
 ### Known Issues
@@ -75,6 +76,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 ## Change History
 - **2025-03-24:** Added mobile button bar reservation to the minimum zoom calculation.
 - **2025-03-24:** Aligned pinch zoom world-point calculations with target offsets to reduce center drift.
+- **2025-03-24:** Added initialization options for focus/zoom and removed the fixed zoom-out floor so the max zoom-out matches the full-field fit.
 
 ## Watch Out For
 - Keep zoom bounds in sync with any UI layout changes that affect the playfield size.

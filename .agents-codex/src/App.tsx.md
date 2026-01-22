@@ -69,6 +69,7 @@ Main application component that orchestrates the entire game. Manages game state
   - Updates AI (if applicable)
   - Renders frame
   - Checks for victory/defeat
+  - Initializes the camera at match start to zoom toward the local player's base
 
 #### handleVictory(winner)
 - **Purpose:** Process match end
@@ -123,6 +124,7 @@ Main application component that orchestrates the entire game. Manages game state
 - MMR calculated using ELO formula for online matches
 - Surrender requires 3 clicks within time window
 - Victory animation includes base sliding sequence
+- Camera start now centers on the local player's base with a zoomed-in view at match start
 - Preloads available sound effect assets and maps them to sound manager keys
 
 ### Performance Considerations
@@ -175,6 +177,7 @@ Main application component that orchestrates the entire game. Manages game state
 - **2025-03-22**: Preloaded UI/gameplay sound effect assets and routed settings controls to the setting change cue.
 - **2025-03-22**: Added a sprite rendering toggle to persisted settings and the settings screen.
 - **2026-01-22**: Removed fog-of-war settings/particles from state initialization and game loop updates.
+- **2025-03-24**: Centered the match-start camera on the local player's base with a zoomed-in view.
 
 ## Watch Out For
 - Game state ref vs React state - use correctly for performance
