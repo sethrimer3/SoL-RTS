@@ -3008,7 +3008,7 @@ function drawSelectionWheel(ctx: CanvasRenderingContext2D, state: GameState): vo
   
   // Ensure we have exactly 7 units (pad with repeats if needed)
   while (enabledUnits.length < 7) {
-    enabledUnits.push(enabledUnits[enabledUnits.length % enabledUnits.length]);
+    enabledUnits.push(enabledUnits[enabledUnits.length - 1] || enabledUnits[0]);
   }
   
   // Calculate animation progress (spin out effect)

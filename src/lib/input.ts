@@ -618,13 +618,16 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
         base.isSelected = true;
         state.selectedUnits.clear();
         
-        // Initialize selection wheel
-        state.selectionWheel = {
-          baseId: base.id,
-          selectedIndex: 0,
-          visible: true,
-          animationStartTime: Date.now()
-        };
+        // Initialize selection wheel only if there are enabled units
+        const enabledUnits = Array.from(state.settings.enabledUnits);
+        if (enabledUnits.length > 0) {
+          state.selectionWheel = {
+            baseId: base.id,
+            selectedIndex: 0,
+            visible: true,
+            animationStartTime: Date.now()
+          };
+        }
       }
     } else if (touchState.touchedBase && touchState.isDragging && dist > SWIPE_THRESHOLD_PX) {
       // If base was already selected, dragging from it sets rally point
@@ -816,13 +819,16 @@ function handleRectSelection(
   if (selectedBase) {
     selectedBase.isSelected = true;
     
-    // Initialize selection wheel for the selected base
-    state.selectionWheel = {
-      baseId: selectedBase.id,
-      selectedIndex: 0,
-      visible: true,
-      animationStartTime: Date.now()
-    };
+    // Initialize selection wheel for the selected base only if there are enabled units
+    const enabledUnits = Array.from(state.settings.enabledUnits);
+    if (enabledUnits.length > 0) {
+      state.selectionWheel = {
+        baseId: selectedBase.id,
+        selectedIndex: 0,
+        visible: true,
+        animationStartTime: Date.now()
+      };
+    }
     
     soundManager.playUnitSelect();
   }
@@ -1741,13 +1747,16 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
       base.isSelected = true;
       state.selectedUnits.clear();
       
-      // Initialize selection wheel
-      state.selectionWheel = {
-        baseId: base.id,
-        selectedIndex: 0,
-        visible: true,
-        animationStartTime: Date.now()
-      };
+      // Initialize selection wheel only if there are enabled units
+      const enabledUnits = Array.from(state.settings.enabledUnits);
+      if (enabledUnits.length > 0) {
+        state.selectionWheel = {
+          baseId: base.id,
+          selectedIndex: 0,
+          visible: true,
+          animationStartTime: Date.now()
+        };
+      }
     }
   } else if (mouseState.touchedBase && mouseState.isDragging && dist > SWIPE_THRESHOLD_PX) {
     // If base was already selected, dragging from it sets rally point
