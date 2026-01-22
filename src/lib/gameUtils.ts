@@ -1,4 +1,4 @@
-import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, RESOURCE_DEPOSIT_RING_RADIUS_METERS, UNIT_DEFINITIONS, GameState, Asteroid } from './types';
+import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, UNIT_DEFINITIONS, GameState, Asteroid, Base, Sun, UNIT_SIZE_METERS } from './types';
 import { checkObstacleCollision, type Obstacle } from './maps';
 
 // Calculate viewport scale to fit the fixed arena to the viewport
@@ -370,95 +370,60 @@ export function generateNebulaClouds(canvasWidth: number, canvasHeight: number):
   return clouds;
 }
 
-// Create mining depots in the corners of the map
-export function createMiningDepots(arenaWidth: number, arenaHeight: number): import('./types').MiningDepot[] {
-  const depots: import('./types').MiningDepot[] = [];
-  const depositDistance = RESOURCE_DEPOSIT_RING_RADIUS_METERS; // Distance from depot center to deposits
-  const margin = 8; // Margin from edges of arena
-  
-  // Define the 4 corner positions for depots
-  // 2 depots for player (owner 0) at bottom, 2 for enemy (owner 1) at top
-  const corners = [
-    { x: margin, y: margin, owner: 1 }, // Top-left (enemy side)
-    { x: arenaWidth - margin, y: margin, owner: 1 }, // Top-right (enemy side)
-    { x: margin, y: arenaHeight - margin, owner: 0 }, // Bottom-left (player side)
-    { x: arenaWidth - margin, y: arenaHeight - margin, owner: 0 }, // Bottom-right (player side)
-  ];
-  
-  corners.forEach((corner, index) => {
-    const depotId = generateId();
-    const deposits: import('./types').ResourceDeposit[] = [];
-    
-    // Create 8 resource deposits in a ring around the depot
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const depositPos = {
-        x: corner.x + Math.cos(angle) * depositDistance,
-        y: corner.y + Math.sin(angle) * depositDistance,
-      };
-      
-      deposits.push({
+// Create initial solar mirrors near each base, aligned toward sunlight.
+export function createInitialSolarMirrors(
+  bases: Base[],
+  sun: Sun,
+  obstacles: Obstacle[],
+): import('./types').Unit[] {
+  const mirrors: import('./types').Unit[] = [];
+  const mirrorDefinition = UNIT_DEFINITIONS.miningDrone;
+  const mirrorSpacing = UNIT_SIZE_METERS * 1.2;
+  const baseOffsetDistance = UNIT_SIZE_METERS * 2.5;
+
+  bases.forEach((base) => {
+    // Position mirrors on the sun-facing side of the base.
+    const toSun = normalize(subtract(sun.position, base.position));
+    const perpendicular = { x: -toSun.y, y: toSun.x };
+
+    for (let i = 0; i < 4; i += 1) {
+      const lateralOffset = (i - 1.5) * mirrorSpacing;
+      let spawnPosition = add(
+        base.position,
+        add(scale(toSun, baseOffsetDistance), scale(perpendicular, lateralOffset)),
+      );
+
+      // Nudge the mirror forward if the initial spot is shadowed or blocked.
+      if (!hasLineOfSight(spawnPosition, sun.position, obstacles)) {
+        spawnPosition = add(spawnPosition, scale(toSun, UNIT_SIZE_METERS * 1.5));
+      }
+
+      if (checkObstacleCollision(spawnPosition, UNIT_SIZE_METERS / 2, obstacles)) {
+        spawnPosition = add(spawnPosition, scale(toSun, UNIT_SIZE_METERS * 2.5));
+      }
+
+      mirrors.push({
         id: generateId(),
-        position: depositPos,
-        depotId: depotId,
-        workerIds: [],
+        type: 'miningDrone',
+        owner: base.owner,
+        position: { ...spawnPosition },
+        hp: mirrorDefinition.hp,
+        maxHp: mirrorDefinition.hp,
+        armor: mirrorDefinition.armor,
+        commandQueue: [],
+        damageMultiplier: 1.0,
+        distanceTraveled: 0,
+        distanceCredit: 0,
+        abilityCooldown: 0,
+        miningState: {
+          atDepot: false,
+          isInSunlight: hasLineOfSight(spawnPosition, sun.position, obstacles),
+        },
       });
     }
-    
-    depots.push({
-      id: depotId,
-      position: { x: corner.x, y: corner.y },
-      owner: corner.owner,
-      deposits: deposits,
-    });
   });
-  
-  return depots;
-}
 
-// Create initial mining drones on diagonal deposits (X shape: positions 1, 3, 5, 7)
-export function createInitialMiningDrones(miningDepots: import('./types').MiningDepot[]): import('./types').Unit[] {
-  const drones: import('./types').Unit[] = [];
-  const diagonalPositions = [1, 3, 5, 7]; // Diagonal positions in the 0-7 ring
-  const droneDefinition = UNIT_DEFINITIONS.miningDrone;
-  
-  miningDepots.forEach((depot) => {
-    diagonalPositions.forEach((depositIndex) => {
-      const deposit = depot.deposits[depositIndex];
-      if (deposit) {
-        const droneId = generateId();
-        const drone: import('./types').Unit = {
-          id: droneId,
-          type: 'miningDrone',
-          owner: depot.owner,
-          position: { ...deposit.position },
-          hp: droneDefinition.hp,
-          maxHp: droneDefinition.hp,
-          armor: droneDefinition.armor,
-          commandQueue: [],
-          damageMultiplier: 1.0,
-          distanceTraveled: 0,
-          distanceCredit: 0,
-          abilityCooldown: 0,
-          miningState: {
-            depotId: depot.id,
-            depositId: deposit.id,
-            atDepot: false, // Start at deposit
-          },
-        };
-        
-        drones.push(drone);
-        
-        // Register this drone in the deposit's worker list
-        if (!deposit.workerIds) {
-          deposit.workerIds = [];
-        }
-        deposit.workerIds.push(droneId);
-      }
-    });
-  });
-  
-  return drones;
+  return mirrors;
 }
 
 /**

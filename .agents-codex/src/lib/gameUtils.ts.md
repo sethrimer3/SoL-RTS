@@ -5,7 +5,7 @@ Provides core mathematical utility functions for vector operations, coordinate t
 
 ## Dependencies
 ### Imports
-- `./types` - Vector2 type and PIXELS_PER_METER constant
+- `./types` - Vector2 type, unit/base definitions, and arena sizing constants
 - `./maps` - Obstacle type and obstacle collision checks for shadow raycasts
 
 ### Used By
@@ -63,6 +63,14 @@ Provides core mathematical utility functions for vector operations, coordinate t
 - **Parameters:** Enemy position and game state
 - **Returns:** True when in sunlight or when a friendly unit/structure is nearby in shadows
 - **Notes:** Keeps player visibility consistent with the sun raytracing model
+
+### Starting Unit Helpers
+
+#### createInitialSolarMirrors(bases: Base[], sun: Sun, obstacles: Obstacle[]): Unit[]
+- **Purpose:** Spawn the initial four solar mirrors per base on the sun-facing side
+- **Parameters:** Bases to seed, the current sun position, and obstacles for LOS checks
+- **Returns:** Array of newly created solar mirror units
+- **Notes:** Nudges mirrors toward sunlight when their first spot is shadowed or obstructed
 
 ### Coordinate Conversion Functions
 
@@ -169,7 +177,6 @@ Provides core mathematical utility functions for vector operations, coordinate t
 - Viewport scale swaps arena dimensions when the playfield is rotated for desktop
 - normalize() handles zero-length vectors gracefully (returns zero vector)
 - generateId() is NOT cryptographically secure - only for game entity IDs
-- Mining depot creation seeds each resource deposit with an empty `workerIds` array for mining drones
 
 ### Known Issues
 - None currently identified
@@ -195,6 +202,7 @@ Provides core mathematical utility functions for vector operations, coordinate t
 - **2025-03-18**: Aligned mining depot deposit ring spacing with the shared resource ring radius constant
 - **2025-03-24**: Added a render-only playfield rotation helper for aligning unit visuals in desktop landscape mode
 - **2026-01-22**: Replaced fog-of-war visibility with sun-shadow raycast checks and friendly proximity gating
+- **2026-01-22**: Added solar mirror seeding near bases with sun-facing placement and LOS nudges
 
 ## Watch Out For
 - Always normalize vectors before using them as directions (especially for movement)

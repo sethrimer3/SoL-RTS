@@ -40,6 +40,7 @@ Displays the in-game tutorial tips and guidance text for new players, including 
 
 ## Change History
 - **2026-01-08:** Updated scouting tip to reference the Dagger unit name
+- **2026-01-22:** Updated economy tip to describe solar mirror sunlight income
 
 ## Watch Out For
 - Keep references to unit names aligned with `UNIT_DEFINITIONS` updates

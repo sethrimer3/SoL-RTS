@@ -77,7 +77,7 @@ Represents a game unit with:
 - Visual effects: particles (optional array of Particle objects, currently used for marines)
 - Blade melee swing sequencing: swordSwing (active swing animation), swordSwingHold (hold angle between swings), and swordSwingCombo (queued combo timing)
 - Blade movement lag: bladeTrailHistory snapshot buffer for delayed sword particle rendering
-- Mining state: depot/deposit identifiers, sunlight flags, and photon yield tracking for solar mirror visuals
+- Mining state: optional depot/deposit identifiers plus sunlight flags and photon yield tracking for solar mirror visuals
 
 ### Base Interface
 Represents a player base with:
@@ -150,7 +150,6 @@ The complete game state structure containing:
 - Queue bonus system encourages strategic planning (more queued moves = faster promotions)
 - Optional properties (with `?`) indicate temporary ability states
 - Shield domes can now specify ranged/melee damage multipliers per source unit
-- Resource deposits now track up to two mining drones via `workerIds`
 - Solar mirror mining state now stores sunlight visibility and photon yield for rendering
 - Sprite rendering toggles live in settings for renderer access
 
@@ -187,6 +186,7 @@ None currently identified
 - **2025-03-24**: Reduced Blade sword particle spacing and doubled Blade move speed for faster melee engagement.
 - **2026-01-22**: Removed fog-of-war settings, particles, and vision range constants after replacing visibility with sun shadows.
 - **2026-01-23**: Renamed mining drone display name to Solar Mirror and added sunlight/photon yield fields for sheen and popup rendering.
+- **2026-01-22**: Slowed solar mirror/base move speeds and made mining depot identifiers optional on mining state.
 
 ## Watch Out For
 - Always use meters for game logic, only convert to pixels for rendering

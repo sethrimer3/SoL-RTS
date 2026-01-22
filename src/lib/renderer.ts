@@ -635,6 +635,54 @@ function drawSolariUnitSprite(
   return false; // No other Solari sprites yet
 }
 
+/**
+ * Draws a small engine flare behind a moving solar mirror.
+ * Keeps the flame aligned to movement direction regardless of sun-facing sprite rotation.
+ * @param ctx - Canvas rendering context
+ * @param unit - Solar mirror unit
+ * @param screenPos - Screen-space center position of the unit
+ * @param playfieldRotation - Rotation offset applied to the playfield
+ * @param timeSeconds - Current time in seconds for flicker animation
+ */
+function drawSolarMirrorThruster(
+  ctx: CanvasRenderingContext2D,
+  unit: Unit,
+  screenPos: Vector2,
+  playfieldRotation: number,
+  timeSeconds: number,
+): void {
+  const speed = unit.currentSpeed ?? 0;
+  if (speed <= 0.05) {
+    return;
+  }
+
+  // Use movement rotation so the flame trails behind the travel direction.
+  const travelRotation = (unit.rotation ?? 0) + playfieldRotation;
+  const unitSizePixels = metersToPixels(getUnitSizeMeters(unit));
+  const flameOffset = unitSizePixels * 0.45;
+  const flameWidth = unitSizePixels * 0.14;
+  const flameLength = unitSizePixels * (0.22 + 0.05 * Math.sin(timeSeconds * 8));
+  const backPosition = {
+    x: screenPos.x + Math.cos(travelRotation + Math.PI) * flameOffset,
+    y: screenPos.y + Math.sin(travelRotation + Math.PI) * flameOffset,
+  };
+
+  ctx.save();
+  ctx.translate(backPosition.x, backPosition.y);
+  ctx.rotate(travelRotation + Math.PI);
+  ctx.globalAlpha *= 0.8;
+  ctx.fillStyle = 'rgba(255, 140, 40, 0.85)';
+  ctx.shadowColor = 'rgba(255, 180, 90, 0.9)';
+  ctx.shadowBlur = flameWidth * 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-flameWidth * 0.5, 0);
+  ctx.lineTo(flameWidth * 0.5, 0);
+  ctx.lineTo(0, flameLength);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawRadiantBaseSprite(
   ctx: CanvasRenderingContext2D,
   base: Base,
@@ -3777,8 +3825,20 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.save();
     ctx.fillStyle = color;
     ctx.strokeStyle = color;
+
+    // Draw solar mirror thruster flames before the unit sprite for proper layering.
+    if (unit.type === 'miningDrone') {
+      drawSolarMirrorThruster(ctx, unit, screenPos, playfieldRotation, time);
+    }
+
     // Apply the playfield rotation offset to the unit's facing direction for rendering.
-    const unitRenderRotation = (unit.rotation || 0) + playfieldRotation;
+    let unitRenderRotation = (unit.rotation || 0) + playfieldRotation;
+    if (unit.type === 'miningDrone' && unit.miningState?.isInSunlight && state.sun) {
+      const toSun = subtract(state.sun.position, unit.position);
+      const sunRotation = Math.atan2(toSun.y, toSun.x);
+      // Face the sun only when the mirror is in direct sunlight.
+      unitRenderRotation = sunRotation + playfieldRotation;
+    }
 
     // Try sprite rendering first based on unit owner's faction; fall back to vector shapes when sprites are disabled or unavailable.
     let spriteDrawn = false;

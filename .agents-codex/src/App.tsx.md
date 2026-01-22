@@ -118,6 +118,7 @@ Main application component that orchestrates the entire game. Manages game state
 - Gameplay coordinate orientation is derived from `shouldUsePortraitCoordinates()` to keep desktop rotation cosmetic
 - Settings synced from useKV to game state on change
 - Sprite rendering toggle stored in settings for the renderer
+- Initial solar mirrors are spawned near bases on the sun-facing side for early economy
 - Match statistics tracked throughout game
 - MMR calculated using ELO formula for online matches
 - Surrender requires 3 clicks within time window
@@ -158,6 +159,7 @@ Main application component that orchestrates the entire game. Manages game state
 
 ## Change History
 - Initial creation with basic game loop
+- **2026-01-22**: Initialized solar mirrors near bases and removed mining depot seeding during match setup
 - Added multiplayer support
 - Implemented statistics tracking
 - Added match start animations

@@ -238,6 +238,12 @@ const ROTATION_SPEED = 8.0; // radians per second - how fast units rotate to fac
 // Movement acceleration/deceleration constants
 const ACCELERATION_RATE = 15.0; // units per second per second - how fast units accelerate
 const DECELERATION_RATE = 20.0; // units per second per second - how fast units decelerate
+// Solar mirrors should feel heavy and deliberate when maneuvering.
+const SOLAR_MIRROR_ACCELERATION_RATE = 4.0; // Slow acceleration for solar mirrors
+const SOLAR_MIRROR_DECELERATION_RATE = 5.0; // Slow deceleration for solar mirrors
+// Mobile bases need to lumber forward rather than dart across the map.
+const BASE_ACCELERATION_RATE = 4.5; // Slow acceleration for moving bases
+const BASE_DECELERATION_RATE = 5.5; // Slow deceleration for moving bases
 const MIN_SPEED_THRESHOLD = 0.05; // Minimum speed before stopping completely
 const COLLISION_DECELERATION_FACTOR = 0.5; // Factor to slow down when collision detected
 
@@ -471,8 +477,9 @@ function moveUnitTowardPosition(
   // Align unit orientation with its travel direction for consistent visuals.
   updateUnitRotation(unit, direction, deltaTime);
 
-  // Use constant top speed instead of acceleration
-  const movement = scale(direction, def.moveSpeed * deltaTime);
+  // Use unit-specific speed handling so solar mirrors ease into motion.
+  const travelSpeed = getUnitMovementSpeed(unit, direction, def.moveSpeed, deltaTime);
+  const movement = scale(direction, travelSpeed * deltaTime);
   const moveDist = Math.min(distance(unit.position, add(unit.position, movement)), dist);
   const newPosition = add(unit.position, scale(direction, moveDist));
 
@@ -1126,7 +1133,14 @@ function recordBladeTrailHistory(unit: Unit, timestamp: number): void {
 }
 
 // Apply smooth acceleration/deceleration to unit movement
-function applyMovementAcceleration(unit: Unit, direction: Vector2, targetSpeed: number, deltaTime: number): number {
+function applyMovementAcceleration(
+  unit: Unit,
+  direction: Vector2,
+  targetSpeed: number,
+  deltaTime: number,
+  accelerationRate: number = ACCELERATION_RATE,
+  decelerationRate: number = DECELERATION_RATE,
+): number {
   // Initialize current speed if not set
   if (unit.currentSpeed === undefined) {
     unit.currentSpeed = 0;
@@ -1137,11 +1151,11 @@ function applyMovementAcceleration(unit: Unit, direction: Vector2, targetSpeed: 
   
   if (speedDiff > 0) {
     // Accelerating
-    const acceleration = Math.min(ACCELERATION_RATE * deltaTime, speedDiff);
+    const acceleration = Math.min(accelerationRate * deltaTime, speedDiff);
     unit.currentSpeed += acceleration;
   } else if (speedDiff < 0) {
     // Decelerating
-    const deceleration = Math.max(-DECELERATION_RATE * deltaTime, speedDiff);
+    const deceleration = Math.max(-decelerationRate * deltaTime, speedDiff);
     unit.currentSpeed += deceleration;
   }
   
@@ -1151,6 +1165,31 @@ function applyMovementAcceleration(unit: Unit, direction: Vector2, targetSpeed: 
   }
   
   return unit.currentSpeed;
+}
+
+/**
+ * Determines the travel speed for a unit, applying slow acceleration for solar mirrors.
+ * Keeps other units on their immediate top-speed behavior.
+ * @param unit - Unit being moved
+ * @param direction - Movement direction for optional future weighting
+ * @param targetSpeed - Desired top speed
+ * @param deltaTime - Time elapsed since last update in seconds
+ * @returns Current movement speed after acceleration/deceleration
+ */
+function getUnitMovementSpeed(unit: Unit, direction: Vector2, targetSpeed: number, deltaTime: number): number {
+  if (unit.type !== 'miningDrone') {
+    return targetSpeed;
+  }
+
+  // Solar mirrors accelerate and brake slowly for deliberate motion.
+  return applyMovementAcceleration(
+    unit,
+    direction,
+    targetSpeed,
+    deltaTime,
+    SOLAR_MIRROR_ACCELERATION_RATE,
+    SOLAR_MIRROR_DECELERATION_RATE,
+  );
 }
 
 // Update particle physics
@@ -1464,26 +1503,6 @@ function createExplosionParticles(state: GameState, position: Vector2, color: st
   state.explosionParticles = state.explosionParticles.filter((particle) => {
     const age = (now - particle.createdAt) / 1000;
     return age < particle.lifetime;
-  });
-}
-
-// Create a resource orb when a non-mining-drone unit dies
-function createResourceOrb(state: GameState, position: Vector2, ownerColor: string, enemyColor: string): void {
-  if (!state.resourceOrbs) {
-    state.resourceOrbs = [];
-  }
-  
-  // Mix the two colors for the orb - use a neutral glowing color
-  const mixColor = 'oklch(0.70 0.20 150)'; // A neutral teal/purple glow
-  
-  state.resourceOrbs.push({
-    id: generateId(),
-    position: { ...position },
-    color: mixColor,
-    createdAt: Date.now(),
-    glowPhase: Math.random() * Math.PI * 2,
-    ownerColor: ownerColor,
-    killerColor: enemyColor,
   });
 }
 
@@ -2203,7 +2222,6 @@ function updateIncome(state: GameState, deltaTime: number): void {
   state.players.forEach((player, playerIndex) => {
     let miningIncome = 0;
     
-    // NEW SYSTEM: Solar-based mining
     // Solar mirrors generate photons when they have clear LOS to both sun and base.
     if (state.sun) {
       const sun = state.sun; // Local reference for TypeScript null check
@@ -2219,9 +2237,7 @@ function updateIncome(state: GameState, deltaTime: number): void {
             // Ensure solar mirrors have mining state for rendering effects.
             if (!unit.miningState) {
               unit.miningState = {
-                depotId: '',
-                depositId: '',
-                atDepot: true,
+                atDepot: false,
               };
             }
 
@@ -2242,20 +2258,6 @@ function updateIncome(state: GameState, deltaTime: number): void {
           }
         });
       }
-    } else {
-      // OLD SYSTEM: Depot-based mining (fallback for compatibility)
-      state.miningDepots.forEach((depot) => {
-        if (depot.owner === playerIndex) {
-          depot.deposits.forEach((deposit) => {
-            const activeWorkers = (deposit.workerIds ?? []).filter((workerId) => {
-              const worker = state.units.find(u => u.id === workerId);
-              return !!worker;
-            });
-            deposit.workerIds = activeWorkers;
-            miningIncome += activeWorkers.length * 2;
-          });
-        }
-      });
     }
     
     player.incomeRate = miningIncome;
@@ -2440,32 +2442,18 @@ function updateUnits(state: GameState, deltaTime: number): void {
     }
 
     if (unit.commandQueue.length === 0) {
-      // Mining drones automatically queue back and forth between depot and deposit
-      if (unit.miningState) {
-        const depot = state.miningDepots.find(d => d.id === unit.miningState?.depotId);
-        const deposit = depot?.deposits.find(d => d.id === unit.miningState?.depositId);
-        
-        if (depot && deposit) {
-          // Hold briefly to keep paired drones in alternating cadence
-          if (unit.miningState.cadenceDelay && unit.miningState.cadenceDelay > 0) {
-            unit.miningState.cadenceDelay = Math.max(0, unit.miningState.cadenceDelay - deltaTime);
-            unit.stuckTimer = 0;
-            unit.lastPosition = undefined;
-            return;
-          }
-
-          if (unit.miningState.atDepot) {
-            // Go to deposit
-            unit.commandQueue.push({ type: 'move', position: deposit.position });
-            unit.miningState.atDepot = false;
-          } else {
-            // Go back to depot
-            unit.commandQueue.push({ type: 'move', position: depot.position });
-            unit.miningState.atDepot = true;
-          }
-        }
+      // Gently decelerate solar mirrors when they have no active commands.
+      if (unit.type === 'miningDrone' && unit.currentSpeed && unit.currentSpeed > 0) {
+        applyMovementAcceleration(
+          unit,
+          { x: 0, y: 0 },
+          0,
+          deltaTime,
+          SOLAR_MIRROR_ACCELERATION_RATE,
+          SOLAR_MIRROR_DECELERATION_RATE,
+        );
       }
-      
+
       // Reset stuck timer when no commands
       unit.stuckTimer = 0;
       unit.lastPosition = undefined;
@@ -2513,8 +2501,9 @@ function updateUnits(state: GameState, deltaTime: number): void {
       // Update unit rotation to face movement direction
       updateUnitRotation(unit, direction, deltaTime);
       
-      // Use constant top speed instead of acceleration
-      const movement = scale(direction, def.moveSpeed * deltaTime);
+      // Use unit-specific speed handling so solar mirrors ease into motion.
+      const travelSpeed = getUnitMovementSpeed(unit, direction, def.moveSpeed, deltaTime);
+      const movement = scale(direction, travelSpeed * deltaTime);
 
       const moveDist = Math.min(distance(unit.position, add(unit.position, movement)), dist);
       const newPosition = add(unit.position, scale(direction, moveDist));
@@ -2528,48 +2517,6 @@ function updateUnits(state: GameState, deltaTime: number): void {
       if (!collisionResult.blocked) {
         // Use the desired position when clear
         unit.position = adjustedPosition;
-        
-        // Check if mining drone is near a resource orb and can collect it
-        if (unit.type === 'miningDrone' && unit.miningState && !unit.miningState.carryingOrb && state.resourceOrbs) {
-          const orbCollectionRadius = UNIT_SIZE_METERS * MINING_DRONE_SIZE_MULTIPLIER * 0.8;
-          const nearbyOrb = state.resourceOrbs.find(orb => 
-            distance(unit.position, orb.position) < orbCollectionRadius
-          );
-          
-          if (nearbyOrb) {
-            // Collect the orb
-            unit.miningState.carryingOrb = true;
-            unit.miningState.targetOrbId = nearbyOrb.id;
-            // Remove orb from game state
-            state.resourceOrbs = state.resourceOrbs.filter(o => o.id !== nearbyOrb.id);
-            // Clear movement queue and go to depot
-            unit.commandQueue = [];
-            const depot = state.miningDepots.find(d => d.id === unit.miningState?.depotId);
-            if (depot) {
-              unit.commandQueue.push({ type: 'move', position: depot.position });
-              unit.miningState.atDepot = false;
-            }
-            // Deselect this worker so other selected workers don't automatically follow
-            state.selectedUnits.delete(unit.id);
-          }
-        }
-        
-        // Check if mining drone at depot can deposit the orb
-        if (unit.type === 'miningDrone' && unit.miningState && unit.miningState.carryingOrb) {
-          const depot = state.miningDepots.find(d => d.id === unit.miningState?.depotId);
-          if (depot && distance(unit.position, depot.position) < MINING_DEPOT_SIZE_METERS * 0.6) {
-            // Deposit the orb
-            unit.miningState.carryingOrb = false;
-            unit.miningState.targetOrbId = undefined;
-            // Add secondary resource to player
-            if (!state.players[unit.owner].secondaryResource) {
-              state.players[unit.owner].secondaryResource = 0;
-            }
-            state.players[unit.owner].secondaryResource! += 1;
-            // Resume normal mining operations
-            unit.miningState.atDepot = true;
-          }
-        }
         
         // Reset stuck timer and jitter - unit is making progress
         unit.stuckTimer = 0;
@@ -2661,8 +2608,9 @@ function updateUnits(state: GameState, deltaTime: number): void {
       // Update unit rotation to face movement direction
       updateUnitRotation(unit, direction, deltaTime);
       
-      // Use constant top speed instead of acceleration
-      const movement = scale(direction, def.moveSpeed * deltaTime);
+      // Use unit-specific speed handling so solar mirrors ease into motion.
+      const travelSpeed = getUnitMovementSpeed(unit, direction, def.moveSpeed, deltaTime);
+      const movement = scale(direction, travelSpeed * deltaTime);
 
       const moveDist = Math.min(distance(unit.position, add(unit.position, movement)), dist);
       const newPosition = add(unit.position, scale(direction, moveDist));
@@ -3204,7 +3152,7 @@ function updateBases(state: GameState, deltaTime: number): void {
       }
       // Reset speed when not moving
       if (base.currentSpeed !== undefined && base.currentSpeed > 0) {
-        base.currentSpeed = Math.max(0, base.currentSpeed - DECELERATION_RATE * deltaTime);
+        base.currentSpeed = Math.max(0, base.currentSpeed - BASE_DECELERATION_RATE * deltaTime);
       }
       return;
     }
@@ -3250,11 +3198,11 @@ function updateBases(state: GameState, deltaTime: number): void {
     
     if (speedDiff > 0) {
       // Accelerating
-      const acceleration = Math.min(ACCELERATION_RATE * deltaTime, speedDiff);
+      const acceleration = Math.min(BASE_ACCELERATION_RATE * deltaTime, speedDiff);
       base.currentSpeed += acceleration;
     } else if (speedDiff < 0) {
       // Decelerating (shouldn't happen while moving, but for completeness)
-      const deceleration = Math.max(-DECELERATION_RATE * deltaTime, speedDiff);
+      const deceleration = Math.max(-BASE_DECELERATION_RATE * deltaTime, speedDiff);
       base.currentSpeed += deceleration;
     }
     
@@ -5235,12 +5183,6 @@ function cleanupDeadUnits(state: GameState): void {
       createEnhancedDeathExplosion(state, u.position, color, 1.0);
       soundManager.playUnitDeath();
       
-      // Create resource orb for all non-mining-drone units
-      if (u.type !== 'miningDrone') {
-        // Determine enemy color (the other player)
-        const enemyColor = state.players[u.owner === 0 ? 1 : 0].color;
-        createResourceOrb(state, u.position, color, enemyColor);
-      }
     });
     
     // Shake screen if multiple units died at once
