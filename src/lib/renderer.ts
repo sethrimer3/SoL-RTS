@@ -113,6 +113,8 @@ const aurumMiningDepotSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/aurum
 const solariMiningDroneSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/solari/mining/solariMiningDrone.png`;
 const solariMiningDepotSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/solari/mining/solariMiningDepot.png`;
 const solariResourceDepositSpritePath = `${assetBaseUrl}ASSETS/sprites/factions/solari/mining/solariResource.png`;
+// Environment sprite paths
+const centralSunSpritePath = `${assetBaseUrl}ASSETS/sprites/environment/centralSun.svg`;
 
 // Cache sprite images so we only construct them once.
 const spriteCache = new Map<string, HTMLImageElement>();
@@ -845,11 +847,51 @@ function drawMiningDroneEffects(ctx: CanvasRenderingContext2D, state: GameState)
   state.units.forEach((unit) => {
     if (unit.type !== 'miningDrone' || !unit.miningState) return;
     
+    const dronePos = positionToPixels(unit.position);
+    const sunPos = positionToPixels(sun.position);
+    const isInSunlight = unit.miningState.isInSunlight;
+    if (!isInSunlight) return;
+    
+    // Draw a directional sheen on the sun-facing side of the solar mirror.
+    const rawPhotonYield = unit.miningState.photonYield ?? 1;
+    const clampedPhotonYield = Math.min(5, Math.max(1, rawPhotonYield));
+    const brightnessScale = 0.2 + (clampedPhotonYield - 1) * 0.2;
+    const sunAngle = Math.atan2(sunPos.y - dronePos.y, sunPos.x - dronePos.x);
+    const spriteRadius = metersToPixels(getUnitSizeMeters(unit)) * MINING_DRONE_SPRITE_SCALE * 0.55;
+    
+    ctx.save();
+    ctx.translate(dronePos.x, dronePos.y);
+    ctx.rotate(sunAngle);
+    applyGlowEffect(ctx, state, `rgba(255, 255, 255, ${0.4 * brightnessScale})`, 6 + clampedPhotonYield * 2);
+    
+    const sheenGradient = ctx.createRadialGradient(
+      spriteRadius * 0.1,
+      0,
+      spriteRadius * 0.2,
+      spriteRadius,
+      0,
+      spriteRadius,
+    );
+    sheenGradient.addColorStop(0, `rgba(255, 255, 255, ${0.55 * brightnessScale})`);
+    sheenGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    ctx.fillStyle = sheenGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, spriteRadius, -Math.PI / 2, Math.PI / 2);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.35 * brightnessScale})`;
+    ctx.lineWidth = Math.max(1, spriteRadius * 0.08);
+    ctx.beginPath();
+    ctx.arc(0, 0, spriteRadius, -Math.PI / 2, Math.PI / 2);
+    ctx.stroke();
+    clearGlowEffect(ctx, state);
+    ctx.restore();
+
     const isProducing = unit.miningState.isProducing;
     if (!isProducing) return;
     
-    const dronePos = positionToPixels(unit.position);
-    const sunPos = positionToPixels(sun.position);
     const ownerBase = state.bases.find(b => b.owner === unit.owner);
     if (!ownerBase) return;
     const basePos = positionToPixels(ownerBase.position);
@@ -895,7 +937,7 @@ function drawMiningIncomePopups(ctx: CanvasRenderingContext2D, state: GameState)
   const time = Date.now();
   
   // Render each active popup
-  state.miningIncomePopups.forEach((popup: any, index: number) => {
+  state.miningIncomePopups.forEach((popup: { position: Vector2; startTime: number; amount: number }, index: number) => {
     const elapsed = (time - popup.startTime) / 1000;
     const duration = 1.0; // 1 second animation
     
@@ -921,12 +963,12 @@ function drawMiningIncomePopups(ctx: CanvasRenderingContext2D, state: GameState)
     ctx.arc(pos.x - 10, pos.y - yOffset, 3, 0, Math.PI * 2);
     ctx.fill();
     
-    // Draw +1 text
+    // Draw photon amount text
     ctx.shadowBlur = 5;
     ctx.fillStyle = '#FFF';
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText('+1', pos.x, pos.y - yOffset);
+    ctx.fillText(`+${popup.amount}`, pos.x, pos.y - yOffset);
     
     ctx.restore();
   });
@@ -1003,7 +1045,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       drawImpactEffects(ctx, state);
       drawDamageNumbers(ctx, state);
       drawMiningDroneEffects(ctx, state); // Draw LOS lines for producing drones
-      drawMiningIncomePopups(ctx, state); // Draw +1 photon popups
+      drawMiningIncomePopups(ctx, state); // Draw photon popups
       drawSelectionIndicators(ctx, state);
       drawAbilityRangeIndicators(ctx, state);
       drawAbilityCastPreview(ctx, state);
@@ -1629,6 +1671,7 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   
   const pixels = positionToPixels(state.sun.position);
   const radiusPixels = metersToPixels(state.sun.radius);
+  const sunSprite = getSpriteFromCache(centralSunSpritePath);
   
   ctx.save();
   
@@ -1644,16 +1687,21 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.arc(pixels.x, pixels.y, radiusPixels * 2, 0, Math.PI * 2);
   ctx.fill();
   
-  // Draw core
-  const coreGradient = ctx.createRadialGradient(pixels.x, pixels.y, 0, pixels.x, pixels.y, radiusPixels);
-  coreGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  coreGradient.addColorStop(0.5, 'rgba(255, 230, 120, 1)');
-  coreGradient.addColorStop(1, 'rgba(255, 180, 50, 0.9)');
-  
-  ctx.fillStyle = coreGradient;
-  ctx.beginPath();
-  ctx.arc(pixels.x, pixels.y, radiusPixels, 0, Math.PI * 2);
-  ctx.fill();
+  // Draw sun core sprite when available, otherwise fall back to a gradient core.
+  if (isSpriteReady(sunSprite)) {
+    const spriteSize = radiusPixels * 2;
+    ctx.drawImage(sunSprite, pixels.x - spriteSize / 2, pixels.y - spriteSize / 2, spriteSize, spriteSize);
+  } else {
+    const coreGradient = ctx.createRadialGradient(pixels.x, pixels.y, 0, pixels.x, pixels.y, radiusPixels);
+    coreGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    coreGradient.addColorStop(0.5, 'rgba(255, 230, 120, 1)');
+    coreGradient.addColorStop(1, 'rgba(255, 180, 50, 0.9)');
+    
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(pixels.x, pixels.y, radiusPixels, 0, Math.PI * 2);
+    ctx.fill();
+  }
   
   // Add animated rays
   const time = Date.now() / 1000;

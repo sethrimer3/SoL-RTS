@@ -28,6 +28,8 @@ import {
   UnitModifier,
   QUEUE_MAX_LENGTH,
   BASE_TYPE_DEFINITIONS,
+  ARENA_WIDTH_METERS,
+  ARENA_HEIGHT_METERS,
 } from './types';
 import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians, hasLineOfSight, isEnemyUnitVisible } from './gameUtils';
 import { checkObstacleCollision } from './maps';
@@ -78,6 +80,29 @@ const SHELL_EJECTION_SPEED_VARIANCE = 0.35; // percent variance in speed
 const SHELL_LIFETIME = 1.2; // seconds before shell disappears
 const SHELL_COLLISION_RADIUS = 0.18; // meters for shell-field particle collision
 const SHELL_BOUNCE_DAMPING = 0.6; // velocity damping after bounce
+
+// Solar mirror photon yield tuning constants.
+const SOLAR_MIRROR_MIN_PHOTON_YIELD = 1;
+const SOLAR_MIRROR_MAX_PHOTON_YIELD = 5;
+// Use the arena diagonal as the "very far" distance for photon falloff.
+const SOLAR_MIRROR_MAX_DISTANCE = Math.hypot(ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS);
+
+/**
+ * Calculates solar mirror photon production based on distance to base.
+ * @param distanceToBase - Distance from the solar mirror to its owner's base in meters.
+ * @returns The rounded photons-per-second output clamped between 1 and 5.
+ */
+function getSolarMirrorPhotonYield(distanceToBase: number): number {
+  // Normalize distance so 0m = max yield, max distance = min yield.
+  const normalizedDistance = Math.min(1, Math.max(0, distanceToBase / SOLAR_MIRROR_MAX_DISTANCE));
+  const yieldRange = SOLAR_MIRROR_MAX_PHOTON_YIELD - SOLAR_MIRROR_MIN_PHOTON_YIELD;
+  const rawYield = SOLAR_MIRROR_MIN_PHOTON_YIELD + (1 - normalizedDistance) * yieldRange;
+  // Round to the nearest whole number and clamp to the [1, 5] range.
+  return Math.min(
+    SOLAR_MIRROR_MAX_PHOTON_YIELD,
+    Math.max(SOLAR_MIRROR_MIN_PHOTON_YIELD, Math.round(rawYield)),
+  );
+}
 const SHELL_MOMENTUM_TRANSFER = 0.4; // velocity transfer factor to field particles
 const SHELL_MASS = 0.02; // small mass for shell physics
 
@@ -2179,7 +2204,7 @@ function updateIncome(state: GameState, deltaTime: number): void {
     let miningIncome = 0;
     
     // NEW SYSTEM: Solar-based mining
-    // Mining drones (solar mirrors) generate +1 HP/sec to base when they have clear LOS to both sun and base
+    // Solar mirrors generate photons when they have clear LOS to both sun and base.
     if (state.sun) {
       const sun = state.sun; // Local reference for TypeScript null check
       const ownerBase = state.bases.find(b => b.owner === playerIndex);
@@ -2190,23 +2215,29 @@ function updateIncome(state: GameState, deltaTime: number): void {
             const hasLOStoSun = hasLineOfSight(unit.position, sun.position, state.obstacles);
             // Check line of sight from drone to base
             const hasLOStoBase = hasLineOfSight(unit.position, ownerBase.position, state.obstacles);
-            
+
+            // Ensure solar mirrors have mining state for rendering effects.
+            if (!unit.miningState) {
+              unit.miningState = {
+                depotId: '',
+                depositId: '',
+                atDepot: true,
+              };
+            }
+
+            // Cache sunlight state for sheen rendering, even if no base LOS.
+            unit.miningState.isInSunlight = hasLOStoSun;
+
             if (hasLOStoSun && hasLOStoBase) {
-              // Drone is producing: +1 HP/second added to base capacity
-              miningIncome += 1;
-              
-              // Mark the drone as producing for visual effects
-              if (!unit.miningState) {
-                unit.miningState = {
-                  depotId: '',
-                  depositId: '',
-                  atDepot: true,
-                };
-              }
-              // Use a flag to indicate this drone is currently producing
+              // Solar mirror is producing photons based on distance to its base.
+              const photonYield = getSolarMirrorPhotonYield(distance(unit.position, ownerBase.position));
+              miningIncome += photonYield;
               unit.miningState.isProducing = true;
-            } else if (unit.miningState) {
+              unit.miningState.photonYield = photonYield;
+            } else {
+              // Reset production flags when LOS fails.
               unit.miningState.isProducing = false;
+              unit.miningState.photonYield = 0;
             }
           }
         });
@@ -2239,14 +2270,16 @@ function updateIncome(state: GameState, deltaTime: number): void {
       state.miningIncomePopups = [];
     }
     
-    // Create income popups for producing drones
+    // Create income popups for producing solar mirrors
     if (state.sun) {
       const sun = state.sun; // Local reference for TypeScript null check
       state.units.forEach((unit) => {
         if (unit.type === 'miningDrone' && unit.miningState && unit.miningState.isProducing) {
+          const popupAmount = Math.max(1, unit.miningState.photonYield ?? 1);
           state.miningIncomePopups!.push({
             position: { ...unit.position },
             startTime: Date.now(),
+            amount: popupAmount,
           });
         }
       });

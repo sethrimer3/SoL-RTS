@@ -68,7 +68,7 @@ function getAbilityDescription(unitType: UnitType): string {
     prism: 'Splits light into 5 beams that fan out in a 45° spread pattern, each dealing 15 damage to enemies in their path (9m length). Also fires a laser dealing 10 damage.',
     
     // Special units
-    miningDrone: 'Automatically mines resources from assigned deposit and returns them to the depot.',
+    miningDrone: 'Reflects sunlight into the base when in direct sun and clear line of sight. Produces 1-5 photons per second based on distance to the base (closer mirrors yield more).',
   };
   
   return abilityDescriptions[unitType] || 'Generic laser ability dealing 10 damage in target direction.';

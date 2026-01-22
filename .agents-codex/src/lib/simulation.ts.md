@@ -24,7 +24,7 @@ Contains the core game simulation loop and logic. Handles unit movement, combat,
 
 ### updateIncome(state: GameState, deltaTime: number): void
 - **Purpose:** Manages resource generation for players
-- **Notes:** Income rate increases every 10 seconds, grants photons per second
+- **Notes:** Income rate increases every 10 seconds, solar mirrors add photons per second when lit and aligned with base LOS
 
 ### updateUnits(state: GameState, deltaTime: number): void
 - **Purpose:** Updates all unit positions, abilities, and command queues
@@ -124,6 +124,8 @@ Multiple functions for unit abilities:
 - Tank shield domes now reduce ranged damage for allies in range and projectiles curve toward nearby enemy tanks
 - Dagger units remain cloaked by default, revealing briefly to throw an ambush knife before recloaking
 - Mining income now counts every active worker id per deposit, and dead drones are pruned from deposit worker lists
+- Solar mirror income now scales from 1-5 photons per second based on distance to the base when in sunlight and clear LOS
+- Solar mirror mining state stores sunlight visibility and photon yield for renderer effects
 - Mining drones can wait briefly using cadence delays so paired drones alternate between depot and deposit
 - Unit movement collision checks now block on any unit overlap without attempting friendly sliding paths
 - Local collision push keeps units from overlapping while allowing them to keep moving through crowds
@@ -174,6 +176,7 @@ Multiple functions for unit abilities:
 - **2025-03-24**: Clarified sprite corner trail math to align with the global sprite-forward PI/2 rotation offset.
 - **2025-03-24**: Added lookahead-based path following to smooth unit turns on drawn paths.
 - **2026-01-22**: Synced player photon totals with base HP every tick, aligned unit spend updates, and reused sun-shadow visibility checks for structure targeting
+- **2026-01-23**: Scaled solar mirror income by base distance (1-5 photons), added sunlight tracking, and stored photon yield for UI popups.
 
 ## Watch Out For
 - Delta time must be in seconds, not milliseconds
