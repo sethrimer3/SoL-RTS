@@ -372,15 +372,44 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
         selectedUnitsList.every(u => u.type === 'miningDrone' && u.owner === playerIndex);
 
       // Initialize building menu if holding with mining drones selected
-      if (allMiningDrones && elapsed >= HOLD_TIME_MS && !state.buildingMenu && !touchState.touchedBase && !touchState.touchedDepot) {
+      if (allMiningDrones && elapsed >= WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS && !state.buildingMenu && !state.warpGate && !touchState.touchedBase && !touchState.touchedDepot && dist < WARP_GATE_MAX_MOVEMENT_THRESHOLD) {
         const worldStart = screenToWorldPosition(state, canvas, touchState.startPos);
-        state.buildingMenu = {
-          workerIds: Array.from(state.selectedUnits),
-          startPosition: worldStart,
-          currentPosition: worldStart,
-          startTime: Date.now(),
-        };
-        soundManager.playButtonClick();
+        const playerIndex = resolvePlayerIndex(state, touchState.startPos.x);
+        
+        // Check if position is within player's influence
+        if (isPositionInInfluence(worldStart, playerIndex, state)) {
+          // Initialize warp gate for building placement
+          state.warpGate = {
+            position: worldStart,
+            owner: playerIndex,
+            startTime: Date.now(),
+            stage: 'initial-shockwave',
+            hp: WARP_GATE_MAX_HP,
+            maxHp: WARP_GATE_MAX_HP,
+            swirlAngle: 0,
+          };
+          soundManager.playBuildingPlace();
+          // Create initial shockwave visual effect
+          createEnergyPulse(state, worldStart, state.players[playerIndex].color, 0.5, 3);
+        } else {
+          // Out of influence - show error
+          soundManager.playError();
+          // Create influence error rings
+          const playerZones = getPlayerInfluenceZones(playerIndex, state);
+          if (!state.influenceErrorRings) {
+            state.influenceErrorRings = [];
+          }
+          playerZones.forEach(zone => {
+            state.influenceErrorRings!.push({
+              id: generateId(),
+              position: zone.position,
+              radius: zone.radius,
+              color: state.players[playerIndex].color,
+              startTime: Date.now(),
+              duration: INFLUENCE_ERROR_RING_DURATION_MS / 1000,
+            });
+          });
+        }
       }
       
       // In path drawing mode, check if we're starting a path near a selected unit
@@ -412,44 +441,6 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
     if (touchState.selectionRect) {
       touchState.selectionRect.x2 = x;
       touchState.selectionRect.y2 = y;
-    }
-    
-    // Update building menu if active
-    if (state.buildingMenu) {
-      const worldCurrent = screenToWorldPosition(state, canvas, { x, y });
-      state.buildingMenu.currentPosition = worldCurrent;
-      
-      // Determine which building type based on drag direction
-      const dragVector = subtract(worldCurrent, state.buildingMenu.startPosition);
-      const dragDistance = distance({ x: 0, y: 0 }, dragVector);
-      
-      if (dragDistance > 1.5) { // Minimum drag distance to select a direction
-        const angle = Math.atan2(dragVector.y, dragVector.x);
-        const angleDeg = angle * (180 / Math.PI);
-        
-        // Determine direction: left (180°), up (-90°), right (0°), down (90°)
-        // Convert angle to 0-360 range
-        const normalizedAngle = ((angleDeg + 360) % 360);
-        
-        const playerIndex = resolvePlayerIndex(state, touchState.startPos.x);
-        const playerFaction = state.settings.playerFaction;
-        
-        if (normalizedAngle >= 135 && normalizedAngle < 225) {
-          // Left - Offensive tower
-          state.buildingMenu.selectedType = 'offensive';
-        } else if (normalizedAngle >= 45 && normalizedAngle < 135) {
-          // Down - Cancel
-          state.buildingMenu.selectedType = undefined;
-        } else if (normalizedAngle >= 315 || normalizedAngle < 45) {
-          // Right - Faction-specific tower
-          state.buildingMenu.selectedType = `faction-${playerFaction}` as import('./types').StructureType;
-        } else {
-          // Up - Defensive tower
-          state.buildingMenu.selectedType = 'defensive';
-        }
-      } else {
-        state.buildingMenu.selectedType = undefined;
-      }
     }
     
     // Update rally point preview when dragging from a selected base
@@ -584,13 +575,6 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
 
     if (touchState.selectionRect) {
       handleRectSelection(state, touchState.selectionRect, canvas, playerIndex);
-    } else if (state.buildingMenu && state.buildingMenu.selectedType) {
-      // Handle building placement
-      handleBuildingPlacement(state, state.buildingMenu, playerIndex);
-      delete state.buildingMenu;
-    } else if (state.buildingMenu) {
-      // Cancel building menu if no type selected (dragged down or too short drag)
-      delete state.buildingMenu;
     } else if (touchState.touchedMovementDot) {
       handleLaserSwipe(state, touchState.touchedMovementDot, { x: dx, y: dy });
     } else if (touchState.touchedDepot && touchState.isDragging && dist > SWIPE_THRESHOLD_PX && touchState.touchedDepotPos) {
@@ -1878,8 +1862,8 @@ function handleBuildingPlacement(
   const structureDef = STRUCTURE_DEFINITIONS[selectedType];
   const player = state.players[playerIndex];
   
-  // Check if player has enough Latticite
-  if (!player.secondaryResource || player.secondaryResource < structureDef.cost) {
+  // Check if player has enough Photons
+  if (!player.primaryResource || player.primaryResource < structureDef.cost) {
     soundManager.playError();
     return;
   }
@@ -1901,8 +1885,8 @@ function handleBuildingPlacement(
     return;
   }
   
-  // Deduct Latticite cost
-  player.secondaryResource -= structureDef.cost;
+  // Deduct Photon cost
+  player.primaryResource -= structureDef.cost;
   
   // Create the structure
   const newStructure: import('./types').Structure = {
