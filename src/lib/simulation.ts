@@ -30,6 +30,10 @@ import {
   BASE_TYPE_DEFINITIONS,
   ARENA_WIDTH_METERS,
   ARENA_HEIGHT_METERS,
+  WARP_GATE_HOLD_TIME_MS,
+  WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS,
+  WARP_GATE_SWIRL_SPEED,
+  WARP_GATE_MAX_SIZE_METERS,
 } from './types';
 import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians, hasLineOfSight, isEnemyUnitVisible } from './gameUtils';
 import { checkObstacleCollision } from './maps';
@@ -2175,6 +2179,88 @@ function updateFloaters(state: GameState, deltaTime: number): void {
   });
 }
 
+/**
+ * Update warp gate state (growth, damage, building construction)
+ */
+function updateWarpGate(state: GameState, deltaTime: number): void {
+  if (!state.warpGate) return;
+  
+  const currentTime = Date.now();
+  const elapsed = currentTime - state.warpGate.startTime;
+  
+  // Update swirl angle for visual effect
+  if (state.warpGate.swirlAngle !== undefined) {
+    state.warpGate.swirlAngle += WARP_GATE_SWIRL_SPEED * deltaTime * 2 * Math.PI;
+    if (state.warpGate.swirlAngle > 2 * Math.PI) {
+      state.warpGate.swirlAngle -= 2 * Math.PI;
+    }
+  }
+  
+  // Handle different stages of warp gate
+  if (state.warpGate.stage === 'initial-shockwave') {
+    // Initial shockwave lasts 1 second, then transition to growing
+    if (elapsed >= WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS) {
+      state.warpGate.stage = 'growing';
+    }
+  } else if (state.warpGate.stage === 'growing') {
+    // Warp gate is growing - check if it's fully open (5 seconds)
+    if (elapsed >= WARP_GATE_HOLD_TIME_MS) {
+      // Fully open - ready for building selection
+      // Stage stays as 'growing' - building icons are shown based on elapsed time check
+    }
+  } else if (state.warpGate.stage === 'building-selected') {
+    // Building selected - start siphoning photons from base
+    if (state.warpGate.selectedBuilding && state.warpGate.photonsAbsorbed !== undefined && state.warpGate.buildingHp !== undefined) {
+      const structureDef = STRUCTURE_DEFINITIONS[state.warpGate.selectedBuilding];
+      const photonsNeeded = structureDef.hp; // Building HP matches photon cost
+      const photonsPerSecond = 20; // Siphon rate
+      
+      const photonsThisFrame = photonsPerSecond * deltaTime;
+      state.warpGate.photonsAbsorbed += photonsThisFrame;
+      state.warpGate.buildingHp += photonsThisFrame;
+      
+      // Deduct photons from player's base
+      const ownerBase = state.bases.find(b => b.owner === state.warpGate!.owner);
+      if (ownerBase && ownerBase.hp > 0) {
+        ownerBase.hp = Math.max(0, ownerBase.hp - photonsThisFrame);
+      }
+      
+      // Check if building is complete
+      if (state.warpGate.photonsAbsorbed >= photonsNeeded) {
+        // Building complete - create structure
+        const newStructure: import('./types').Structure = {
+          id: generateId(),
+          type: state.warpGate.selectedBuilding,
+          owner: state.warpGate.owner,
+          position: { ...state.warpGate.position },
+          hp: structureDef.hp,
+          maxHp: structureDef.hp,
+          armor: structureDef.armor,
+        };
+        
+        state.structures.push(newStructure);
+        
+        // Create warp-in completion shockwave
+        const playerColor = state.players[state.warpGate.owner].color;
+        createSpawnEffect(state, state.warpGate.position, playerColor);
+        
+        soundManager.playBuildingPlace();
+        
+        // Remove warp gate
+        delete state.warpGate;
+      }
+    }
+  } else if (state.warpGate.stage === 'warping-in') {
+    // This stage is for future expansion (not used in current implementation)
+  }
+  
+  // Check if warp gate is destroyed by enemy damage (only during growing stage)
+  if (state.warpGate && state.warpGate.stage === 'growing' && state.warpGate.hp !== undefined && state.warpGate.hp <= 0) {
+    soundManager.playError();
+    delete state.warpGate;
+  }
+}
+
 export function updateGame(state: GameState, deltaTime: number): void {
   if (state.mode !== 'game') return;
 
@@ -2185,6 +2271,7 @@ export function updateGame(state: GameState, deltaTime: number): void {
 
   updateIncome(state, deltaTime);
   updateFloaters(state, deltaTime); // Update background floaters
+  updateWarpGate(state, deltaTime); // Update warp gate
   updateUnits(state, deltaTime);
   updateBases(state, deltaTime);
   updateStructures(state, deltaTime);
@@ -4848,6 +4935,17 @@ function updateCombat(state: GameState, deltaTime: number): void {
           target = structure;
         }
       });
+      
+      // Check for enemy warp gates (can be damaged to cancel building)
+      if (state.warpGate && state.warpGate.owner !== unit.owner && state.warpGate.stage === 'growing') {
+        const dist = distance(unit.position, state.warpGate.position);
+        const warpGateRadius = WARP_GATE_MAX_SIZE_METERS / 2;
+        if (dist <= def.attackRange + warpGateRadius && dist < minDist) {
+          minDist = dist;
+          // Mark as a warp gate target (we'll handle it specially in performAttack)
+          target = { ...state.warpGate, isWarpGate: true } as any;
+        }
+      }
     }
 
     if (target) {
@@ -5003,6 +5101,17 @@ function applyBladeSwingDamage(state: GameState, unit: Unit, swing: { direction:
 // Helper function to perform an attack
 function performAttack(state: GameState, unit: Unit, target: Unit | Base | import('./types').Structure): void {
   const def = UNIT_DEFINITIONS[unit.type];
+  
+  // Check if target is a warp gate (special handling)
+  if ((target as any).isWarpGate) {
+    // Deal damage to warp gate - any damage cancels it
+    if (state.warpGate && state.warpGate.stage === 'growing' && state.warpGate.hp !== undefined) {
+      state.warpGate.hp = 0; // Any damage destroys warp gate
+      unit.attackCooldown = 1.0 / def.attackRate;
+      soundManager.playAttack();
+    }
+    return;
+  }
   
   // Type guards for distinguishing target types
   const isUnit = (t: typeof target): t is Unit => 'type' in t && !('baseType' in t) && !('attackCooldown' in t && 'owner' in t && !('commandQueue' in t));
