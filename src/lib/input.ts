@@ -1863,7 +1863,7 @@ function handleBuildingPlacement(
   const player = state.players[playerIndex];
   
   // Check if player has enough Photons
-  if (!player.primaryResource || player.primaryResource < structureDef.cost) {
+  if (!player.photons || player.photons < structureDef.cost) {
     soundManager.playError();
     return;
   }
@@ -1886,7 +1886,7 @@ function handleBuildingPlacement(
   }
   
   // Deduct Photon cost
-  player.primaryResource -= structureDef.cost;
+  player.photons -= structureDef.cost;
   
   // Create the structure
   const newStructure: import('./types').Structure = {
