@@ -1768,10 +1768,9 @@ function updateSpriteCornerTrails(state: GameState): void {
     // Calculate back corner positions based on unit rotation
     // Sprite rendering adds a PI/2 offset to align sprite-forward (up) with unit-forward direction.
     const rotation = unit.rotation || 0;
-    const playfieldRotation = getPlayfieldRotationRadians();
     
-    // The total rotation determines which way the unit/sprite is facing
-    const totalRotation = rotation + playfieldRotation;
+    // The rotation determines which way the unit/sprite is facing
+    const totalRotation = rotation;
     
     // Get sprite size for this unit type
     const spriteHalfSize = unit.type === 'miningDrone' ? MINING_DRONE_SPRITE_HALF_SIZE : UNIT_SPRITE_HALF_SIZE;

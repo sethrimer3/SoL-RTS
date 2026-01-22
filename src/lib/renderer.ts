@@ -652,7 +652,6 @@ function drawSolarMirrorThruster(
   ctx: CanvasRenderingContext2D,
   unit: Unit,
   screenPos: Vector2,
-  playfieldRotation: number,
   timeSeconds: number,
 ): void {
   const speed = unit.currentSpeed ?? 0;
@@ -661,7 +660,7 @@ function drawSolarMirrorThruster(
   }
 
   // Use movement rotation so the flame trails behind the travel direction.
-  const travelRotation = (unit.rotation ?? 0) + playfieldRotation;
+  const travelRotation = (unit.rotation ?? 0);
   const unitSizePixels = metersToPixels(getUnitSizeMeters(unit));
   const flameOffset = unitSizePixels * 0.45;
   const flameWidth = unitSizePixels * 0.14;
@@ -3310,9 +3309,6 @@ function drawLaserBeam(ctx: CanvasRenderingContext2D, base: Base, screenPos: { x
     // Calculate angle for rotation
     const angle = Math.atan2(direction.y, direction.x);
     
-    // Apply playfield rotation for desktop mode
-    const playfieldRotation = getPlayfieldRotationRadians();
-    
     // Laser sprites have aspect ratio defined by their SVG viewBox
     const beamThickness = metersToPixels(BASE_LASER_BEAM_THICKNESS_METERS);
     const spriteAspectRatio = LASER_SPRITE_WIDTH / LASER_SPRITE_HEIGHT;
@@ -3333,7 +3329,7 @@ function drawLaserBeam(ctx: CanvasRenderingContext2D, base: Base, screenPos: { x
     
     ctx.save();
     ctx.translate(screenPos.x, screenPos.y);
-    ctx.rotate(angle + playfieldRotation);
+    ctx.rotate(angle);
     
     // Draw beginning segment
     ctx.drawImage(
@@ -3408,12 +3404,9 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, state: GameState): void 
     // Calculate rotation angle based on velocity direction
     const angle = Math.atan2(projectile.velocity.y, projectile.velocity.x);
     
-    // Apply playfield rotation for desktop mode
-    const playfieldRotation = getPlayfieldRotationRadians();
-    
     // Translate to projectile position and rotate
     ctx.translate(screenPos.x, screenPos.y);
-    ctx.rotate(angle + playfieldRotation);
+    ctx.rotate(angle);
     
     if (projectile.kind === 'knife') {
       // Draw slim knife silhouette with a pointed tip
@@ -3574,8 +3567,6 @@ function drawBladeSword(
   const connectionColor = getPaleBrightTeamColor(color, 0.75);
   const collapsedOffset = particleSpacing * 0.35;
   const bladeParticlePositions: Array<{ x: number; y: number }> = [];
-  // Apply the desktop rotation offset so blade trails align with the rotated playfield.
-  const playfieldRotation = getPlayfieldRotationRadians();
 
   ctx.save();
   ctx.fillStyle = color;
@@ -3583,7 +3574,7 @@ function drawBladeSword(
   for (let i = 0; i < BLADE_SWORD_PARTICLE_COUNT; i++) {
     const lagSeconds = BLADE_SWORD_MOVEMENT_LAG_SECONDS * (i + 1);
     const trailSample = sampleBladeTrail(unit, now - lagSeconds * 1000);
-    const baseRotation = trailSample.rotation + playfieldRotation;
+    const baseRotation = trailSample.rotation;
     const baseScreenPos = positionToPixels(trailSample.position);
     let angle = baseRotation;
     let hasSwingMotion = false;
@@ -3735,8 +3726,6 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
   const time = Date.now() / 1000;
   // Use the settings toggle to decide whether sprite rendering is allowed.
   const spritesEnabled = state.settings.enableSprites ?? true;
-  // Rotate unit visuals on desktop so they face forward in the rotated playfield view.
-  const playfieldRotation = getPlayfieldRotationRadians();
   
   state.units.forEach((unit) => {
     // Skip units that are off-screen for performance
@@ -3787,7 +3776,7 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
     
     // Draw motion blur trail for fast-moving units
     if (!useLOD && state.settings.enableMotionBlur && unit.currentSpeed && unit.currentSpeed > MOTION_BLUR_SPEED_THRESHOLD) {
-      drawMotionBlurTrail(ctx, unit, screenPos, color, state, playfieldRotation);
+      drawMotionBlurTrail(ctx, unit, screenPos, color, state);
     }
     
     // Draw particles first (behind the unit) - skip for LOD
@@ -3833,16 +3822,16 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
 
     // Draw solar mirror thruster flames before the unit sprite for proper layering.
     if (unit.type === 'miningDrone') {
-      drawSolarMirrorThruster(ctx, unit, screenPos, playfieldRotation, time);
+      drawSolarMirrorThruster(ctx, unit, screenPos, time);
     }
 
-    // Apply the playfield rotation offset to the unit's facing direction for rendering.
-    let unitRenderRotation = (unit.rotation || 0) + playfieldRotation;
+    // Use the unit's facing direction for rendering
+    let unitRenderRotation = (unit.rotation || 0);
     if (unit.type === 'miningDrone' && unit.miningState?.isInSunlight && state.sun) {
       const toSun = subtract(state.sun.position, unit.position);
       const sunRotation = Math.atan2(toSun.y, toSun.x);
       // Face the sun only when the mirror is in direct sunlight.
-      unitRenderRotation = sunRotation + playfieldRotation;
+      unitRenderRotation = sunRotation;
     }
 
     // Try sprite rendering first based on unit owner's faction; fall back to vector shapes when sprites are disabled or unavailable.
@@ -4102,7 +4091,6 @@ function drawMotionBlurTrail(
   screenPos: { x: number; y: number },
   color: string,
   state: GameState,
-  playfieldRotation: number,
 ): void {
   if (unit.rotation === undefined || unit.rotation === null) return;
   
@@ -4110,7 +4098,7 @@ function drawMotionBlurTrail(
   const speedRatio = Math.min(speed / 5, 1); // Normalize speed to 0-1 range
   
   // Calculate trail direction (opposite of movement)
-  const trailAngle = unit.rotation + playfieldRotation + Math.PI;
+  const trailAngle = unit.rotation + Math.PI;
   const trailLength = 15 * speedRatio; // Trail length based on speed
   
   // Create gradient for trail
@@ -4703,9 +4691,6 @@ function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: str
     // Calculate angle for rotation
     const angle = Math.atan2(direction.y, direction.x);
     
-    // Apply playfield rotation for desktop mode
-    const playfieldRotation = getPlayfieldRotationRadians();
-    
     // Laser sprites have aspect ratio defined by their SVG viewBox
     // Unit lasers are slightly smaller than base lasers
     const beamThickness = metersToPixels(UNIT_LASER_BEAM_THICKNESS_METERS);
@@ -4727,7 +4712,7 @@ function drawUnitLaserBeam(ctx: CanvasRenderingContext2D, unit: Unit, color: str
     
     ctx.save();
     ctx.translate(unitScreen.x, unitScreen.y);
-    ctx.rotate(angle + playfieldRotation);
+    ctx.rotate(angle);
     ctx.globalAlpha = (1 - fadeProgress) * 0.9;
     
     // Draw beginning segment

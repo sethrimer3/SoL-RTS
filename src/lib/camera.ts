@@ -32,7 +32,6 @@ function getMobileButtonBarHeight(state: GameState): number {
 function calculateMinZoom(state: GameState): number {
   const viewportDimensions = getViewportDimensions();
   const arenaHeight = getArenaHeight();
-  const isRotated = getPlayfieldRotationRadians() !== 0;
   const reservedHeight = getMobileButtonBarHeight(state);
   const availableHeight = Math.max(0, viewportDimensions.height - reservedHeight);
   
@@ -40,10 +39,9 @@ function calculateMinZoom(state: GameState): number {
     return MIN_ZOOM; // Fallback value
   }
   
-  // Calculate the zoom level where the entire arena fits in the viewport.
-  // Swap width/height when the desktop playfield is rotated so limits stay accurate.
-  const arenaWidthMeters = isRotated ? arenaHeight : ARENA_WIDTH_METERS;
-  const arenaHeightMeters = isRotated ? ARENA_WIDTH_METERS : arenaHeight;
+  // Calculate the zoom level where the entire arena fits in the viewport
+  const arenaWidthMeters = ARENA_WIDTH_METERS;
+  const arenaHeightMeters = arenaHeight;
   const arenaWidthPixels = arenaWidthMeters * PIXELS_PER_METER * getViewportScale();
   const arenaHeightPixels = arenaHeightMeters * PIXELS_PER_METER * getViewportScale();
   
@@ -71,10 +69,9 @@ function clampCameraOffset(state: GameState, offset: Vector2, zoom: number): Vec
   const viewportDimensions = getViewportDimensions();
   const viewportScale = getViewportScale();
   const arenaHeight = getArenaHeight();
-  const isRotated = getPlayfieldRotationRadians() !== 0;
-  // Match the rotation-aware arena dimensions from the viewport scaler.
-  const arenaWidthMeters = isRotated ? arenaHeight : ARENA_WIDTH_METERS;
-  const arenaHeightMeters = isRotated ? ARENA_WIDTH_METERS : arenaHeight;
+  // Use arena dimensions directly without rotation
+  const arenaWidthMeters = ARENA_WIDTH_METERS;
+  const arenaHeightMeters = arenaHeight;
   const arenaWidthPixels = arenaWidthMeters * PIXELS_PER_METER * viewportScale;
   const arenaHeightPixels = arenaHeightMeters * PIXELS_PER_METER * viewportScale;
   const halfViewWidth = viewportDimensions.width / (2 * zoom);
