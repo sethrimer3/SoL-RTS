@@ -35,7 +35,7 @@ Contains the core game simulation loop and logic. Handles unit movement, combat,
   - Processes line jump telegraphs (0.5s delay before execution)
   - Executes movement from command queues
   - Applies local collision push to keep units from stacking while still moving
-  - Blocks movement only on obstacle collisions (unit overlap handled by avoidance)
+  - Blocks movement on obstacles, asteroids, and the sun safety halo (unit overlap handled by avoidance)
   - Applies promotion system based on distance traveled
   - Queue bonus grants extra distance credit (10% per queued move node)
   - Follow-path movement uses a lookahead target to smooth turns
@@ -76,7 +76,7 @@ Contains the core game simulation loop and logic. Handles unit movement, combat,
 - **Purpose:** Ensures rally points stay within the 1m boundary and avoid obstacles
 - **Parameters:** Game state, spawn position, desired rally point
 - **Returns:** A safe movement target for newly spawned units
-- **Notes:** Uses boundary obstacles to infer playable bounds and steps back toward the base if blocked
+- **Notes:** Uses boundary obstacles to infer playable bounds and steps back toward the base if blocked; also avoids asteroids and the sun halo
 
 ### Particle Physics Functions
 - **createParticlesForUnit(unit, count):** Creates particles in circular formation around unit
@@ -128,7 +128,7 @@ Multiple functions for unit abilities:
 - Solar mirrors accelerate and decelerate slowly to keep their motion deliberate
 - Unit movement collision checks now block on any unit overlap without attempting friendly sliding paths
 - Local collision push keeps units from overlapping while allowing them to keep moving through crowds
-- Obstacle collisions still block movement to prevent clipping through walls
+- Obstacle collisions plus asteroid/sun safety checks still block movement to prevent clipping through occluders
 - Blade melee swings now queue through a full three-hit combo with short pauses via the swordSwingCombo state, preventing mid-swing resets
 - Blade swings now apply area damage per swing with 1s pauses between combo hits and after the final spin
 - Blade movement history is recorded each frame to support lagged sword particle rendering
@@ -178,6 +178,7 @@ Multiple functions for unit abilities:
 - **2026-01-22**: Synced player photon totals with base HP every tick, aligned unit spend updates, and reused sun-shadow visibility checks for structure targeting
 - **2026-01-23**: Scaled solar mirror income by base distance (1-5 photons), added sunlight tracking, and stored photon yield for UI popups.
 - **2025-03-25**: Relaxed asteroid visibility gating so they appear when near friendly presence or in shadow.
+- **2025-03-26**: Blocked unit navigation through asteroids and the sun halo, and forced asteroids visible during updates.
 
 ## Watch Out For
 - Delta time must be in seconds, not milliseconds

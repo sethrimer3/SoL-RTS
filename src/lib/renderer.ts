@@ -1788,14 +1788,11 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.restore();
 }
 
-// Draw asteroids that are only visible in shadow near friendly units
+// Draw asteroids that are always visible for navigation clarity
 function drawAsteroids(ctx: CanvasRenderingContext2D, state: GameState): void {
   if (!state.asteroids || state.asteroids.length === 0) return;
   
   state.asteroids.forEach((asteroid) => {
-    // Only draw if visible
-    if (!asteroid.isVisible) return;
-    
     const screenPos = positionToPixels(asteroid.position);
     
     ctx.save();

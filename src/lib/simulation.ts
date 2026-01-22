@@ -191,10 +191,47 @@ const UNIT_COLLISION_SQUEEZE_FACTOR = 0.75; // Allow units to squeeze past each 
 const ARRIVAL_DISTANCE_THRESHOLD = 0.1; // Distance threshold for considering a unit has arrived at destination
 const COLLISION_PUSH_STRENGTH = 0.6; // Strength of local collision push to keep units from stacking
 const COLLISION_PUSH_MAX_DISTANCE = 0.25; // Maximum push distance per update for gentle separation
+const ASTEROID_COLLISION_BUFFER = 0.5; // Extra clearance in meters around asteroids for unit navigation
+const SUN_AVOIDANCE_BUFFER = 2.0; // Extra clearance in meters around the sun to keep units at a safe distance
 
 // Helper function to calculate effective collision radius
 function getCollisionRadius(): number {
   return (UNIT_COLLISION_RADIUS * 2) * UNIT_COLLISION_SQUEEZE_FACTOR;
+}
+
+/**
+ * Checks whether a position collides with map obstacles, asteroids, or the sun's safety halo.
+ * Uses circular checks for asteroids and the sun to keep movement logic fast and predictable.
+ * @param position - Position to test in world meters
+ * @param radius - Radius of the moving unit in meters
+ * @param state - Current game state with obstacle, asteroid, and sun data
+ * @returns True when movement should be blocked at the position
+ */
+function checkMovementCollision(position: Vector2, radius: number, state: GameState): boolean {
+  // Always check static map obstacles first.
+  if (checkObstacleCollision(position, radius, state.obstacles)) {
+    return true;
+  }
+
+  // Block movement through the sun with a small safety buffer.
+  if (state.sun) {
+    const sunClearance = state.sun.radius + SUN_AVOIDANCE_BUFFER + radius;
+    if (distance(position, state.sun.position) < sunClearance) {
+      return true;
+    }
+  }
+
+  // Treat asteroids as circular blockers using their configured radius.
+  if (state.asteroids) {
+    for (const asteroid of state.asteroids) {
+      const asteroidClearance = asteroid.radius + ASTEROID_COLLISION_BUFFER + radius;
+      if (distance(position, asteroid.position) < asteroidClearance) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 // Flocking/Boids constants for smooth group movement (StarCraft-like)
@@ -352,8 +389,8 @@ function getSafeRallyPosition(
     };
   }
 
-  // Accept the clamped position if it is not colliding with any obstacle.
-  if (!checkObstacleCollision(clampedRallyPos, unitRadius, state.obstacles)) {
+  // Accept the clamped position if it is not colliding with obstacles, asteroids, or the sun.
+  if (!checkMovementCollision(clampedRallyPos, unitRadius, state)) {
     return clampedRallyPos;
   }
 
@@ -376,7 +413,7 @@ function getSafeRallyPosition(
         }
       : candidate;
 
-    if (!checkObstacleCollision(boundedCandidate, unitRadius, state.obstacles)) {
+    if (!checkMovementCollision(boundedCandidate, unitRadius, state)) {
       return boundedCandidate;
     }
   }
@@ -467,13 +504,13 @@ function moveUnitTowardPosition(
   let direction = normalize(subtract(targetPosition, unit.position));
   direction = applyFlockingBehavior(unit, direction, state.units);
 
-  const alternativePath = findPathAroundObstacle(unit, targetPosition, state.obstacles);
+  const alternativePath = findPathAroundObstacle(unit, targetPosition, state);
   if (alternativePath) {
     direction = alternativePath;
   }
 
   if (unit.jitterOffset !== undefined) {
-    const jitteredDirection = applyJitterMovement(unit, direction, state.units, state.obstacles);
+    const jitteredDirection = applyJitterMovement(unit, direction, state.units, state);
     if (jitteredDirection) {
       direction = jitteredDirection;
     }
@@ -490,7 +527,7 @@ function moveUnitTowardPosition(
 
   // Apply local collision push to prevent stacking while moving to the anchor.
   const adjustedPosition = applyLocalCollisionPush(unit, newPosition, state.units);
-  const collisionResult = checkUnitCollisionBlocking(unit, adjustedPosition, state.units, state.obstacles);
+  const collisionResult = checkUnitCollisionBlocking(unit, adjustedPosition, state.units, state);
 
   if (!collisionResult.blocked) {
     unit.position = adjustedPosition;
@@ -524,12 +561,10 @@ function checkUnitCollisionBlocking(
   unit: Unit,
   desiredPosition: Vector2,
   allUnits: Unit[],
-  obstacles: import('./maps').Obstacle[]
+  state: GameState
 ): { blocked: boolean } {
-  const collisionRadius = getCollisionRadius();
-  
-  // Check obstacle collision first
-  if (checkObstacleCollision(desiredPosition, UNIT_SIZE_METERS / 2, obstacles)) {
+  // Check static obstacles, asteroids, and the sun safety halo first.
+  if (checkMovementCollision(desiredPosition, UNIT_SIZE_METERS / 2, state)) {
     return { blocked: true };
   }
 
@@ -634,14 +669,14 @@ function updateStuckDetection(unit: Unit, deltaTime: number): void {
  * @param unit - The unit that's stuck
  * @param baseDirection - The direction unit is trying to move
  * @param allUnits - All units for collision checking
- * @param obstacles - All obstacles for collision checking
+ * @param state - Current game state for obstacle, asteroid, and sun checks
  * @returns Modified direction with jitter applied, or null if no valid jitter found
  */
 function applyJitterMovement(
   unit: Unit,
   baseDirection: Vector2,
   allUnits: Unit[],
-  obstacles: import('./maps').Obstacle[]
+  state: GameState
 ): Vector2 | null {
   if (!unit.jitterOffset) {
     unit.jitterOffset = 0;
@@ -662,7 +697,7 @@ function applyJitterMovement(
   const jitteredPosition = add(unit.position, scale(jitteredDirection, JITTER_MOVEMENT_DISTANCE));
   
   // Check if jittered position is valid
-  if (!checkObstacleCollision(jitteredPosition, UNIT_SIZE_METERS / 2, obstacles) &&
+  if (!checkMovementCollision(jitteredPosition, UNIT_SIZE_METERS / 2, state) &&
       !checkUnitCollision(jitteredPosition, unit.id, allUnits)) {
     return jitteredDirection;
   }
@@ -999,20 +1034,20 @@ function getPathLookaheadTarget(
  * Tries more angles with smaller increments for smoother pathfinding.
  * @param unit - The unit trying to move
  * @param target - The target position
- * @param obstacles - Array of obstacles to avoid
+ * @param state - Current game state for obstacle, asteroid, and sun checks
  * @returns Alternative direction to move, or null if no path found
  */
 function findPathAroundObstacle(
   unit: Unit,
   target: Vector2,
-  obstacles: import('./maps').Obstacle[]
+  state: GameState
 ): Vector2 | null {
   const directDirection = normalize(subtract(target, unit.position));
   const unitRadius = UNIT_SIZE_METERS / 2;
   
   // Check if direct path is clear
   const lookaheadPos = add(unit.position, scale(directDirection, PATHFINDING_LOOKAHEAD_DISTANCE));
-  if (!checkObstacleCollision(lookaheadPos, unitRadius, obstacles)) {
+  if (!checkMovementCollision(lookaheadPos, unitRadius, state)) {
     return null; // Direct path is clear, no need for pathfinding
   }
   
@@ -1029,7 +1064,7 @@ function findPathAroundObstacle(
     const rightDir = { x: Math.cos(rightAngle), y: Math.sin(rightAngle) };
     const rightPos = add(unit.position, scale(rightDir, PATHFINDING_LOOKAHEAD_DISTANCE));
     
-    if (!checkObstacleCollision(rightPos, unitRadius, obstacles)) {
+    if (!checkMovementCollision(rightPos, unitRadius, state)) {
       // Check that this direction generally moves toward target
       const dotProduct = rightDir.x * toTarget.x + rightDir.y * toTarget.y;
       if (dotProduct > 0) {
@@ -1042,7 +1077,7 @@ function findPathAroundObstacle(
     const leftDir = { x: Math.cos(leftAngle), y: Math.sin(leftAngle) };
     const leftPos = add(unit.position, scale(leftDir, PATHFINDING_LOOKAHEAD_DISTANCE));
     
-    if (!checkObstacleCollision(leftPos, unitRadius, obstacles)) {
+    if (!checkMovementCollision(leftPos, unitRadius, state)) {
       // Check that this direction generally moves toward target
       const dotProduct = leftDir.x * toTarget.x + leftDir.y * toTarget.y;
       if (dotProduct > 0) {
@@ -1990,54 +2025,16 @@ function updateShells(state: GameState, deltaTime: number): void {
   state.shells = remainingShells;
 }
 
-// Update asteroids: rotate them and determine visibility based on shadow and proximity to friendly units
+// Update asteroids: rotate them and keep them visible for consistent navigation cues
 function updateAsteroids(state: GameState, deltaTime: number): void {
   if (!state.asteroids || state.asteroids.length === 0) return;
-  if (!state.sun) return;
-  
-  const sun = state.sun;
-  const PROXIMITY_DISTANCE = 8; // Distance in meters for asteroid to be visible near friendly units/buildings
-  
+
   state.asteroids.forEach((asteroid) => {
     // Update rotation
     asteroid.rotation += asteroid.rotationSpeed * deltaTime;
-    
-    // Check if asteroid is in shadow (not in direct line of sight from sun).
-    const isInShadow = !hasLineOfSight(asteroid.position, sun.position, state.obstacles);
-    
-    // Check if any friendly unit or building is nearby
-    let hasFriendlyNearby = false;
-    
-    // Check player units
-    for (const unit of state.units) {
-      if (unit.owner === PLAYER_OWNER_ID && distance(unit.position, asteroid.position) <= PROXIMITY_DISTANCE) {
-        hasFriendlyNearby = true;
-        break;
-      }
-    }
-    
-    // Check player base
-    if (!hasFriendlyNearby) {
-      for (const base of state.bases) {
-        if (base.owner === PLAYER_OWNER_ID && distance(base.position, asteroid.position) <= PROXIMITY_DISTANCE) {
-          hasFriendlyNearby = true;
-          break;
-        }
-      }
-    }
-    
-    // Check player structures
-    if (!hasFriendlyNearby && state.structures) {
-      for (const structure of state.structures) {
-        if (structure.owner === PLAYER_OWNER_ID && distance(structure.position, asteroid.position) <= PROXIMITY_DISTANCE) {
-          hasFriendlyNearby = true;
-          break;
-        }
-      }
-    }
-    
-    // Reveal asteroids when either in shadow or near friendly presence so they stay visible.
-    asteroid.isVisible = isInShadow || hasFriendlyNearby;
+
+    // Keep asteroids visible at all times so players can path around them.
+    asteroid.isVisible = true;
   });
 }
 
@@ -2478,8 +2475,8 @@ function updateUnits(state: GameState, deltaTime: number): void {
         const perpendicular = { x: -movementDirection.y, y: movementDirection.x };
         const avoidancePos = add(stationaryUnit.position, scale(perpendicular, AVOIDANCE_MOVE_DISTANCE));
         
-        // Check if avoidance position is valid (not in obstacle)
-        if (!checkObstacleCollision(avoidancePos, UNIT_SIZE_METERS / 2, state.obstacles)) {
+        // Check if avoidance position is valid (not in obstacles, asteroids, or sun halo).
+        if (!checkMovementCollision(avoidancePos, UNIT_SIZE_METERS / 2, state)) {
           // Store original position and set return delay
           stationaryUnit.temporaryAvoidance = {
             originalPosition: { x: stationaryUnit.position.x, y: stationaryUnit.position.y },
@@ -2598,14 +2595,14 @@ function updateUnits(state: GameState, deltaTime: number): void {
       direction = applyFlockingBehavior(unit, direction, state.units);
       
       // Try pathfinding if direct path might be blocked
-      const alternativePath = findPathAroundObstacle(unit, currentNode.position, state.obstacles);
+      const alternativePath = findPathAroundObstacle(unit, currentNode.position, state);
       if (alternativePath) {
         direction = alternativePath;
       }
       
       // If stuck, try jitter movement to wiggle out
       if (unit.jitterOffset !== undefined) {
-        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state.obstacles);
+        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state);
         if (jitteredDirection) {
           direction = jitteredDirection;
         }
@@ -2625,7 +2622,7 @@ function updateUnits(state: GameState, deltaTime: number): void {
       const adjustedPosition = applyLocalCollisionPush(unit, newPosition, state.units);
 
       // Check for collisions with any obstacles (unit overlap handled by local push)
-      const collisionResult = checkUnitCollisionBlocking(unit, adjustedPosition, state.units, state.obstacles);
+      const collisionResult = checkUnitCollisionBlocking(unit, adjustedPosition, state.units, state);
       
       if (!collisionResult.blocked) {
         // Use the desired position when clear
@@ -2705,14 +2702,14 @@ function updateUnits(state: GameState, deltaTime: number): void {
       direction = applyFlockingBehavior(unit, direction, state.units);
 
       // Try pathfinding if direct path might be blocked
-      const alternativePath = findPathAroundObstacle(unit, currentNode.position, state.obstacles);
+      const alternativePath = findPathAroundObstacle(unit, currentNode.position, state);
       if (alternativePath) {
         direction = alternativePath;
       }
       
       // If stuck, try jitter movement
       if (unit.jitterOffset !== undefined) {
-        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state.obstacles);
+        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state);
         if (jitteredDirection) {
           direction = jitteredDirection;
         }
@@ -2732,7 +2729,7 @@ function updateUnits(state: GameState, deltaTime: number): void {
       const adjustedPosition = applyLocalCollisionPush(unit, newPosition, state.units);
 
       // Check for collisions with any obstacles (unit overlap handled by local push)
-      const collisionResult = checkUnitCollisionBlocking(unit, adjustedPosition, state.units, state.obstacles);
+      const collisionResult = checkUnitCollisionBlocking(unit, adjustedPosition, state.units, state);
       
       if (!collisionResult.blocked) {
         // Use the desired position when clear
@@ -2810,14 +2807,14 @@ function updateUnits(state: GameState, deltaTime: number): void {
       direction = applyFlockingBehavior(unit, direction, state.units);
       
       // Try pathfinding if direct path might be blocked
-      const alternativePath = findPathAroundObstacle(unit, currentNode.position, state.obstacles);
+      const alternativePath = findPathAroundObstacle(unit, currentNode.position, state);
       if (alternativePath) {
         direction = alternativePath;
       }
       
       // If stuck, try jitter movement
       if (unit.jitterOffset !== undefined) {
-        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state.obstacles);
+        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state);
         if (jitteredDirection) {
           direction = jitteredDirection;
         }
@@ -2835,7 +2832,7 @@ function updateUnits(state: GameState, deltaTime: number): void {
       const adjustedPosition = applyLocalCollisionPush(unit, newPosition, state.units);
 
       // Check for collisions with any obstacles (unit overlap handled by local push)
-      const collisionResult = checkUnitCollisionBlocking(unit, adjustedPosition, state.units, state.obstacles);
+      const collisionResult = checkUnitCollisionBlocking(unit, adjustedPosition, state.units, state);
       
       if (!collisionResult.blocked) {
         unit.position = adjustedPosition;
@@ -2910,14 +2907,14 @@ function updateUnits(state: GameState, deltaTime: number): void {
       let direction = applyFlockingBehavior(unit, pathDirection, state.units, true, pathDirection);
       
       // Try pathfinding if direct path might be blocked
-      const alternativePath = findPathAroundObstacle(unit, lookaheadTarget, state.obstacles);
+      const alternativePath = findPathAroundObstacle(unit, lookaheadTarget, state);
       if (alternativePath) {
         direction = alternativePath;
       }
       
       // If stuck, try jitter movement
       if (unit.jitterOffset !== undefined) {
-        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state.obstacles);
+        const jitteredDirection = applyJitterMovement(unit, direction, state.units, state);
         if (jitteredDirection) {
           direction = jitteredDirection;
         }
@@ -2935,7 +2932,7 @@ function updateUnits(state: GameState, deltaTime: number): void {
       const adjustedPosition = applyLocalCollisionPush(unit, newPosition, state.units);
       
       // Check for collisions
-      const collisionResult = checkUnitCollisionBlocking(unit, adjustedPosition, state.units, state.obstacles);
+      const collisionResult = checkUnitCollisionBlocking(unit, adjustedPosition, state.units, state);
       
       if (!collisionResult.blocked) {
         unit.position = adjustedPosition;
