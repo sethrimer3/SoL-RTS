@@ -81,6 +81,9 @@ const SHELL_BOUNCE_DAMPING = 0.6; // velocity damping after bounce
 const SHELL_MOMENTUM_TRANSFER = 0.4; // velocity transfer factor to field particles
 const SHELL_MASS = 0.02; // small mass for shell physics
 
+// Owner IDs
+const PLAYER_OWNER_ID = 0; // Player-controlled units and buildings
+
 // Helper function to calculate damage with armor
 // Ranged attacks are reduced by armor, melee attacks ignore armor
 function calculateDamageWithArmor(baseDamage: number, armor: number, isMelee: boolean, targetModifiers: UnitModifier[] = []): number {
@@ -1958,7 +1961,7 @@ function updateAsteroids(state: GameState, deltaTime: number): void {
     
     // Check player units
     for (const unit of state.units) {
-      if (unit.owner === 0 && distance(unit.position, asteroid.position) <= PROXIMITY_DISTANCE) {
+      if (unit.owner === PLAYER_OWNER_ID && distance(unit.position, asteroid.position) <= PROXIMITY_DISTANCE) {
         hasFriendlyNearby = true;
         break;
       }
@@ -1967,7 +1970,7 @@ function updateAsteroids(state: GameState, deltaTime: number): void {
     // Check player base
     if (!hasFriendlyNearby) {
       for (const base of state.bases) {
-        if (base.owner === 0 && distance(base.position, asteroid.position) <= PROXIMITY_DISTANCE) {
+        if (base.owner === PLAYER_OWNER_ID && distance(base.position, asteroid.position) <= PROXIMITY_DISTANCE) {
           hasFriendlyNearby = true;
           break;
         }
@@ -1977,7 +1980,7 @@ function updateAsteroids(state: GameState, deltaTime: number): void {
     // Check player structures
     if (!hasFriendlyNearby && state.structures) {
       for (const structure of state.structures) {
-        if (structure.owner === 0 && distance(structure.position, asteroid.position) <= PROXIMITY_DISTANCE) {
+        if (structure.owner === PLAYER_OWNER_ID && distance(structure.position, asteroid.position) <= PROXIMITY_DISTANCE) {
           hasFriendlyNearby = true;
           break;
         }

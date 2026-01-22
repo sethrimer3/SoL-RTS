@@ -1,4 +1,4 @@
-import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, RESOURCE_DEPOSIT_RING_RADIUS_METERS, UNIT_DEFINITIONS, FOG_OF_WAR_VISION_RANGE, GameState } from './types';
+import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, RESOURCE_DEPOSIT_RING_RADIUS_METERS, UNIT_DEFINITIONS, FOG_OF_WAR_VISION_RANGE, GameState, Asteroid } from './types';
 
 // Calculate viewport scale to fit the fixed arena to the viewport
 let viewportScale = 1.0;
@@ -499,9 +499,12 @@ function generateAsteroidPolygon(sides: number, baseRadius: number): Vector2[] {
   return vertices;
 }
 
+// Constants for asteroid generation
+const ASTEROID_SPAWN_MARGIN = 5; // Margin from edges and center in meters
+
 // Create asteroids with mirrors (horizontal and vertical)
-export function createAsteroids(arenaWidth: number, arenaHeight: number): import('./types').Asteroid[] {
-  const asteroids: import('./types').Asteroid[] = [];
+export function createAsteroids(arenaWidth: number, arenaHeight: number): Asteroid[] {
+  const asteroids: Asteroid[] = [];
   
   // Define asteroid sizes
   const sizes: { size: 'large' | 'medium' | 'small'; radius: number; count: number }[] = [
@@ -511,16 +514,15 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): import
   ];
   
   // Generate asteroids in quadrant 1 (top-right)
-  const quadrant1Asteroids: import('./types').Asteroid[] = [];
+  const quadrant1Asteroids: Asteroid[] = [];
   
   sizes.forEach(({ size, radius, count }) => {
     for (let i = 0; i < count; i++) {
       // Random position in the first quadrant (avoiding center and edges)
-      const margin = 5;
-      const x = arenaWidth / 2 + margin + Math.random() * (arenaWidth / 2 - margin * 2);
-      const y = arenaHeight / 2 + margin + Math.random() * (arenaHeight / 2 - margin * 2);
+      const x = arenaWidth / 2 + ASTEROID_SPAWN_MARGIN + Math.random() * (arenaWidth / 2 - ASTEROID_SPAWN_MARGIN * 2);
+      const y = arenaHeight / 2 + ASTEROID_SPAWN_MARGIN + Math.random() * (arenaHeight / 2 - ASTEROID_SPAWN_MARGIN * 2);
       
-      const asteroid: import('./types').Asteroid = {
+      const asteroid: Asteroid = {
         id: generateId(),
         position: { x, y },
         size,
@@ -539,7 +541,7 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): import
   // Create mirrored copies
   quadrant1Asteroids.forEach((original) => {
     // Mirror horizontally (left side)
-    const mirrorH: import('./types').Asteroid = {
+    const mirrorH: Asteroid = {
       id: generateId(),
       position: {
         x: arenaWidth - original.position.x,
@@ -554,7 +556,7 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): import
     };
     
     // Mirror vertically (bottom side)
-    const mirrorV: import('./types').Asteroid = {
+    const mirrorV: Asteroid = {
       id: generateId(),
       position: {
         x: original.position.x,
@@ -569,7 +571,7 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): import
     };
     
     // Mirror both horizontally and vertically (bottom-left)
-    const mirrorHV: import('./types').Asteroid = {
+    const mirrorHV: Asteroid = {
       id: generateId(),
       position: {
         x: arenaWidth - original.position.x,
