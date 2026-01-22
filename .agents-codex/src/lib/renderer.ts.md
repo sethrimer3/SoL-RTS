@@ -216,6 +216,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **2025-03-24**: Corrected laser sprite tiling so the middle segment repeats only between single begin/end caps.
 - **2025-03-24**: Clipped background and world rendering to the playfield while filling the exterior with neutral gray.
 - **2026-01-22**: Added solar mirror thruster flames and sun-facing rotation when mirrors are lit.
+- **2025-03-26**: Always rendered asteroids to keep navigation obstacles visible at all times.
 
 ## Watch Out For
 - Always convert game positions to pixels before drawing

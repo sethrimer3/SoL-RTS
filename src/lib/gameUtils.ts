@@ -538,7 +538,8 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): Astero
         rotation: Math.random() * Math.PI * 2,
         rotationSpeed: (Math.random() - 0.5) * 0.2, // Slow rotation
         vertices: generateAsteroidPolygon(polygonSides, radius),
-        isVisible: false,
+        // Asteroids are always visible, even before shadow updates run.
+        isVisible: true,
       };
       
       quadrant1Asteroids.push(asteroid);
@@ -560,7 +561,8 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): Astero
       rotation: -original.rotation, // Mirror rotation
       rotationSpeed: -original.rotationSpeed, // Mirror rotation direction
       vertices: original.vertices.map(v => ({ x: -v.x, y: v.y })), // Mirror vertices horizontally
-      isVisible: false,
+      // Asteroids stay visible regardless of sun shadows.
+      isVisible: true,
     };
     
     // Mirror vertically (bottom side)
@@ -575,7 +577,8 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): Astero
       rotation: -original.rotation, // Mirror rotation
       rotationSpeed: -original.rotationSpeed, // Mirror rotation direction
       vertices: original.vertices.map(v => ({ x: v.x, y: -v.y })), // Mirror vertices vertically
-      isVisible: false,
+      // Asteroids stay visible regardless of sun shadows.
+      isVisible: true,
     };
     
     // Mirror both horizontally and vertically (bottom-left)
@@ -590,7 +593,8 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): Astero
       rotation: original.rotation, // Keep rotation same for double mirror
       rotationSpeed: original.rotationSpeed, // Keep rotation speed same
       vertices: original.vertices.map(v => ({ x: -v.x, y: -v.y })), // Mirror vertices both ways
-      isVisible: false,
+      // Asteroids stay visible regardless of sun shadows.
+      isVisible: true,
     };
     
     asteroids.push(mirrorH, mirrorV, mirrorHV);

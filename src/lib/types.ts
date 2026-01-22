@@ -369,7 +369,7 @@ export interface Sun {
   radius: number; // Size of the sun for rendering
 }
 
-// Asteroid entity that blocks sun light and is visible only in shadow near friendly units
+// Asteroid entity that blocks sun light and remains visible for gameplay clarity
 export interface Asteroid {
   id: string;
   position: Vector2;
@@ -378,7 +378,7 @@ export interface Asteroid {
   rotation: number; // Current rotation angle in radians
   rotationSpeed: number; // Rotation speed in radians per second
   vertices: Vector2[]; // Polygon vertices relative to center
-  isVisible: boolean; // Whether asteroid is currently visible
+  isVisible: boolean; // Whether asteroid is currently visible (kept true for always-visible rendering)
 }
 
 // Structure types for buildable towers

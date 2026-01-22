@@ -187,6 +187,7 @@ None currently identified
 - **2026-01-22**: Removed fog-of-war settings, particles, and vision range constants after replacing visibility with sun shadows.
 - **2026-01-23**: Renamed mining drone display name to Solar Mirror and added sunlight/photon yield fields for sheen and popup rendering.
 - **2026-01-22**: Slowed solar mirror/base move speeds and made mining depot identifiers optional on mining state.
+- **2025-03-26**: Clarified asteroid visibility state to reflect always-visible rendering behavior.
 
 ## Watch Out For
 - Always use meters for game logic, only convert to pixels for rendering
