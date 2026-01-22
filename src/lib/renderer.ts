@@ -1805,6 +1805,7 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   }
   
   // Add subtle star-like lens streaks
+  // Each streak is a full diameter line, so we only need π radians to create a full 8-pointed star
   ctx.strokeStyle = 'rgba(255, 245, 220, 0.12)';
   ctx.lineWidth = 1.5;
   for (let i = 0; i < LENS_FLARE_STREAK_COUNT; i++) {
