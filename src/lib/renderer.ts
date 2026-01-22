@@ -82,6 +82,7 @@ const LENS_FLARE_BASE_ALPHA = 0.08;
 const LENS_FLARE_ALPHA_DECREMENT = 0.02;
 const LENS_FLARE_STREAK_COUNT = 4;
 const LENS_FLARE_STREAK_LENGTH = 3.5;
+const LENS_FLARE_INNER_RADIUS_RATIO = 0.8;
 
 type LightSegment = { start: Vector2; end: Vector2 };
 
@@ -1791,7 +1792,7 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
     const flareRadius = radiusPixels * (LENS_FLARE_BASE_RADIUS + i * LENS_FLARE_RADIUS_INCREMENT);
     const flareAlpha = Math.max(0, LENS_FLARE_BASE_ALPHA - i * LENS_FLARE_ALPHA_DECREMENT);
     const flareGradient = ctx.createRadialGradient(
-      pixels.x, pixels.y, flareRadius * 0.8,
+      pixels.x, pixels.y, flareRadius * LENS_FLARE_INNER_RADIUS_RATIO,
       pixels.x, pixels.y, flareRadius
     );
     flareGradient.addColorStop(0, `rgba(255, 240, 200, ${flareAlpha})`);
