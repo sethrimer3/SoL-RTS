@@ -9,6 +9,7 @@ import { getViewportScale, getViewportOffset, getViewportDimensions, getArenaHei
 const ZOOM_SPEED = 0.1;
 const PAN_SPEED = 10; // meters per second
 const CAMERA_SMOOTHING = 0.15; // Lerp factor for smooth transitions
+const WALL_PEEK_PIXELS = 24; // Allow a tiny peek beyond the arena to keep walls visible.
 
 /**
  * Estimate the pixel height reserved for the bottom action bar on mobile button mode.
@@ -60,6 +61,34 @@ type CameraInitializationOptions = {
 };
 
 /**
+ * Clamp a camera offset so the visible view stays within the arena bounds.
+ * This keeps players from panning outside the playfield when zoomed in.
+ */
+function clampCameraOffset(state: GameState, offset: Vector2, zoom: number): Vector2 {
+  const viewportDimensions = getViewportDimensions();
+  const viewportScale = getViewportScale();
+  const arenaHeight = getArenaHeight();
+  const arenaWidthPixels = ARENA_WIDTH_METERS * PIXELS_PER_METER * viewportScale;
+  const arenaHeightPixels = arenaHeight * PIXELS_PER_METER * viewportScale;
+  const halfViewWidth = viewportDimensions.width / (2 * zoom);
+  const halfViewHeight = viewportDimensions.height / (2 * zoom);
+  const paddingPixels = WALL_PEEK_PIXELS;
+
+  // Compute how far the camera can pan before the arena edge leaves the view.
+  const maxOffsetPixelsX = Math.max(0, arenaWidthPixels / 2 + paddingPixels - halfViewWidth);
+  const maxOffsetPixelsY = Math.max(0, arenaHeightPixels / 2 + paddingPixels - halfViewHeight);
+
+  // Convert pixel bounds back into world meters for the camera offset.
+  const maxOffsetMetersX = maxOffsetPixelsX / (PIXELS_PER_METER * viewportScale);
+  const maxOffsetMetersY = maxOffsetPixelsY / (PIXELS_PER_METER * viewportScale);
+
+  return {
+    x: Math.max(-maxOffsetMetersX, Math.min(maxOffsetMetersX, offset.x)),
+    y: Math.max(-maxOffsetMetersY, Math.min(maxOffsetMetersY, offset.y)),
+  };
+}
+
+/**
  * Initialize camera for game state
  * On mobile, start zoomed out so the playing field is visible above the bottom UI buttons
  */
@@ -100,12 +129,18 @@ export function updateCamera(state: GameState, deltaTime: number): void {
   state.camera.zoom = Math.max(minZoom, Math.min(MAX_ZOOM, state.camera.zoom));
   state.camera.targetZoom = Math.max(minZoom, Math.min(MAX_ZOOM, state.camera.targetZoom));
 
+  // Clamp the target offset so the camera never pans outside the arena bounds.
+  state.camera.targetOffset = clampCameraOffset(state, state.camera.targetOffset, state.camera.targetZoom);
+
   // Smooth offset interpolation
   const offsetDiffX = state.camera.targetOffset.x - state.camera.offset.x;
   const offsetDiffY = state.camera.targetOffset.y - state.camera.offset.y;
   
   state.camera.offset.x += offsetDiffX * state.camera.smoothing;
   state.camera.offset.y += offsetDiffY * state.camera.smoothing;
+
+  // Clamp the current offset to prevent overshoot from smoothing.
+  state.camera.offset = clampCameraOffset(state, state.camera.offset, state.camera.zoom);
 }
 
 /**
@@ -163,6 +198,9 @@ export function zoomCameraAtPoint(state: GameState, delta: number, screenPoint: 
   
   camera.targetOffset.x -= offsetDiffX;
   camera.targetOffset.y -= offsetDiffY;
+
+  // Keep the adjusted zoom focus within the arena bounds.
+  camera.targetOffset = clampCameraOffset(state, camera.targetOffset, camera.targetZoom);
 }
 
 /**

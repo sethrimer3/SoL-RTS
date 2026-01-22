@@ -14,6 +14,11 @@ Defines the camera system for the game, including initialization, smooth zooming
 
 ## Key Components
 
+### clampCameraOffset(state: GameState, offset: Vector2, zoom: number)
+- **Purpose:** Restricts camera offsets so the visible viewport stays within the arena bounds, with a small wall peek.
+- **Returns:** Clamped offset values in world-space meters.
+- **Notes:** Computes view extents from zoom and viewport size, then converts pixel bounds back to meters.
+
 ### getMobileButtonBarHeight(state: GameState)
 - **Purpose:** Reserves pixel space for the mobile button action bar when in button mode.
 - **Returns:** Number of pixels to exclude from the visible playfield height.
@@ -30,11 +35,11 @@ Defines the camera system for the game, including initialization, smooth zooming
 
 ### updateCamera(state: GameState, deltaTime: number)
 - **Purpose:** Smoothly interpolates zoom and offset toward targets.
-- **Notes:** Clamps zoom based on dynamic min zoom bounds each frame.
+- **Notes:** Clamps zoom based on dynamic min zoom bounds each frame and constrains offsets to keep the arena within view.
 
 ### zoomCamera / zoomCameraAtPoint
 - **Purpose:** Adjusts target zoom with scroll or pinch gestures.
-- **Notes:** Pinch zoom keeps the pinch center stable in screen space.
+- **Notes:** Pinch zoom keeps the pinch center stable in screen space and re-clamps offsets after zooming.
 
 ### panCamera(state: GameState, direction: Vector2, deltaTime: number)
 - **Purpose:** Shifts camera target offset based on movement input.
@@ -62,6 +67,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 - Mobile button mode reserves UI height to keep the arena fully visible.
 - The minimum zoom now matches the full-field fit exactly so players cannot zoom out past the full arena.
 - Pinch zoom alignment uses target offsets to keep the pinch center anchored during smoothing.
+- Offset clamping prevents panning outside the arena while still allowing a small wall peek at the edges.
 
 ### Known Issues
 - None documented.
@@ -77,6 +83,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 - **2025-03-24:** Added mobile button bar reservation to the minimum zoom calculation.
 - **2025-03-24:** Aligned pinch zoom world-point calculations with target offsets to reduce center drift.
 - **2025-03-24:** Added initialization options for focus/zoom and removed the fixed zoom-out floor so the max zoom-out matches the full-field fit.
+- **2025-03-25:** Added camera offset clamping to keep the zoomed-in view within arena bounds while leaving a slight wall peek.
 
 ## Watch Out For
 - Keep zoom bounds in sync with any UI layout changes that affect the playfield size.
