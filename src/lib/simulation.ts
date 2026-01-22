@@ -36,7 +36,7 @@ import {
   WARP_GATE_MAX_SIZE_METERS,
   WARP_GATE_PHOTON_SIPHON_RATE,
 } from './types';
-import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians, hasLineOfSight, isEnemyUnitVisible, calculateInfluenceZones } from './gameUtils';
+import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians, hasLineOfSight, isEnemyUnitVisible, calculateInfluenceZones, isPositionInInfluence } from './gameUtils';
 import { checkObstacleCollision } from './maps';
 import { soundManager } from './sound';
 import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash, createLaserParticles, createBounceParticles, createMuzzleFlash } from './visualEffects';
@@ -1543,7 +1543,7 @@ function updateExplosionParticles(state: GameState, deltaTime: number): void {
 }
 
 // Create energy pulse effect
-function createEnergyPulse(state: GameState, position: Vector2, color: string, maxRadius: number, duration: number = 0.8): void {
+function createEnergyPulse(state: GameState, position: Vector2, color: string, duration: number = 0.8, maxRadius: number = 2.0): void {
   if (!state.energyPulses) {
     state.energyPulses = [];
   }
@@ -2202,6 +2202,9 @@ function updateWarpGate(state: GameState, deltaTime: number): void {
     // Initial shockwave lasts 1 second, then transition to growing
     if (elapsed >= WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS) {
       state.warpGate.stage = 'growing';
+      // Create distinctive shockwave at 1 second mark when transitioning to growing stage
+      const playerColor = state.players[state.warpGate.owner].color;
+      createEnergyPulse(state, state.warpGate.position, playerColor, 1.0, 4.0);
     }
   } else if (state.warpGate.stage === 'growing') {
     // Warp gate is growing - check if it's fully open (5 seconds)
@@ -2220,14 +2223,35 @@ function updateWarpGate(state: GameState, deltaTime: number): void {
       state.warpGate.photonsAbsorbed += photonsThisFrame;
       state.warpGate.buildingHp += photonsThisFrame;
       
-      // Deduct photons from player's base
+      // Deduct photons from player's base (but maintain minimum 10% HP)
       const ownerBase = state.bases.find(b => b.owner === state.warpGate!.owner);
       if (ownerBase && ownerBase.hp > 0) {
-        ownerBase.hp = Math.max(0, ownerBase.hp - photonsThisFrame);
+        const minBaseHp = ownerBase.maxHp * 0.1;
+        const availablePhotons = Math.max(0, ownerBase.hp - minBaseHp);
+        const actualDeduction = Math.min(photonsThisFrame, availablePhotons);
+        ownerBase.hp = Math.max(minBaseHp, ownerBase.hp - actualDeduction);
+        
+        // If base is critically low, slow down construction
+        if (availablePhotons < photonsThisFrame) {
+          state.warpGate.photonsAbsorbed += actualDeduction;
+          state.warpGate.buildingHp += actualDeduction;
+        }
       }
       
       // Check if building is complete
       if (state.warpGate.photonsAbsorbed >= photonsNeeded) {
+        // Validate position is still in player's influence before placing
+        if (!isPositionInInfluence(state.warpGate.position, state.warpGate.owner, state)) {
+          // Position no longer in influence - cancel building and refund photons
+          const ownerBase = state.bases.find(b => b.owner === state.warpGate!.owner);
+          if (ownerBase) {
+            ownerBase.hp = Math.min(ownerBase.maxHp, ownerBase.hp + state.warpGate.photonsAbsorbed);
+          }
+          soundManager.playError();
+          delete state.warpGate;
+          return;
+        }
+        
         // Building complete - create structure
         const newStructure: import('./types').Structure = {
           id: generateId(),
@@ -2241,9 +2265,11 @@ function updateWarpGate(state: GameState, deltaTime: number): void {
         
         state.structures.push(newStructure);
         
-        // Create warp-in completion shockwave
+        // Create warp-in completion shockwave (larger than initial)
         const playerColor = state.players[state.warpGate.owner].color;
         createSpawnEffect(state, state.warpGate.position, playerColor);
+        // Add larger shockwave effect to match initial shockwave prominence
+        createEnergyPulse(state, state.warpGate.position, playerColor, 1.2, 6.0);
         
         soundManager.playBuildingPlace();
         

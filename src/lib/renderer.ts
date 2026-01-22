@@ -6654,6 +6654,10 @@ function drawBuildingIcons(ctx: CanvasRenderingContext2D, state: GameState, warp
     const x = warpPos.x + Math.cos(building.angle) * iconRadius;
     const y = warpPos.y + Math.sin(building.angle) * iconRadius;
     
+    // Get building cost
+    const structureDef = STRUCTURE_DEFINITIONS[building.type];
+    const cost = structureDef.hp; // Cost equals HP (photons needed)
+    
     ctx.save();
     
     // Draw icon background
@@ -6666,12 +6670,17 @@ function drawBuildingIcons(ctx: CanvasRenderingContext2D, state: GameState, warp
     ctx.fill();
     ctx.stroke();
     
-    // Draw label
+    // Draw label with cost
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px monospace';
+    ctx.font = 'bold 10px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(building.label, x, y);
+    ctx.fillText(building.label, x, y - 6);
+    
+    // Draw cost below label
+    ctx.font = '9px monospace';
+    ctx.fillStyle = COLORS.photon;
+    ctx.fillText(`${cost}`, x, y + 6);
     
     ctx.restore();
   });
@@ -6735,18 +6744,59 @@ function drawPhotonSiphoning(ctx: CanvasRenderingContext2D, state: GameState): v
   
   // Draw 5 photons traveling from base to warp gate
   const numPhotons = 5;
+  const currentTime = Date.now() / 1000;
+  
   for (let i = 0; i < numPhotons; i++) {
-    const offset = (Date.now() / 1000 + i * 0.2) % 1; // Stagger photons
+    const offset = (currentTime + i * 0.2) % 1; // Stagger photons
     const x = basePos.x + (warpPos.x - basePos.x) * offset;
     const y = basePos.y + (warpPos.y - basePos.y) * offset;
     
+    // Pulse effect - photons grow and shrink slightly
+    const pulsePhase = (currentTime * 3 + i * 0.4) % 1;
+    const pulseFactor = 0.8 + Math.sin(pulsePhase * Math.PI * 2) * 0.2;
+    const size = 4 * pulseFactor;
+    
+    // Glow intensity increases as photon approaches destination
+    const glowIntensity = 10 + offset * 15;
+    
     ctx.save();
-    ctx.fillStyle = playerColor;
-    ctx.shadowColor = playerColor;
-    ctx.shadowBlur = 10;
+    
+    // Draw trail behind photon
+    if (offset > 0.1) {
+      const trailLength = 0.15;
+      const trailStartOffset = Math.max(0, offset - trailLength);
+      const trailX = basePos.x + (warpPos.x - basePos.x) * trailStartOffset;
+      const trailY = basePos.y + (warpPos.y - basePos.y) * trailStartOffset;
+      
+      const gradient = ctx.createLinearGradient(trailX, trailY, x, y);
+      gradient.addColorStop(0, `${playerColor}00`);
+      gradient.addColorStop(1, playerColor);
+      
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(trailX, trailY);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+    
+    // Draw photon with enhanced glow
+    ctx.fillStyle = COLORS.photon;
+    ctx.shadowColor = COLORS.photon;
+    ctx.shadowBlur = glowIntensity;
     ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.arc(x, y, size, 0, Math.PI * 2);
     ctx.fill();
+    
+    // Add impact flash when photon reaches destination
+    if (offset > 0.95) {
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = `rgba(255, 255, 255, ${1 - offset})`;
+      ctx.beginPath();
+      ctx.arc(x, y, size * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
     ctx.restore();
   }
 }
