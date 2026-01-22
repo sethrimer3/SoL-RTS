@@ -1,8 +1,8 @@
-import { FieldParticle, Vector2, GameState, Unit, Base, Projectile, ARENA_WIDTH_METERS, COLORS } from './types';
-import { generateId, getArenaHeight, distance, normalize, subtract, add, scale } from './gameUtils';
+import { FieldParticle, GameState, ARENA_WIDTH_METERS, WARP_GATE_MAX_SIZE_METERS, COLORS } from './types';
+import { generateId, getArenaHeight, distance, normalize, subtract } from './gameUtils';
 
 // Field particle constants
-const FIELD_PARTICLE_BASE_COUNT = 100; // Base number of particles
+const FIELD_PARTICLE_BASE_COUNT = 1000; // Base number of particles
 const FIELD_PARTICLE_SIZE = 0.15; // Size in meters
 const FIELD_PARTICLE_MASS = 0.05; // Very low mass for easy repulsion
 const FIELD_PARTICLE_OPACITY = 0.6; // Opacity for white particles
@@ -10,10 +10,18 @@ const FIELD_PARTICLE_OPACITY = 0.6; // Opacity for white particles
 // Repulsion constants
 const UNIT_REPULSION_RADIUS = 3.0; // Distance at which units repel particles (meters)
 const UNIT_REPULSION_FORCE = 8.0; // Force strength for unit repulsion
+const STRUCTURE_REPULSION_RADIUS = 4.0; // Distance at which structures repel particles (meters)
+const STRUCTURE_REPULSION_FORCE = 7.0; // Force strength for structure repulsion
+const MINING_DEPOT_REPULSION_RADIUS = 4.5; // Distance at which mining depots repel particles (meters)
+const MINING_DEPOT_REPULSION_FORCE = 7.5; // Force strength for mining depot repulsion
 const PROJECTILE_REPULSION_RADIUS = 2.0; // Distance for projectile repulsion
 const PROJECTILE_REPULSION_FORCE = 5.0; // Force for projectile repulsion
+const SHELL_REPULSION_RADIUS = 1.6; // Distance for shell casing repulsion
+const SHELL_REPULSION_FORCE = 4.0; // Force for shell casing repulsion
 const BASE_REPULSION_RADIUS = 4.0; // Distance for base repulsion
 const BASE_REPULSION_FORCE = 6.0; // Force for base repulsion
+const WARP_GATE_REPULSION_RADIUS = WARP_GATE_MAX_SIZE_METERS * 0.75; // Distance for warp gate repulsion
+const WARP_GATE_REPULSION_FORCE = 9.0; // Force for warp gate repulsion
 
 // Physics constants
 const PARTICLE_DAMPING = 0.95; // Velocity damping to slow particles over time
@@ -22,53 +30,24 @@ const PARTICLE_MAX_SPEED_SQUARED = PARTICLE_MAX_SPEED * PARTICLE_MAX_SPEED; // S
 const BOUNDARY_MARGIN = 2.0; // Margin from arena edges
 const BOUNCE_DAMPING_FACTOR = 0.5; // Velocity reduction factor on boundary bounce
 const MIN_REPULSION_DISTANCE = 0.01; // Minimum distance to avoid division by zero
-const DENSITY_GRADIENT_FACTOR = 0.5; // Controls how much density increases toward center (0.5 = 50% increase)
 
 /**
- * Initialize field particles distributed in the middle 50% of the arena (between 1st and 3rd quartiles)
- * Density increases toward the center
+ * Initialize field particles evenly distributed across the arena.
  */
 export function initializeFieldParticles(arenaWidth: number, arenaHeight: number): FieldParticle[] {
   const particles: FieldParticle[] = [];
   
-  // Calculate quartile boundaries (middle 50% = between 25% and 75%)
-  const minY = arenaHeight * 0.25;
-  const maxY = arenaHeight * 0.75;
-  const centerY = arenaHeight / 2;
+  // Calculate boundaries that keep particles inside the playable area.
+  const minX = BOUNDARY_MARGIN;
+  const maxX = arenaWidth - BOUNDARY_MARGIN;
+  const minY = BOUNDARY_MARGIN;
+  const maxY = arenaHeight - BOUNDARY_MARGIN;
   
-  // Generate particles with density gradient toward center
+  // Generate particles with a uniform distribution across the arena.
   for (let i = 0; i < FIELD_PARTICLE_BASE_COUNT; i++) {
-    // Use a biased distribution that favors the center
-    // Use rejection sampling to create higher density near center
-    let x: number, y: number;
-    let attempts = 0;
-    const maxAttempts = 10;
-    
-    do {
-      // Generate random position in the quartile range
-      x = Math.random() * arenaWidth;
-      y = minY + Math.random() * (maxY - minY);
-      
-      // Calculate distance from center (normalized 0-1)
-      // Use squared distance to avoid expensive sqrt in rejection sampling
-      const distFromCenterX = Math.abs(x - arenaWidth / 2) / (arenaWidth / 2);
-      const distFromCenterY = Math.abs(y - centerY) / ((maxY - minY) / 2);
-      const distFromCenterSquared = distFromCenterX * distFromCenterX + distFromCenterY * distFromCenterY;
-      
-      // Accept position with probability inversely proportional to distance from center
-      // This creates higher density near center
-      // Using squared distance maintains the same distribution
-      const acceptProbability = 1.0 - (Math.sqrt(distFromCenterSquared) * DENSITY_GRADIENT_FACTOR);
-      
-      if (Math.random() < acceptProbability) {
-        break;
-      }
-      
-      attempts++;
-    } while (attempts < maxAttempts);
-    
-    // Note: If maxAttempts is reached, the last generated position is used.
-    // This is acceptable as it still falls within the valid quartile range.
+    // Pick a random position inside the bounds to avoid density bias.
+    const x = minX + Math.random() * (maxX - minX);
+    const y = minY + Math.random() * (maxY - minY);
     
     particles.push({
       id: generateId(),
@@ -92,9 +71,11 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
   const arenaWidth = ARENA_WIDTH_METERS;
   const arenaHeight = getArenaHeight();
   
-  // Calculate quartile boundaries
-  const minY = arenaHeight * 0.25;
-  const maxY = arenaHeight * 0.75;
+  // Calculate boundaries that keep particles inside the playable area.
+  const minX = BOUNDARY_MARGIN;
+  const maxX = arenaWidth - BOUNDARY_MARGIN;
+  const minY = BOUNDARY_MARGIN;
+  const maxY = arenaHeight - BOUNDARY_MARGIN;
   
   for (const particle of state.fieldParticles) {
     // Reset force accumulator
@@ -113,6 +94,30 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
       }
     }
     
+    // Apply repulsion from structures (buildings).
+    for (const structure of state.structures) {
+      const dist = distance(particle.position, structure.position);
+      
+      if (dist < STRUCTURE_REPULSION_RADIUS && dist > MIN_REPULSION_DISTANCE) {
+        const repulsionDir = normalize(subtract(particle.position, structure.position));
+        const forceMagnitude = STRUCTURE_REPULSION_FORCE * (1.0 - dist / STRUCTURE_REPULSION_RADIUS);
+        forceX += repulsionDir.x * forceMagnitude;
+        forceY += repulsionDir.y * forceMagnitude;
+      }
+    }
+    
+    // Apply repulsion from mining depots (buildings).
+    for (const miningDepot of state.miningDepots) {
+      const dist = distance(particle.position, miningDepot.position);
+      
+      if (dist < MINING_DEPOT_REPULSION_RADIUS && dist > MIN_REPULSION_DISTANCE) {
+        const repulsionDir = normalize(subtract(particle.position, miningDepot.position));
+        const forceMagnitude = MINING_DEPOT_REPULSION_FORCE * (1.0 - dist / MINING_DEPOT_REPULSION_RADIUS);
+        forceX += repulsionDir.x * forceMagnitude;
+        forceY += repulsionDir.y * forceMagnitude;
+      }
+    }
+    
     // Apply repulsion from bases
     for (const base of state.bases) {
       const dist = distance(particle.position, base.position);
@@ -125,7 +130,7 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
       }
     }
     
-    // Apply repulsion from projectiles
+    // Apply repulsion from attack projectiles.
     if (state.projectiles) {
       for (const projectile of state.projectiles) {
         const dist = distance(particle.position, projectile.position);
@@ -136,6 +141,32 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
           forceX += repulsionDir.x * forceMagnitude;
           forceY += repulsionDir.y * forceMagnitude;
         }
+      }
+    }
+    
+    // Apply repulsion from shell casings left by attacks.
+    if (state.shells) {
+      for (const shell of state.shells) {
+        const dist = distance(particle.position, shell.position);
+        
+        if (dist < SHELL_REPULSION_RADIUS && dist > MIN_REPULSION_DISTANCE) {
+          const repulsionDir = normalize(subtract(particle.position, shell.position));
+          const forceMagnitude = SHELL_REPULSION_FORCE * (1.0 - dist / SHELL_REPULSION_RADIUS);
+          forceX += repulsionDir.x * forceMagnitude;
+          forceY += repulsionDir.y * forceMagnitude;
+        }
+      }
+    }
+    
+    // Apply repulsion from warp gates being summoned.
+    if (state.warpGate) {
+      const dist = distance(particle.position, state.warpGate.position);
+      
+      if (dist < WARP_GATE_REPULSION_RADIUS && dist > MIN_REPULSION_DISTANCE) {
+        const repulsionDir = normalize(subtract(particle.position, state.warpGate.position));
+        const forceMagnitude = WARP_GATE_REPULSION_FORCE * (1.0 - dist / WARP_GATE_REPULSION_RADIUS);
+        forceX += repulsionDir.x * forceMagnitude;
+        forceY += repulsionDir.y * forceMagnitude;
       }
     }
     
@@ -160,7 +191,7 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
     particle.position.x += particle.velocity.x * deltaTime;
     particle.position.y += particle.velocity.y * deltaTime;
     
-    // Constrain to quartile boundaries with soft bounce
+    // Constrain to arena boundaries with soft bounce.
     if (particle.position.y < minY) {
       particle.position.y = minY;
       particle.velocity.y = Math.abs(particle.velocity.y) * BOUNCE_DAMPING_FACTOR;
@@ -169,12 +200,12 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
       particle.velocity.y = -Math.abs(particle.velocity.y) * BOUNCE_DAMPING_FACTOR;
     }
     
-    // Constrain to arena width with soft bounce
-    if (particle.position.x < BOUNDARY_MARGIN) {
-      particle.position.x = BOUNDARY_MARGIN;
+    // Constrain to arena width with soft bounce.
+    if (particle.position.x < minX) {
+      particle.position.x = minX;
       particle.velocity.x = Math.abs(particle.velocity.x) * BOUNCE_DAMPING_FACTOR;
-    } else if (particle.position.x > arenaWidth - BOUNDARY_MARGIN) {
-      particle.position.x = arenaWidth - BOUNDARY_MARGIN;
+    } else if (particle.position.x > maxX) {
+      particle.position.x = maxX;
       particle.velocity.x = -Math.abs(particle.velocity.x) * BOUNCE_DAMPING_FACTOR;
     }
     
