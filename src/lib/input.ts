@@ -222,10 +222,10 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
         lastCenter: center
       };
     } else {
-      // Handle pinch-to-zoom - Make it much stronger and faster
-      const distanceDelta = pinchDistance - pinchState.lastDistance;
-      // Changed from /120 to /30 for 4x stronger zoom (faster and farther)
-      const zoomDelta = distanceDelta / 30;
+      // Handle pinch-to-zoom with ratio-based scaling so sensitivity is consistent.
+      const pinchScale = pinchState.lastDistance > 0 ? pinchDistance / pinchState.lastDistance : 1;
+      // Convert pinch scale to a gentle delta to avoid runaway zoom speed on small movements.
+      const zoomDelta = (pinchScale - 1) * 4;
       
       if (Math.abs(zoomDelta) > 0.01) {
         // Zoom at the pinch center point so it zooms where you're pinching

@@ -105,6 +105,7 @@ Handles all user input for the game including touch, mouse, and keyboard events.
 - Ability command queue nodes clone their origin/direction vectors to avoid later mutation
 - Coordinates converted from screen pixels to game meters via camera-aware transforms
 - Touch events prevented to avoid browser scrolling
+- Pinch zoom derives deltas from pinch ratio for smoother, less aggressive zooming
 - Mining depot drags snap toward the closest available deposit by drag angle, with a preview line stored in `state.miningDragPreview`
 - Mining drone creation can be canceled by releasing near the depot, and deposits cap at two drones with cadence delays for staggering
 - Double-tap selection clears current selection unless tapping a friendly unit, which selects all same-type friendly units
@@ -164,6 +165,7 @@ Handles all user input for the game including touch, mouse, and keyboard events.
 - **2025-03-21**: Removed ability cooldown checks when queueing ability commands so input always enqueues them
 - **2025-03-24**: Increased group move spacing relative to unit size to reduce stacking at shared destinations
 - **2026-01-22**: Switched enemy tooltip visibility to sun-shadow logic and aligned mining drone costs with base HP spending
+- **2025-03-24**: Tuned pinch zoom to use ratio-based scaling for gentler zoom changes
 
 ## Watch Out For
 - Always prevent default on touch events to avoid scrolling

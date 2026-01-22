@@ -133,9 +133,9 @@ export function zoomCameraAtPoint(state: GameState, delta: number, screenPoint: 
   const centerX = viewportDimensions.width > 0 ? viewportOffset.x + viewportDimensions.width / 2 : canvas.width / 2;
   const centerY = viewportDimensions.height > 0 ? viewportOffset.y + viewportDimensions.height / 2 : canvas.height / 2;
   
-  // Get world coordinates at the pinch point before zoom (using same transform as screenToWorld)
-  const worldPointX = (screenPoint.x - centerX) / oldZoom - camera.offset.x * PIXELS_PER_METER * viewportScale + centerX;
-  const worldPointY = (screenPoint.y - centerY) / oldZoom - camera.offset.y * PIXELS_PER_METER * viewportScale + centerY;
+  // Get world coordinates at the pinch point before zoom using target offset to avoid drift.
+  const worldPointX = (screenPoint.x - centerX) / oldZoom - camera.targetOffset.x * PIXELS_PER_METER * viewportScale + centerX;
+  const worldPointY = (screenPoint.y - centerY) / oldZoom - camera.targetOffset.y * PIXELS_PER_METER * viewportScale + centerY;
   
   // Apply zoom
   camera.targetZoom = newZoom;
