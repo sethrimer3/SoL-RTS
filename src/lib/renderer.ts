@@ -1104,6 +1104,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
   if (state.mode === 'game' || state.mode === 'countdown') {
     drawObstacles(ctx, state);
     drawSun(ctx, state); // Draw the central sun
+    drawAsteroids(ctx, state); // Draw asteroids visible in shadow near friendly units
     drawMiningDepots(ctx, state);
     drawResourceOrbs(ctx, state);
     drawBases(ctx, state);
@@ -1573,6 +1574,81 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   
   ctx.restore();
 }
+
+// Draw asteroids that are only visible in shadow near friendly units
+function drawAsteroids(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.asteroids || state.asteroids.length === 0) return;
+  
+  state.asteroids.forEach((asteroid) => {
+    // Only draw if visible
+    if (!asteroid.isVisible) return;
+    
+    const screenPos = positionToPixels(asteroid.position);
+    
+    ctx.save();
+    ctx.translate(screenPos.x, screenPos.y);
+    ctx.rotate(asteroid.rotation);
+    
+    // Draw the polygon asteroid
+    ctx.beginPath();
+    const firstVertex = asteroid.vertices[0];
+    const firstPixels = metersToPixels(firstVertex.x);
+    const firstPixelsY = metersToPixels(firstVertex.y);
+    ctx.moveTo(firstPixels, firstPixelsY);
+    
+    for (let i = 1; i < asteroid.vertices.length; i++) {
+      const vertex = asteroid.vertices[i];
+      const pixelX = metersToPixels(vertex.x);
+      const pixelY = metersToPixels(vertex.y);
+      ctx.lineTo(pixelX, pixelY);
+    }
+    ctx.closePath();
+    
+    // Style based on size
+    let fillColor: string;
+    let strokeColor: string;
+    let glowColor: string;
+    
+    if (asteroid.size === 'large') {
+      fillColor = 'oklch(0.25 0.08 260)'; // Dark blue-gray
+      strokeColor = 'oklch(0.45 0.12 260)';
+      glowColor = 'oklch(0.55 0.15 260)';
+    } else if (asteroid.size === 'medium') {
+      fillColor = 'oklch(0.28 0.08 250)';
+      strokeColor = 'oklch(0.48 0.12 250)';
+      glowColor = 'oklch(0.58 0.15 250)';
+    } else {
+      fillColor = 'oklch(0.30 0.08 240)';
+      strokeColor = 'oklch(0.50 0.12 240)';
+      glowColor = 'oklch(0.60 0.15 240)';
+    }
+    
+    // Fill with gradient
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, metersToPixels(asteroid.radius));
+    gradient.addColorStop(0, fillColor);
+    gradient.addColorStop(1, 'oklch(0.15 0.05 260)');
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    
+    // Stroke with glow
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Add glow effect if enabled
+    if (state.settings.enableGlowEffects) {
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = glowColor;
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    
+    ctx.restore();
+  });
+}
+
 function drawObstacles(ctx: CanvasRenderingContext2D, state: GameState): void {
   state.obstacles.forEach((obstacle) => {
     // Skip drawing boundary obstacles (they're invisible)

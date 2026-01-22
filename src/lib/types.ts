@@ -351,6 +351,18 @@ export interface Sun {
   radius: number; // Size of the sun for rendering
 }
 
+// Asteroid entity that blocks sun light and is visible only in shadow near friendly units
+export interface Asteroid {
+  id: string;
+  position: Vector2;
+  size: 'large' | 'medium' | 'small'; // Size category
+  radius: number; // Actual radius in meters
+  rotation: number; // Current rotation angle in radians
+  rotationSpeed: number; // Rotation speed in radians per second
+  vertices: Vector2[]; // Polygon vertices relative to center
+  isVisible: boolean; // Whether asteroid is currently visible
+}
+
 // Structure types for buildable towers
 export type StructureType = 'offensive' | 'defensive' | 'faction-radiant' | 'faction-aurum' | 'faction-solari';
 
@@ -1139,6 +1151,7 @@ export interface GameState {
   structures: Structure[]; // Player-built structures (towers)
   miningDepots: MiningDepot[]; // Mining depots for resource gathering (deprecated in favor of sun)
   sun?: Sun; // Central sun for new solar mining system
+  asteroids?: Asteroid[]; // Asteroids that block sunlight and are visible in shadow near friendly units
   miningIncomePopups?: Array<{ position: Vector2; startTime: number }>; // +1 photon popups for producing drones
   obstacles: import('./maps').Obstacle[];
   projectiles: Projectile[]; // Active projectiles in the game

@@ -81,6 +81,9 @@ const SHELL_BOUNCE_DAMPING = 0.6; // velocity damping after bounce
 const SHELL_MOMENTUM_TRANSFER = 0.4; // velocity transfer factor to field particles
 const SHELL_MASS = 0.02; // small mass for shell physics
 
+// Owner IDs
+const PLAYER_OWNER_ID = 0; // Player-controlled units and buildings
+
 // Helper function to calculate damage with armor
 // Ranged attacks are reduced by armor, melee attacks ignore armor
 function calculateDamageWithArmor(baseDamage: number, armor: number, isMelee: boolean, targetModifiers: UnitModifier[] = []): number {
@@ -1938,6 +1941,57 @@ function updateShells(state: GameState, deltaTime: number): void {
   state.shells = remainingShells;
 }
 
+// Update asteroids: rotate them and determine visibility based on shadow and proximity to friendly units
+function updateAsteroids(state: GameState, deltaTime: number): void {
+  if (!state.asteroids || state.asteroids.length === 0) return;
+  if (!state.sun) return;
+  
+  const sun = state.sun;
+  const PROXIMITY_DISTANCE = 8; // Distance in meters for asteroid to be visible near friendly units/buildings
+  
+  state.asteroids.forEach((asteroid) => {
+    // Update rotation
+    asteroid.rotation += asteroid.rotationSpeed * deltaTime;
+    
+    // Check if asteroid is in shadow (not in direct line of sight from sun)
+    const isInShadow = !hasLineOfSight(asteroid.position, sun.position, state.obstacles);
+    
+    // Check if any friendly unit or building is nearby
+    let hasFriendlyNearby = false;
+    
+    // Check player units
+    for (const unit of state.units) {
+      if (unit.owner === PLAYER_OWNER_ID && distance(unit.position, asteroid.position) <= PROXIMITY_DISTANCE) {
+        hasFriendlyNearby = true;
+        break;
+      }
+    }
+    
+    // Check player base
+    if (!hasFriendlyNearby) {
+      for (const base of state.bases) {
+        if (base.owner === PLAYER_OWNER_ID && distance(base.position, asteroid.position) <= PROXIMITY_DISTANCE) {
+          hasFriendlyNearby = true;
+          break;
+        }
+      }
+    }
+    
+    // Check player structures
+    if (!hasFriendlyNearby && state.structures) {
+      for (const structure of state.structures) {
+        if (structure.owner === PLAYER_OWNER_ID && distance(structure.position, asteroid.position) <= PROXIMITY_DISTANCE) {
+          hasFriendlyNearby = true;
+          break;
+        }
+      }
+    }
+    
+    // Asteroid is visible only if in shadow AND friendly unit/building is nearby
+    asteroid.isVisible = isInShadow && hasFriendlyNearby;
+  });
+}
+
 /**
  * Update chess mode turn timer and execute pending commands when turn ends
  */
@@ -2092,6 +2146,7 @@ export function updateGame(state: GameState, deltaTime: number): void {
   updateStructures(state, deltaTime);
   updateProjectiles(state, deltaTime);
   updateShells(state, deltaTime);
+  updateAsteroids(state, deltaTime);
   updateCombat(state, deltaTime);
   cleanupDeadUnits(state); // Clean up dead units after combat
   cleanupDyingUnits(state); // Clean up dying units after animation completes

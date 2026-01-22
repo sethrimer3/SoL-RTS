@@ -1,4 +1,4 @@
-import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, RESOURCE_DEPOSIT_RING_RADIUS_METERS, UNIT_DEFINITIONS, FOG_OF_WAR_VISION_RANGE, GameState } from './types';
+import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, RESOURCE_DEPOSIT_RING_RADIUS_METERS, UNIT_DEFINITIONS, FOG_OF_WAR_VISION_RANGE, GameState, Asteroid } from './types';
 
 // Calculate viewport scale to fit the fixed arena to the viewport
 let viewportScale = 1.0;
@@ -482,4 +482,111 @@ export function isVisibleToPlayer(position: Vector2, state: GameState): boolean 
   }
   
   return false;
+}
+
+// Generate a random polygon for an asteroid
+function generateAsteroidPolygon(sides: number, baseRadius: number): Vector2[] {
+  const vertices: Vector2[] = [];
+  for (let i = 0; i < sides; i++) {
+    const angle = (i / sides) * Math.PI * 2;
+    // Add some randomness to the radius for irregular shape
+    const radiusVariation = baseRadius * (0.7 + Math.random() * 0.6);
+    vertices.push({
+      x: Math.cos(angle) * radiusVariation,
+      y: Math.sin(angle) * radiusVariation,
+    });
+  }
+  return vertices;
+}
+
+// Constants for asteroid generation
+const ASTEROID_SPAWN_MARGIN = 5; // Margin from edges and center in meters
+
+// Create asteroids with mirrors (horizontal and vertical)
+export function createAsteroids(arenaWidth: number, arenaHeight: number): Asteroid[] {
+  const asteroids: Asteroid[] = [];
+  
+  // Define asteroid sizes
+  const sizes: { size: 'large' | 'medium' | 'small'; radius: number; count: number }[] = [
+    { size: 'large', radius: 2.5, count: 1 },
+    { size: 'medium', radius: 1.5, count: 2 },
+    { size: 'small', radius: 0.8, count: 4 },
+  ];
+  
+  // Generate asteroids in quadrant 1 (top-right)
+  const quadrant1Asteroids: Asteroid[] = [];
+  
+  sizes.forEach(({ size, radius, count }) => {
+    for (let i = 0; i < count; i++) {
+      // Random position in the first quadrant (avoiding center and edges)
+      const x = arenaWidth / 2 + ASTEROID_SPAWN_MARGIN + Math.random() * (arenaWidth / 2 - ASTEROID_SPAWN_MARGIN * 2);
+      const y = arenaHeight / 2 + ASTEROID_SPAWN_MARGIN + Math.random() * (arenaHeight / 2 - ASTEROID_SPAWN_MARGIN * 2);
+      
+      const asteroid: Asteroid = {
+        id: generateId(),
+        position: { x, y },
+        size,
+        radius,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.2, // Slow rotation
+        vertices: generateAsteroidPolygon(6 + Math.floor(Math.random() * 4), radius),
+        isVisible: false,
+      };
+      
+      quadrant1Asteroids.push(asteroid);
+      asteroids.push(asteroid);
+    }
+  });
+  
+  // Create mirrored copies
+  quadrant1Asteroids.forEach((original) => {
+    // Mirror horizontally (left side)
+    const mirrorH: Asteroid = {
+      id: generateId(),
+      position: {
+        x: arenaWidth - original.position.x,
+        y: original.position.y,
+      },
+      size: original.size,
+      radius: original.radius,
+      rotation: -original.rotation, // Mirror rotation
+      rotationSpeed: -original.rotationSpeed, // Mirror rotation direction
+      vertices: original.vertices.map(v => ({ x: -v.x, y: v.y })), // Mirror vertices horizontally
+      isVisible: false,
+    };
+    
+    // Mirror vertically (bottom side)
+    const mirrorV: Asteroid = {
+      id: generateId(),
+      position: {
+        x: original.position.x,
+        y: arenaHeight - original.position.y,
+      },
+      size: original.size,
+      radius: original.radius,
+      rotation: -original.rotation, // Mirror rotation
+      rotationSpeed: -original.rotationSpeed, // Mirror rotation direction
+      vertices: original.vertices.map(v => ({ x: v.x, y: -v.y })), // Mirror vertices vertically
+      isVisible: false,
+    };
+    
+    // Mirror both horizontally and vertically (bottom-left)
+    const mirrorHV: Asteroid = {
+      id: generateId(),
+      position: {
+        x: arenaWidth - original.position.x,
+        y: arenaHeight - original.position.y,
+      },
+      size: original.size,
+      radius: original.radius,
+      rotation: original.rotation, // Keep rotation same for double mirror
+      rotationSpeed: original.rotationSpeed, // Keep rotation speed same
+      vertices: original.vertices.map(v => ({ x: -v.x, y: -v.y })), // Mirror vertices both ways
+      isVisible: false,
+    };
+    
+    asteroids.push(mirrorH, mirrorV, mirrorHV);
+  });
+  
+  return asteroids;
 }
