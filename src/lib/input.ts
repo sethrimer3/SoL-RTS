@@ -600,11 +600,34 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
     } else if (touchState.touchedBase && !touchState.isDragging) {
       const base = touchState.touchedBase;
       if (base.isSelected) {
-        base.isSelected = false;
+        // Tapping on already selected base spawns unit
+        if (state.selectionWheel && state.selectionWheel.baseId === base.id) {
+          // Spawn the currently selected unit
+          const enabledUnits = Array.from(state.settings.enabledUnits);
+          if (enabledUnits.length > 0) {
+            const selectedUnitType = enabledUnits[state.selectionWheel.selectedIndex % enabledUnits.length];
+            const success = spawnUnit(state, playerIndex, selectedUnitType, base.position, base.rallyPoint);
+            if (!success) {
+              soundManager.playError();
+            }
+          }
+        }
       } else {
+        // Selecting a new base - show selection wheel
         state.bases.forEach((b) => (b.isSelected = false));
         base.isSelected = true;
         state.selectedUnits.clear();
+        
+        // Initialize selection wheel only if there are enabled units
+        const enabledUnits = Array.from(state.settings.enabledUnits);
+        if (enabledUnits.length > 0) {
+          state.selectionWheel = {
+            baseId: base.id,
+            selectedIndex: 0,
+            visible: true,
+            animationStartTime: Date.now()
+          };
+        }
       }
     } else if (touchState.touchedBase && touchState.isDragging && dist > SWIPE_THRESHOLD_PX) {
       // If base was already selected, dragging from it sets rally point
@@ -771,6 +794,7 @@ function handleRectSelection(
   const prevSize = state.selectedUnits.size;
   state.selectedUnits.clear();
   state.bases.forEach((b) => (b.isSelected = false));
+  delete state.selectionWheel; // Hide selection wheel when dragging selection rect
 
   state.units.forEach((unit) => {
     if (unit.owner !== playerIndex) return;
@@ -794,6 +818,18 @@ function handleRectSelection(
   // Only select the base if no units were captured by the selection rectangle
   if (selectedBase) {
     selectedBase.isSelected = true;
+    
+    // Initialize selection wheel for the selected base only if there are enabled units
+    const enabledUnits = Array.from(state.settings.enabledUnits);
+    if (enabledUnits.length > 0) {
+      state.selectionWheel = {
+        baseId: selectedBase.id,
+        selectedIndex: 0,
+        visible: true,
+        animationStartTime: Date.now()
+      };
+    }
+    
     soundManager.playUnitSelect();
   }
 }
@@ -1125,6 +1161,7 @@ function handleTap(state: GameState, screenPos: { x: number; y: number }, canvas
     state.selectedUnits.clear();
     state.selectedUnits.add(tappedUnit.id);
     state.bases.forEach((b) => (b.isSelected = false));
+    delete state.selectionWheel; // Hide selection wheel when selecting units
     soundManager.playUnitSelect();
     return;
   }
@@ -1690,12 +1727,36 @@ export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanva
     if (isDoubleTap(state, { x, y })) {
       // Double-click: deselect the base
       state.bases.forEach((b) => (b.isSelected = false));
+      delete state.selectionWheel;
     } else if (base.isSelected) {
-      base.isSelected = false;
+      // Clicking on already selected base spawns unit
+      if (state.selectionWheel && state.selectionWheel.baseId === base.id) {
+        // Spawn the currently selected unit
+        const enabledUnits = Array.from(state.settings.enabledUnits);
+        if (enabledUnits.length > 0) {
+          const selectedUnitType = enabledUnits[state.selectionWheel.selectedIndex % enabledUnits.length];
+          const success = spawnUnit(state, playerIndex, selectedUnitType, base.position, base.rallyPoint);
+          if (!success) {
+            soundManager.playError();
+          }
+        }
+      }
     } else {
+      // Selecting a new base - show selection wheel
       state.bases.forEach((b) => (b.isSelected = false));
       base.isSelected = true;
       state.selectedUnits.clear();
+      
+      // Initialize selection wheel only if there are enabled units
+      const enabledUnits = Array.from(state.settings.enabledUnits);
+      if (enabledUnits.length > 0) {
+        state.selectionWheel = {
+          baseId: base.id,
+          selectedIndex: 0,
+          visible: true,
+          animationStartTime: Date.now()
+        };
+      }
     }
   } else if (mouseState.touchedBase && mouseState.isDragging && dist > SWIPE_THRESHOLD_PX) {
     // If base was already selected, dragging from it sets rally point

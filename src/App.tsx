@@ -425,13 +425,25 @@ function App() {
     
     // Add mouse wheel zoom handler
     const handleWheel = (e: WheelEvent) => {
-      if (gameStateRef.current.mode === 'game' && enableCameraControls) {
+      if (gameStateRef.current.mode === 'game') {
         e.preventDefault();
-        const zoomDelta = e.deltaY > 0 ? -1 : 1;
-        // Zoom toward the cursor position so the focus stays under the mouse.
-        const rect = canvas.getBoundingClientRect();
-        const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        zoomCameraAtPoint(gameStateRef.current, zoomDelta, screenPoint, canvas);
+        
+        // Check if selection wheel is visible - if so, rotate it instead of zooming
+        if (gameStateRef.current.selectionWheel && gameStateRef.current.selectionWheel.visible) {
+          const enabledUnits = Array.from(gameStateRef.current.settings.enabledUnits);
+          if (enabledUnits.length > 0) {
+            const direction = e.deltaY > 0 ? 1 : -1;
+            gameStateRef.current.selectionWheel.selectedIndex = 
+              (gameStateRef.current.selectionWheel.selectedIndex + direction + enabledUnits.length) % enabledUnits.length;
+          }
+        } else if (enableCameraControls) {
+          // Normal zoom behavior when selection wheel is not visible
+          const zoomDelta = e.deltaY > 0 ? -1 : 1;
+          // Zoom toward the cursor position so the focus stays under the mouse.
+          const rect = canvas.getBoundingClientRect();
+          const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+          zoomCameraAtPoint(gameStateRef.current, zoomDelta, screenPoint, canvas);
+        }
       }
     };
     
