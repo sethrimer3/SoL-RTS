@@ -1789,7 +1789,7 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   // Create multiple halos with decreasing intensity
   for (let i = 0; i < LENS_FLARE_HALO_COUNT; i++) {
     const flareRadius = radiusPixels * (LENS_FLARE_BASE_RADIUS + i * LENS_FLARE_RADIUS_INCREMENT);
-    const flareAlpha = LENS_FLARE_BASE_ALPHA - i * LENS_FLARE_ALPHA_DECREMENT;
+    const flareAlpha = Math.max(0, LENS_FLARE_BASE_ALPHA - i * LENS_FLARE_ALPHA_DECREMENT);
     const flareGradient = ctx.createRadialGradient(
       pixels.x, pixels.y, flareRadius * 0.8,
       pixels.x, pixels.y, flareRadius
