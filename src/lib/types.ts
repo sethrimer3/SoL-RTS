@@ -72,6 +72,7 @@ export const COLORS = {
   laser: 'oklch(0.70 0.30 320)',
   telegraph: 'oklch(0.75 0.18 200)',
   white: 'oklch(0.98 0 0)',
+  grey: 'oklch(0.50 0 0)', // Grey color for neutral spacedust particles
   warpGate: 'oklch(0.80 0.25 280)', // Purple-ish color for warp gate energy
   borderMain: 'oklch(0.30 0 0)',
   borderHighlight: 'oklch(0.40 0 0)',

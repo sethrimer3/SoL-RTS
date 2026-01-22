@@ -1,4 +1,4 @@
-import { FieldParticle, Vector2, GameState, Unit, Base, Projectile, ARENA_WIDTH_METERS } from './types';
+import { FieldParticle, Vector2, GameState, Unit, Base, Projectile, ARENA_WIDTH_METERS, COLORS } from './types';
 import { generateId, getArenaHeight, distance, normalize, subtract, add, scale } from './gameUtils';
 
 // Field particle constants
@@ -179,7 +179,7 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
     }
     
     // Update particle color based on influence zones
-    particle.color = undefined; // Reset to default (white)
+    particle.color = COLORS.grey; // Default to grey (neutral/no influence)
     
     // Check if particle is in any player's influence zone
     if (state.influenceZones) {
