@@ -63,6 +63,8 @@ const DOUBLE_TAP_TIME_MS = 400; // Time window for double-tap detection
 const DOUBLE_TAP_DISTANCE_PX = 50; // Max distance between taps to count as double-tap
 // Use the depot footprint so canceling feels consistent with the larger mining hub.
 const MINING_DEPOT_CANCEL_RADIUS = MINING_DEPOT_SIZE_METERS * 0.5;
+// Maximum movement allowed before warp gate creation is cancelled
+const WARP_GATE_MAX_MOVEMENT_THRESHOLD = 10;
 
 function addVisualFeedback(
   state: GameState,
@@ -198,7 +200,7 @@ function checkAndInitiateWarpGate(
       !touchedBase && 
       !touchedDepot && 
       state.selectedUnits.size === 0 &&
-      dist < 10) { // Must not have moved significantly
+      dist < WARP_GATE_MAX_MOVEMENT_THRESHOLD) { // Must not have moved significantly
     const worldStart = screenToWorldPosition(state, canvas, startPos);
     
     // Check if position is within player's influence
