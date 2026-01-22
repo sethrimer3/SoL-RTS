@@ -1,4 +1,4 @@
-import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, UNIT_DEFINITIONS, GameState, Asteroid, Base, Sun, UNIT_SIZE_METERS } from './types';
+import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, UNIT_DEFINITIONS, GameState, Asteroid, Base, Sun, UNIT_SIZE_METERS, INFLUENCE_RADIUS_BASE, INFLUENCE_RADIUS_STRUCTURE, INFLUENCE_RADIUS_SOLAR_MIRROR } from './types';
 import { checkObstacleCollision, type Obstacle } from './maps';
 
 // Calculate viewport scale to fit the fixed arena to the viewport
@@ -597,4 +597,94 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): Astero
   });
   
   return asteroids;
+}
+
+/**
+ * Calculate influence zones for building placement
+ * Buildings can only be placed within player's influence
+ */
+export function calculateInfluenceZones(state: GameState): Array<{
+  position: Vector2;
+  radius: number;
+  owner: number;
+  sourceType: 'base' | 'structure' | 'solar-mirror';
+  sourceId: string;
+}> {
+  const zones: Array<{
+    position: Vector2;
+    radius: number;
+    owner: number;
+    sourceType: 'base' | 'structure' | 'solar-mirror';
+    sourceId: string;
+  }> = [];
+  
+  // Add influence from bases
+  state.bases.forEach(base => {
+    zones.push({
+      position: base.position,
+      radius: INFLUENCE_RADIUS_BASE,
+      owner: base.owner,
+      sourceType: 'base',
+      sourceId: base.id,
+    });
+  });
+  
+  // Add influence from structures
+  state.structures.forEach(structure => {
+    zones.push({
+      position: structure.position,
+      radius: INFLUENCE_RADIUS_STRUCTURE,
+      owner: structure.owner,
+      sourceType: 'structure',
+      sourceId: structure.id,
+    });
+  });
+  
+  // Add influence from solar mirrors (mining drones)
+  state.units.forEach(unit => {
+    if (unit.type === 'miningDrone' && unit.miningState?.isProducing) {
+      zones.push({
+        position: unit.position,
+        radius: INFLUENCE_RADIUS_SOLAR_MIRROR,
+        owner: unit.owner,
+        sourceType: 'solar-mirror',
+        sourceId: unit.id,
+      });
+    }
+  });
+  
+  return zones;
+}
+
+/**
+ * Check if a position is within player's influence
+ */
+export function isPositionInInfluence(
+  position: Vector2,
+  playerIndex: number,
+  state: GameState
+): boolean {
+  const zones = calculateInfluenceZones(state);
+  
+  return zones.some(zone => {
+    if (zone.owner !== playerIndex) return false;
+    const dist = distance(position, zone.position);
+    return dist <= zone.radius;
+  });
+}
+
+/**
+ * Get all influence zones for a player
+ */
+export function getPlayerInfluenceZones(
+  playerIndex: number,
+  state: GameState
+): Array<{
+  position: Vector2;
+  radius: number;
+  sourceType: 'base' | 'structure' | 'solar-mirror';
+  sourceId: string;
+}> {
+  const zones = calculateInfluenceZones(state);
+  return zones.filter(zone => zone.owner === playerIndex);
 }
