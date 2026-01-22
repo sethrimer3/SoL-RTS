@@ -1,4 +1,5 @@
-import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, RESOURCE_DEPOSIT_RING_RADIUS_METERS, UNIT_DEFINITIONS, FOG_OF_WAR_VISION_RANGE, GameState, Asteroid } from './types';
+import { Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, ARENA_HEIGHT_METERS_MOBILE, PIXELS_PER_METER, RESOURCE_DEPOSIT_RING_RADIUS_METERS, UNIT_DEFINITIONS, GameState, Asteroid } from './types';
+import { checkObstacleCollision, type Obstacle } from './maps';
 
 // Calculate viewport scale to fit the fixed arena to the viewport
 let viewportScale = 1.0;
@@ -101,6 +102,9 @@ export function distance(a: Vector2, b: Vector2): number {
   const dy = b.y - a.y;
   return Math.sqrt(dx * dx + dy * dy);
 }
+
+// Shadow visibility radius for revealing enemies in sun shadows.
+const SHADOW_VISIBILITY_RANGE = 8;
 
 export function normalize(v: Vector2): Vector2 {
   const len = Math.sqrt(v.x * v.x + v.y * v.y);
@@ -458,25 +462,63 @@ export function createInitialMiningDrones(miningDepots: import('./types').Mining
 }
 
 /**
- * Check if a position is visible to the player under fog of war
- * @param position - The position to check
- * @param state - The game state containing player units and bases
- * @returns true if the position is visible to the player
+ * Check if there is a clear line of sight between two points using obstacle sampling.
+ * @param from - Origin point for the ray
+ * @param to - Target point for the ray
+ * @param obstacles - Obstacles to test against
+ * @returns true if no obstacle blocks the ray between the points
  */
-export function isVisibleToPlayer(position: Vector2, state: GameState): boolean {
-  if (!state.settings.enableFogOfWar) {
-    return true; // Fog of war disabled, everything is visible
+export function hasLineOfSight(from: Vector2, to: Vector2, obstacles: Obstacle[]): boolean {
+  // Sample points along the ray and stop when any obstacle intersects the path.
+  const dir = normalize(subtract(to, from));
+  const dist = distance(from, to);
+  const samples = Math.ceil(dist * 2); // 2 samples per meter for consistent shadow accuracy.
+  
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const point = add(from, scale(dir, dist * t));
+    
+    if (checkObstacleCollision(point, 0.1, obstacles)) {
+      return false;
+    }
   }
   
-  // Player's base provides vision
-  const playerBase = state.bases.find(b => b.owner === 0);
-  if (playerBase && distance(playerBase.position, position) <= FOG_OF_WAR_VISION_RANGE) {
+  return true;
+}
+
+/**
+ * Determine if an enemy unit should be visible based on sun shadows and friendly proximity.
+ * @param position - The enemy position to evaluate
+ * @param state - Current game state with sun, units, and structures
+ * @returns true if the enemy should be visible to the player
+ */
+export function isEnemyUnitVisible(position: Vector2, state: GameState): boolean {
+  // Without a sun, there are no raytraced shadows to hide enemies.
+  if (!state.sun) {
     return true;
   }
   
-  // Player's units provide vision
+  // Enemies in direct sunlight are always visible.
+  const isInShadow = !hasLineOfSight(position, state.sun.position, state.obstacles);
+  if (!isInShadow) {
+    return true;
+  }
+  
+  // In shadows, only show enemies near friendly units, structures, or bases.
   for (const unit of state.units) {
-    if (unit.owner === 0 && distance(unit.position, position) <= FOG_OF_WAR_VISION_RANGE) {
+    if (unit.owner === 0 && distance(unit.position, position) <= SHADOW_VISIBILITY_RANGE) {
+      return true;
+    }
+  }
+  
+  for (const base of state.bases) {
+    if (base.owner === 0 && distance(base.position, position) <= SHADOW_VISIBILITY_RANGE) {
+      return true;
+    }
+  }
+  
+  for (const structure of state.structures) {
+    if (structure.owner === 0 && distance(structure.position, position) <= SHADOW_VISIBILITY_RANGE) {
       return true;
     }
   }

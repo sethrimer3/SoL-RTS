@@ -6,6 +6,7 @@ Provides core mathematical utility functions for vector operations, coordinate t
 ## Dependencies
 ### Imports
 - `./types` - Vector2 type and PIXELS_PER_METER constant
+- `./maps` - Obstacle type and obstacle collision checks for shadow raycasts
 
 ### Used By
 - `simulation.ts` - Movement, combat calculations
@@ -48,6 +49,20 @@ Provides core mathematical utility functions for vector operations, coordinate t
 - **Parameters:** Two vectors (a - b)
 - **Returns:** Difference vector
 - **Notes:** Often used to get direction from one point to another
+
+### Visibility Helpers
+
+#### hasLineOfSight(from: Vector2, to: Vector2, obstacles: Obstacle[]): boolean
+- **Purpose:** Sample along a ray and detect whether obstacles block the path
+- **Parameters:** Origin, target, and obstacle list
+- **Returns:** True when the ray is unobstructed
+- **Notes:** Uses fixed sampling density to align with sun shadow raytracing
+
+#### isEnemyUnitVisible(position: Vector2, state: GameState): boolean
+- **Purpose:** Decide if an enemy unit should be visible based on sun shadows and friendly proximity
+- **Parameters:** Enemy position and game state
+- **Returns:** True when in sunlight or when a friendly unit/structure is nearby in shadows
+- **Notes:** Keeps player visibility consistent with the sun raytracing model
 
 ### Coordinate Conversion Functions
 
@@ -179,6 +194,7 @@ Provides core mathematical utility functions for vector operations, coordinate t
 - **2025-03-17**: Initialized mining depot resource deposits with `workerIds` arrays to support multiple drones
 - **2025-03-18**: Aligned mining depot deposit ring spacing with the shared resource ring radius constant
 - **2025-03-24**: Added a render-only playfield rotation helper for aligning unit visuals in desktop landscape mode
+- **2026-01-22**: Replaced fog-of-war visibility with sun-shadow raycast checks and friendly proximity gating
 
 ## Watch Out For
 - Always normalize vectors before using them as directions (especially for movement)

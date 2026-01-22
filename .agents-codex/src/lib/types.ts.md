@@ -183,6 +183,7 @@ None currently identified
 - **2026-01-12**: Added Blade sword swing hold state to keep the blade at its last angle between combo swings
 - **2025-03-22**: Added `settings.enableSprites` to control sprite-based rendering toggles.
 - **2025-03-24**: Reduced Blade sword particle spacing and doubled Blade move speed for faster melee engagement.
+- **2026-01-22**: Removed fog-of-war settings, particles, and vision range constants after replacing visibility with sun shadows.
 
 ## Watch Out For
 - Always use meters for game logic, only convert to pixels for rendering

@@ -173,7 +173,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - Unit death animations
 - Better attack visualizations
 - Minimap rendering
-- Fog of war implementation
+- Sun-shadow visibility masking for enemy units
 - Performance profiling and optimization
 
 ## Change History
@@ -203,6 +203,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **2025-03-24**: Applied the playfield rotation offset to unit rendering and motion trails for desktop landscape alignment.
 - **2025-03-24**: Rendered follow-path command segments so drawn paths remain visible during execution.
 - **2025-03-24**: Reduced Blade sword particle size, added pale connector lines, and retracted the blade when no enemies are in range.
+- **2026-01-22**: Removed fog-of-war rendering and applied sun-shadow visibility checks when drawing enemy units
 - **2025-03-24**: Swapped selection range visuals to show attack range when idle and ability range only during active ability drags.
 - **2025-03-24**: Added enemy ship sprites for Aurum units and clarified the shared sprite-forward rotation offset.
 - **2025-03-24**: Corrected laser sprite tiling so the middle segment repeats only between single begin/end caps.

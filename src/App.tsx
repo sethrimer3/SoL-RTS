@@ -8,7 +8,7 @@ import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
 import { handleTouchStart, handleTouchMove, handleTouchEnd, handleMouseDown, handleMouseMove, handleMouseUp, getActiveSelectionRect } from './lib/input';
 import { initializeCamera, updateCamera, zoomCamera, panCamera, resetCamera, worldToScreen } from './lib/camera';
-import { updateVisualEffects, createCelebrationParticles, initializeFogParticles, updateFogParticles } from './lib/visualEffects';
+import { updateVisualEffects, createCelebrationParticles } from './lib/visualEffects';
 import { FormationType, getFormationName } from './lib/formations';
 import { initializeFloaters, updateFloaters } from './lib/floaters';
 import { initializeFieldParticles, updateFieldParticles } from './lib/fieldParticles';
@@ -16,7 +16,6 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Label } from './components/ui/label';
 import { Switch } from './components/ui/switch';
-import { Checkbox } from './components/ui/checkbox';
 import { Slider } from './components/ui/slider';
 import { GameController, Robot, ListChecks, GearSix, ArrowLeft, Flag, MapPin, WifiHigh, ChartBar, SpeakerHigh, SpeakerSlash, Info, Book, GraduationCap } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -84,7 +83,6 @@ function App() {
   const [mirrorAbilityCasting, setMirrorAbilityCasting] = useKV<boolean>('mirror-ability-casting', false);
   const [chessMode, setChessMode] = useKV<boolean>('chess-mode', false);
   const [aiDifficulty, setAiDifficulty] = useKV<'easy' | 'medium' | 'hard'>('ai-difficulty', 'medium');
-  const [enableFogOfWar, setEnableFogOfWar] = useKV<boolean>('enable-fog-of-war', false);
   const [controlMode, setControlMode] = useKV<'swipe' | 'buttons' | 'radial'>('control-mode', 'swipe');
   const [movementMode, setMovementMode] = useKV<'tap' | 'pathDrawing'>('movement-mode', 'pathDrawing');
 
@@ -159,7 +157,6 @@ function App() {
       mirrorAbilityCasting: mirrorAbilityCasting ?? false,
       chessMode: chessMode ?? false,
       aiDifficulty: aiDifficulty || 'medium',
-      enableFogOfWar: enableFogOfWar ?? false,
       controlMode: controlMode || 'swipe',
       movementMode: movementMode || 'pathDrawing',
     };
@@ -168,7 +165,7 @@ function App() {
       ...p,
       color: i === 0 ? (playerColor || COLORS.playerDefault) : (enemyColor || COLORS.enemyDefault),
     }));
-  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP, showHealthBarsOnlyWhenDamaged, showMinimap, playerFaction, enemyFaction, enableGlowEffects, enableParticleEffects, enableMotionBlur, enableSprites, mirrorAbilityCasting, chessMode, aiDifficulty, enableFogOfWar, controlMode, movementMode]);
+  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP, showHealthBarsOnlyWhenDamaged, showMinimap, playerFaction, enemyFaction, enableGlowEffects, enableParticleEffects, enableMotionBlur, enableSprites, mirrorAbilityCasting, chessMode, aiDifficulty, controlMode, movementMode]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -248,7 +245,6 @@ function App() {
         updateGame(bg, deltaTime);
         updateFloaters(bg, deltaTime);
         updateFieldParticles(bg, deltaTime);
-        updateFogParticles(bg, deltaTime, ARENA_WIDTH_METERS, getArenaHeight());
         updateAI(bg, deltaTime, true); // Both players are AI
         updateCamera(bg, deltaTime);
         updateVisualEffects(bg, deltaTime);
@@ -281,7 +277,6 @@ function App() {
         // Update floaters during countdown
         updateFloaters(gameStateRef.current, deltaTime);
         updateFieldParticles(gameStateRef.current, deltaTime);
-        updateFogParticles(gameStateRef.current, deltaTime, ARENA_WIDTH_METERS, getArenaHeight());
         updateVisualEffects(gameStateRef.current, deltaTime);
         
         if (elapsed >= 3000) {
@@ -322,7 +317,6 @@ function App() {
           updateFieldParticles(gameStateRef.current, deltaTime);
           
           // Update fog particles physics
-          updateFogParticles(gameStateRef.current, deltaTime, ARENA_WIDTH_METERS, getArenaHeight());
           
           // Update multiplayer synchronization for online games
           if (gameStateRef.current.vsMode === 'online' && multiplayerManagerRef.current && multiplayerSyncRef.current) {
@@ -1378,18 +1372,6 @@ function App() {
             )}
           </Button>
           
-          {/* Developer Mode: Fog of War Toggle */}
-          <div className="absolute top-16 left-4 flex items-center space-x-2 bg-background/80 backdrop-blur-sm px-3 py-2 rounded-md border border-border animate-in fade-in slide-in-from-left-2 delay-100">
-            <Checkbox
-              id="fog-of-war"
-              checked={enableFogOfWar ?? false}
-              onCheckedChange={(checked) => setEnableFogOfWar(checked === true)}
-            />
-            <Label htmlFor="fog-of-war" className="text-xs cursor-pointer select-none">
-              Fog of War
-            </Label>
-          </div>
-
           {/* Button Mode: Spawn Unit Buttons or Tower Placement Buttons */}
           {gameState.settings.controlMode === 'buttons' && (() => {
             const workersSelected = hasWorkersSelected(gameState);
@@ -2479,7 +2461,6 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
     stars,
     floaters: initializeFloaters(),
     fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
-    fogParticles: initializeFogParticles(arenaWidth, arenaHeight),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };
@@ -2643,7 +2624,6 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     stars,
     floaters: initializeFloaters(),
     fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
-    fogParticles: initializeFogParticles(arenaWidth, arenaHeight),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };
@@ -2748,7 +2728,6 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
     isPortrait: shouldUsePortraitCoordinates(),
     floaters: initializeFloaters(),
     fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
-    fogParticles: initializeFogParticles(arenaWidth, arenaHeight),
   };
 }
 
@@ -2864,7 +2843,6 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
     isPortrait: shouldUsePortraitCoordinates(),
     floaters: initializeFloaters(),
     fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
-    fogParticles: initializeFogParticles(arenaWidth, arenaHeight),
   };
 }
 
@@ -2995,7 +2973,6 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     stars,
     floaters: initializeFloaters(),
     fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
-    fogParticles: initializeFogParticles(arenaWidth, arenaHeight),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };

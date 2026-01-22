@@ -163,6 +163,7 @@ Handles all user input for the game including touch, mouse, and keyboard events.
 - **2026-01-08**: Updated double-tap selection to select all same-type friendly units and deselect on enemy/empty taps
 - **2025-03-21**: Removed ability cooldown checks when queueing ability commands so input always enqueues them
 - **2025-03-24**: Increased group move spacing relative to unit size to reduce stacking at shared destinations
+- **2026-01-22**: Switched enemy tooltip visibility to sun-shadow logic and aligned mining drone costs with base HP spending
 
 ## Watch Out For
 - Always prevent default on touch events to avoid scrolling
