@@ -147,6 +147,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - Motion blur trails use the playfield rotation offset to align with rotated unit visuals
 - Ability range indicators now toggle between attack range (idle) and ability max range (while dragging an ability arrow) based on `state.abilityCastPreview`
 - Laser beam sprites place begin/end caps once and tile the middle sprite only between those caps to avoid overextending the beam.
+- Sun lighting uses a visibility polygon generated from ray intersections against asteroids, obstacles, bases, mining depots, and structures so the playfield brightens in lit regions while shadows remain behind occluders.
 
 ### Rendering Optimizations
 - Clears only once per frame
@@ -198,6 +199,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **2025-03-22**: Added Radiant sprite rendering for units, bases, and mining drones with a settings toggle.
 - **2025-03-23**: Tinted Radiant sprites to team colors and added a rotation offset to align sprite-forward direction.
 - **2025-03-24**: Moved sprite tinting to cached offscreen canvases to preserve scene transparency and reduce per-frame work.
+- **2025-03-25**: Added ray-traced sun lighting that brightens the playfield while casting occluder shadows.
 - **2025-03-24**: Applied the playfield rotation offset to unit rendering and motion trails for desktop landscape alignment.
 - **2025-03-24**: Rendered follow-path command segments so drawn paths remain visible during execution.
 - **2025-03-24**: Reduced Blade sword particle size, added pale connector lines, and retracted the blade when no enemies are in range.
