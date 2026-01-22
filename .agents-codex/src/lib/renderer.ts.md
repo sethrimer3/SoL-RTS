@@ -130,7 +130,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - Resource deposits adjust glow/brightness based on 0/1/2 assigned worker drones
 - Camera transforms are applied to world layers and removed before drawing screen-space UI
 - Gameplay rendering is clipped to the playfield rectangle to avoid drawing effects outside the arena
-- Off-screen indicators render at arena viewport edges when zoomed in to keep units/bases visible
+- Off-screen indicators render at full screen edges when zoomed in to keep units/bases visible
 - Cloaked enemy units are culled from rendering (including the minimap), while cloaked friendly units render at reduced opacity
 - Blade sword particle spacing pulls from shared constants so the visuals match the melee range tuning
 - Blade sword particles sample lagged transform history so each segment trails behind movement/turns
@@ -198,6 +198,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **2026-01-04**: Applied camera transforms to world rendering and added off-screen zoom indicators for units and bases
 - **2025-03-22**: Added Blade sword particle rendering, knife projectile visuals, and marine shell casing rendering
 - **2026-01-08**: Hid cloaked enemy units in the main unit render pass while keeping friendly cloaked opacity
+- **2026-01-22**: Aligned off-screen zoom indicator bounds to the full canvas edges on desktop.
 - **2026-01-09**: Spaced Blade sword particles farther apart by reading the shared spacing constant for magnet-like separation
 - **2026-01-11**: Added Blade movement lag sampling so sword particles trail behind the unit based on history snapshots
 - **2026-01-12**: Held Blade sword particles at the final swing angles between combo swings before resetting to rest

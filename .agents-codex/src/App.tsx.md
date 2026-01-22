@@ -126,6 +126,8 @@ Main application component that orchestrates the entire game. Manages game state
 - Victory animation includes base sliding sequence
 - Camera start now centers on the local player's base with a zoomed-in view at match start
 - Preloads available sound effect assets and maps them to sound manager keys
+- Mouse wheel zoom uses the cursor location as the zoom anchor
+- Keyboard pan converts screen intent into rotation-aware camera offsets so WASD feels correct on desktop
 
 ### Performance Considerations
 - Game state in ref (not React state) avoids re-render overhead
@@ -180,6 +182,7 @@ Main application component that orchestrates the entire game. Manages game state
 - **2025-03-24**: Centered the match-start camera on the local player's base with a zoomed-in view.
 - **2025-03-25**: Expanded mobile detection with touch-aware sizing to keep button controls docked at the bottom on touch devices.
 - **2026-01-22**: Defaulted movement mode to tap and added safe-area scroll padding for menu containers.
+- **2026-01-22**: Anchored mouse-wheel zoom to cursor position and corrected keyboard pan direction with rotation-aware math.
 
 ## Watch Out For
 - Game state ref vs React state - use correctly for performance

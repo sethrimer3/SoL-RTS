@@ -3,7 +3,7 @@
  */
 
 import { GameState, Vector2, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, PIXELS_PER_METER } from './types';
-import { getViewportScale, getViewportOffset, getViewportDimensions, getArenaHeight } from './gameUtils';
+import { getViewportScale, getViewportOffset, getViewportDimensions, getArenaHeight, getPlayfieldRotationRadians } from './gameUtils';
 
 // Camera constants
 const ZOOM_SPEED = 0.1;
@@ -32,6 +32,7 @@ function getMobileButtonBarHeight(state: GameState): number {
 function calculateMinZoom(state: GameState): number {
   const viewportDimensions = getViewportDimensions();
   const arenaHeight = getArenaHeight();
+  const isRotated = getPlayfieldRotationRadians() !== 0;
   const reservedHeight = getMobileButtonBarHeight(state);
   const availableHeight = Math.max(0, viewportDimensions.height - reservedHeight);
   
@@ -39,10 +40,12 @@ function calculateMinZoom(state: GameState): number {
     return MIN_ZOOM; // Fallback value
   }
   
-  // Calculate the zoom level where the entire arena fits in the viewport
-  // We want to ensure both width and height of the arena are fully visible
-  const arenaWidthPixels = ARENA_WIDTH_METERS * PIXELS_PER_METER * getViewportScale();
-  const arenaHeightPixels = arenaHeight * PIXELS_PER_METER * getViewportScale();
+  // Calculate the zoom level where the entire arena fits in the viewport.
+  // Swap width/height when the desktop playfield is rotated so limits stay accurate.
+  const arenaWidthMeters = isRotated ? arenaHeight : ARENA_WIDTH_METERS;
+  const arenaHeightMeters = isRotated ? ARENA_WIDTH_METERS : arenaHeight;
+  const arenaWidthPixels = arenaWidthMeters * PIXELS_PER_METER * getViewportScale();
+  const arenaHeightPixels = arenaHeightMeters * PIXELS_PER_METER * getViewportScale();
   
   const zoomX = viewportDimensions.width / arenaWidthPixels;
   const zoomY = availableHeight / arenaHeightPixels;
@@ -68,8 +71,12 @@ function clampCameraOffset(state: GameState, offset: Vector2, zoom: number): Vec
   const viewportDimensions = getViewportDimensions();
   const viewportScale = getViewportScale();
   const arenaHeight = getArenaHeight();
-  const arenaWidthPixels = ARENA_WIDTH_METERS * PIXELS_PER_METER * viewportScale;
-  const arenaHeightPixels = arenaHeight * PIXELS_PER_METER * viewportScale;
+  const isRotated = getPlayfieldRotationRadians() !== 0;
+  // Match the rotation-aware arena dimensions from the viewport scaler.
+  const arenaWidthMeters = isRotated ? arenaHeight : ARENA_WIDTH_METERS;
+  const arenaHeightMeters = isRotated ? ARENA_WIDTH_METERS : arenaHeight;
+  const arenaWidthPixels = arenaWidthMeters * PIXELS_PER_METER * viewportScale;
+  const arenaHeightPixels = arenaHeightMeters * PIXELS_PER_METER * viewportScale;
   const halfViewWidth = viewportDimensions.width / (2 * zoom);
   const halfViewHeight = viewportDimensions.height / (2 * zoom);
   const paddingPixels = WALL_PEEK_PIXELS;
