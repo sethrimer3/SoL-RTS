@@ -1938,6 +1938,57 @@ function updateShells(state: GameState, deltaTime: number): void {
   state.shells = remainingShells;
 }
 
+// Update asteroids: rotate them and determine visibility based on shadow and proximity to friendly units
+function updateAsteroids(state: GameState, deltaTime: number): void {
+  if (!state.asteroids || state.asteroids.length === 0) return;
+  if (!state.sun) return;
+  
+  const sun = state.sun;
+  const PROXIMITY_DISTANCE = 8; // Distance in meters for asteroid to be visible near friendly units/buildings
+  
+  state.asteroids.forEach((asteroid) => {
+    // Update rotation
+    asteroid.rotation += asteroid.rotationSpeed * deltaTime;
+    
+    // Check if asteroid is in shadow (not in direct line of sight from sun)
+    const isInShadow = !hasLineOfSight(asteroid.position, sun.position, state.obstacles);
+    
+    // Check if any friendly unit or building is nearby
+    let hasFriendlyNearby = false;
+    
+    // Check player units
+    for (const unit of state.units) {
+      if (unit.owner === 0 && distance(unit.position, asteroid.position) <= PROXIMITY_DISTANCE) {
+        hasFriendlyNearby = true;
+        break;
+      }
+    }
+    
+    // Check player base
+    if (!hasFriendlyNearby) {
+      for (const base of state.bases) {
+        if (base.owner === 0 && distance(base.position, asteroid.position) <= PROXIMITY_DISTANCE) {
+          hasFriendlyNearby = true;
+          break;
+        }
+      }
+    }
+    
+    // Check player structures
+    if (!hasFriendlyNearby && state.structures) {
+      for (const structure of state.structures) {
+        if (structure.owner === 0 && distance(structure.position, asteroid.position) <= PROXIMITY_DISTANCE) {
+          hasFriendlyNearby = true;
+          break;
+        }
+      }
+    }
+    
+    // Asteroid is visible only if in shadow AND friendly unit/building is nearby
+    asteroid.isVisible = isInShadow && hasFriendlyNearby;
+  });
+}
+
 /**
  * Update chess mode turn timer and execute pending commands when turn ends
  */
@@ -2092,6 +2143,7 @@ export function updateGame(state: GameState, deltaTime: number): void {
   updateStructures(state, deltaTime);
   updateProjectiles(state, deltaTime);
   updateShells(state, deltaTime);
+  updateAsteroids(state, deltaTime);
   updateCombat(state, deltaTime);
   cleanupDeadUnits(state); // Clean up dead units after combat
   cleanupDyingUnits(state); // Clean up dying units after animation completes

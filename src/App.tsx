@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useKV } from './hooks/useKV';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { GameState, COLORS, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS, FactionType, FACTION_DEFINITIONS, BASE_TYPE_DEFINITIONS, BaseType, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, STRUCTURE_DEFINITIONS, StructureType, Structure } from './lib/types';
-import { generateId, generateTopographyLines, generateStarfield, generateNebulaClouds, shouldUsePortraitCoordinates, updateViewportScale, calculateDefaultRallyPoint, createMiningDepots, createInitialMiningDrones, getArenaHeight } from './lib/gameUtils';
+import { generateId, generateTopographyLines, generateStarfield, generateNebulaClouds, shouldUsePortraitCoordinates, updateViewportScale, calculateDefaultRallyPoint, createMiningDepots, createInitialMiningDrones, getArenaHeight, createAsteroids } from './lib/gameUtils';
 import { updateGame, spawnUnit } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
@@ -2394,6 +2394,9 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
     position: { x: arenaWidth / 2, y: arenaHeight / 2 },
     radius: 5, // 5 meters diameter sun
   };
+  
+  // Create asteroids (1 large, 2 medium, 4 small) with mirrored copies
+  const asteroids = createAsteroids(arenaWidth, arenaHeight);
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
 
@@ -2406,6 +2409,7 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
     obstacles: obstacles,
     miningDepots: miningDepots,
     sun: sun, // Add the central sun
+    asteroids: asteroids, // Add asteroids
     bases: [
       {
         id: generateId(),
@@ -2554,6 +2558,9 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     position: { x: arenaWidth / 2, y: arenaHeight / 2 },
     radius: 5, // 5 meters diameter sun
   };
+  
+  // Create asteroids (1 large, 2 medium, 4 small) with mirrored copies
+  const asteroids = createAsteroids(arenaWidth, arenaHeight);
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.playerBaseType || 'standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.enemyBaseType || 'standard'];
@@ -2568,6 +2575,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     obstacles: obstacles,
     miningDepots: miningDepots,
     sun: sun, // Add the central sun
+    asteroids: asteroids, // Add asteroids
     bases: [
       {
         id: generateId(),
@@ -2666,6 +2674,9 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
     position: { x: arenaWidth / 2, y: arenaHeight / 2 },
     radius: 5, // 5 meters diameter sun
   };
+  
+  // Create asteroids (1 large, 2 medium, 4 small) with mirrored copies
+  const asteroids = createAsteroids(arenaWidth, arenaHeight);
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.playerBaseType || 'standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.enemyBaseType || 'standard'];
@@ -2679,6 +2690,7 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
     obstacles: obstacles,
     miningDepots: miningDepots,
     sun: sun, // Add the central sun
+    asteroids: asteroids, // Add asteroids
     bases: [
       {
         id: generateId(),
@@ -2765,6 +2777,9 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
     position: { x: arenaWidth / 2, y: arenaHeight / 2 },
     radius: 5, // 5 meters diameter sun
   };
+  
+  // Create asteroids (1 large, 2 medium, 4 small) with mirrored copies
+  const asteroids = createAsteroids(arenaWidth, arenaHeight);
 
   // For online games, use standard base type for now
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
@@ -2779,6 +2794,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
     obstacles: obstacles,
     miningDepots: miningDepots,
     sun: sun, // Add the central sun
+    asteroids: asteroids, // Add asteroids
     bases: [
       {
         id: generateId(),
@@ -2882,6 +2898,9 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     position: { x: arenaWidth / 2, y: arenaHeight / 2 },
     radius: 5, // 5 meters diameter sun
   };
+  
+  // Create asteroids (1 large, 2 medium, 4 small) with mirrored copies
+  const asteroids = createAsteroids(arenaWidth, arenaHeight);
 
   // For online games, use standard base type for now
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
@@ -2896,6 +2915,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     obstacles: obstacles,
     miningDepots: miningDepots,
     sun: sun, // Add the central sun
+    asteroids: asteroids, // Add asteroids
     bases: [
       {
         id: generateId(),
