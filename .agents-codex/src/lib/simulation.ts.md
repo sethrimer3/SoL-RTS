@@ -177,6 +177,7 @@ Multiple functions for unit abilities:
 - **2025-03-24**: Added lookahead-based path following to smooth unit turns on drawn paths.
 - **2026-01-22**: Synced player photon totals with base HP every tick, aligned unit spend updates, and reused sun-shadow visibility checks for structure targeting
 - **2026-01-23**: Scaled solar mirror income by base distance (1-5 photons), added sunlight tracking, and stored photon yield for UI popups.
+- **2025-03-25**: Relaxed asteroid visibility gating so they appear when near friendly presence or in shadow.
 
 ## Watch Out For
 - Delta time must be in seconds, not milliseconds

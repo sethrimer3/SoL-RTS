@@ -491,16 +491,15 @@ export function isEnemyUnitVisible(position: Vector2, state: GameState): boolean
   return false;
 }
 
-// Generate a random polygon for an asteroid
+// Generate an equilateral polygon for an asteroid.
+// This keeps all sides equal so triangles through nonagons read clearly.
 function generateAsteroidPolygon(sides: number, baseRadius: number): Vector2[] {
   const vertices: Vector2[] = [];
   for (let i = 0; i < sides; i++) {
     const angle = (i / sides) * Math.PI * 2;
-    // Add some randomness to the radius for irregular shape
-    const radiusVariation = baseRadius * (0.7 + Math.random() * 0.6);
     vertices.push({
-      x: Math.cos(angle) * radiusVariation,
-      y: Math.sin(angle) * radiusVariation,
+      x: Math.cos(angle) * baseRadius,
+      y: Math.sin(angle) * baseRadius,
     });
   }
   return vertices;
@@ -529,6 +528,8 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): Astero
       const x = arenaWidth / 2 + ASTEROID_SPAWN_MARGIN + Math.random() * (arenaWidth / 2 - ASTEROID_SPAWN_MARGIN * 2);
       const y = arenaHeight / 2 + ASTEROID_SPAWN_MARGIN + Math.random() * (arenaHeight / 2 - ASTEROID_SPAWN_MARGIN * 2);
       
+      // Randomly choose a regular polygon between triangle (3) and nonagon (9).
+      const polygonSides = 3 + Math.floor(Math.random() * 7);
       const asteroid: Asteroid = {
         id: generateId(),
         position: { x, y },
@@ -536,7 +537,7 @@ export function createAsteroids(arenaWidth: number, arenaHeight: number): Astero
         radius,
         rotation: Math.random() * Math.PI * 2,
         rotationSpeed: (Math.random() - 0.5) * 0.2, // Slow rotation
-        vertices: generateAsteroidPolygon(6 + Math.floor(Math.random() * 4), radius),
+        vertices: generateAsteroidPolygon(polygonSides, radius),
         isVisible: false,
       };
       

@@ -203,6 +203,7 @@ Provides core mathematical utility functions for vector operations, coordinate t
 - **2025-03-24**: Added a render-only playfield rotation helper for aligning unit visuals in desktop landscape mode
 - **2026-01-22**: Replaced fog-of-war visibility with sun-shadow raycast checks and friendly proximity gating
 - **2026-01-22**: Added solar mirror seeding near bases with sun-facing placement and LOS nudges
+- **2025-03-25**: Switched asteroid polygon generation to regular 3-9 sided shapes for consistent silhouettes
 
 ## Watch Out For
 - Always normalize vectors before using them as directions (especially for movement)

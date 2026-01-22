@@ -983,6 +983,9 @@ function drawMiningIncomePopups(ctx: CanvasRenderingContext2D, state: GameState)
   if (!state.sun || !state.miningIncomePopups) return;
   
   const time = Date.now();
+  const zoomLevel = state.camera?.zoom ?? 1;
+  // Fade in quickly between 2x and 2.5x zoom, then stay fully visible.
+  const zoomOpacity = Math.min(1, Math.max(0, (zoomLevel - 2) / 0.5));
   
   // Render each active popup
   state.miningIncomePopups.forEach((popup: { position: Vector2; startTime: number; amount: number }, index: number) => {
@@ -996,9 +999,13 @@ function drawMiningIncomePopups(ctx: CanvasRenderingContext2D, state: GameState)
     }
     
     const progress = elapsed / duration;
-    const opacity = 1 - progress; // Fade out
+    // Blend zoom-based visibility with the time-based fade out.
+    const opacity = (1 - progress) * zoomOpacity;
     const yOffset = progress * 30; // Rise up 30 pixels
     
+    // Skip drawing while still zoomed out, but still expire entries on time.
+    if (zoomOpacity <= 0) return;
+
     const pos = positionToPixels(popup.position);
     ctx.save();
     ctx.globalAlpha = opacity;
@@ -1008,13 +1015,13 @@ function drawMiningIncomePopups(ctx: CanvasRenderingContext2D, state: GameState)
     ctx.shadowColor = 'rgba(255, 230, 100, 0.8)';
     ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.arc(pos.x - 10, pos.y - yOffset, 3, 0, Math.PI * 2);
+    ctx.arc(pos.x - 10, pos.y - yOffset, 2, 0, Math.PI * 2);
     ctx.fill();
     
     // Draw photon amount text
     ctx.shadowBlur = 5;
     ctx.fillStyle = '#FFF';
-    ctx.font = 'bold 14px Arial';
+    ctx.font = 'bold 11px Arial';
     ctx.textAlign = 'left';
     ctx.fillText(`+${popup.amount}`, pos.x, pos.y - yOffset);
     

@@ -178,6 +178,7 @@ Main application component that orchestrates the entire game. Manages game state
 - **2025-03-22**: Added a sprite rendering toggle to persisted settings and the settings screen.
 - **2026-01-22**: Removed fog-of-war settings/particles from state initialization and game loop updates.
 - **2025-03-24**: Centered the match-start camera on the local player's base with a zoomed-in view.
+- **2025-03-25**: Expanded mobile detection with touch-aware sizing to keep button controls docked at the bottom on touch devices.
 
 ## Watch Out For
 - Game state ref vs React state - use correctly for performance
