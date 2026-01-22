@@ -25,6 +25,7 @@ import {
   WARP_GATE_MAX_HP,
   INFLUENCE_ERROR_RING_DURATION_MS,
   WARP_GATE_BUILDING_ICON_SIZE_METERS,
+  MiningDepot,
 } from './types';
 import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId, isEnemyUnitVisible, getViewportScale, isPositionInInfluence, getPlayerInfluenceZones } from './gameUtils';
 import { screenToWorld, worldToScreen, zoomCamera, zoomCameraAtPoint, initializeCamera } from './camera';
@@ -43,7 +44,7 @@ interface TouchState {
   touchedBase?: Base;
   touchedBaseWasSelected?: boolean; // Track if the touched base was already selected
   touchedMovementDot?: { base: Base; dotPos: { x: number; y: number } };
-  touchedDepot?: import('./types').MiningDepot; // Track if touched a mining depot
+  touchedDepot?: MiningDepot; // Track if touched a mining depot
   touchedDepotPos?: Vector2; // World position where depot was touched
   pathDrawing?: {
     nearUnit: Unit; // The unit near where path drawing started
@@ -62,6 +63,8 @@ const DOUBLE_TAP_TIME_MS = 400; // Time window for double-tap detection
 const DOUBLE_TAP_DISTANCE_PX = 50; // Max distance between taps to count as double-tap
 // Use the depot footprint so canceling feels consistent with the larger mining hub.
 const MINING_DEPOT_CANCEL_RADIUS = MINING_DEPOT_SIZE_METERS * 0.5;
+// Maximum movement allowed before warp gate creation is cancelled
+const WARP_GATE_MAX_MOVEMENT_THRESHOLD = 10;
 
 function addVisualFeedback(
   state: GameState,
@@ -167,6 +170,78 @@ function resolvePlayerIndex(state: GameState, screenX: number): number {
   }
   
   return screenX > getViewportCenterX() ? 1 : 0;
+}
+
+/**
+ * Check and initiate warp gate creation on press-and-hold
+ * Returns true if warp gate was initiated or error was shown
+ */
+function checkAndInitiateWarpGate(
+  state: GameState,
+  canvas: HTMLCanvasElement,
+  startPos: { x: number; y: number },
+  elapsed: number,
+  dist: number,
+  isDragging: boolean,
+  touchedBase: Base | undefined,
+  touchedDepot: MiningDepot | undefined
+): boolean {
+  // Early exit: only check if enough time has elapsed to avoid performance issues on every mouse move
+  if (elapsed < WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS) {
+    return false;
+  }
+  
+  const playerIndex = resolvePlayerIndex(state, startPos.x);
+  
+  if (!isDragging && 
+      elapsed >= WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS && 
+      !state.warpGate && 
+      !state.buildingMenu && 
+      !touchedBase && 
+      !touchedDepot && 
+      state.selectedUnits.size === 0 &&
+      dist < WARP_GATE_MAX_MOVEMENT_THRESHOLD) { // Must not have moved significantly
+    const worldStart = screenToWorldPosition(state, canvas, startPos);
+    
+    // Check if position is within player's influence
+    if (isPositionInInfluence(worldStart, playerIndex, state)) {
+      // Initialize warp gate
+      state.warpGate = {
+        position: worldStart,
+        owner: playerIndex,
+        startTime: Date.now(),
+        stage: 'initial-shockwave',
+        hp: WARP_GATE_MAX_HP,
+        maxHp: WARP_GATE_MAX_HP,
+        swirlAngle: 0,
+      };
+      soundManager.playBuildingPlace();
+      // Create initial shockwave visual effect
+      createEnergyPulse(state, worldStart, state.players[playerIndex].color, 0.5, 3);
+      return true;
+    } else {
+      // Out of influence - show error
+      soundManager.playError();
+      // Create influence error rings
+      const playerZones = getPlayerInfluenceZones(playerIndex, state);
+      if (!state.influenceErrorRings) {
+        state.influenceErrorRings = [];
+      }
+      playerZones.forEach(zone => {
+        state.influenceErrorRings!.push({
+          id: generateId(),
+          position: zone.position,
+          radius: zone.radius,
+          color: state.players[playerIndex].color,
+          startTime: Date.now(),
+          duration: INFLUENCE_ERROR_RING_DURATION_MS / 1000,
+        });
+      });
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 export function handleTouchStart(e: TouchEvent, state: GameState, canvas: HTMLCanvasElement): void {
@@ -445,53 +520,7 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
     
     // Check for warp gate initiation on hold (no dragging, no other actions)
     const elapsed = Date.now() - touchState.startTime;
-    const playerIndex = resolvePlayerIndex(state, touchState.startPos.x);
-    
-    if (!touchState.isDragging && 
-        elapsed >= WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS && 
-        !state.warpGate && 
-        !state.buildingMenu && 
-        !touchState.touchedBase && 
-        !touchState.touchedDepot && 
-        state.selectedUnits.size === 0 &&
-        dist < 10) { // Must not have moved significantly
-      const worldStart = screenToWorldPosition(state, canvas, touchState.startPos);
-      
-      // Check if position is within player's influence
-      if (isPositionInInfluence(worldStart, playerIndex, state)) {
-        // Initialize warp gate
-        state.warpGate = {
-          position: worldStart,
-          owner: playerIndex,
-          startTime: Date.now(),
-          stage: 'initial-shockwave',
-          hp: WARP_GATE_MAX_HP,
-          maxHp: WARP_GATE_MAX_HP,
-          swirlAngle: 0,
-        };
-        soundManager.playBuildingPlace();
-        // Create initial shockwave visual effect
-        createEnergyPulse(state, worldStart, state.players[playerIndex].color, 0.5, 3);
-      } else {
-        // Out of influence - show error
-        soundManager.playError();
-        // Create influence error rings
-        const playerZones = getPlayerInfluenceZones(playerIndex, state);
-        if (!state.influenceErrorRings) {
-          state.influenceErrorRings = [];
-        }
-        playerZones.forEach(zone => {
-          state.influenceErrorRings!.push({
-            id: generateId(),
-            position: zone.position,
-            radius: zone.radius,
-            color: state.players[playerIndex].color,
-            startTime: Date.now(),
-            duration: INFLUENCE_ERROR_RING_DURATION_MS / 1000,
-          });
-        });
-      }
-    }
+    checkAndInitiateWarpGate(state, canvas, touchState.startPos, elapsed, dist, touchState.isDragging, touchState.touchedBase, touchState.touchedDepot);
   });
 }
 
@@ -1620,6 +1649,10 @@ export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCan
   
   // Update base ability preview when base is selected and dragging (but not from the base itself)
   updateBaseAbilityPreview(state, mouseState.isDragging, mouseState.touchedBase, mouseState.startPos, dx, dy, canvas);
+  
+  // Check for warp gate initiation on hold (no dragging, no other actions)
+  const elapsed = Date.now() - mouseState.startTime;
+  checkAndInitiateWarpGate(state, canvas, mouseState.startPos, elapsed, dist, mouseState.isDragging, mouseState.touchedBase, mouseState.touchedDepot);
 }
 
 export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanvasElement): void {
