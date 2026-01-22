@@ -169,6 +169,73 @@ function resolvePlayerIndex(state: GameState, screenX: number): number {
   return screenX > getViewportCenterX() ? 1 : 0;
 }
 
+/**
+ * Check and initiate warp gate creation on press-and-hold
+ * Returns true if warp gate was initiated or error was shown
+ */
+function checkAndInitiateWarpGate(
+  state: GameState,
+  canvas: HTMLCanvasElement,
+  startPos: { x: number; y: number },
+  elapsed: number,
+  dist: number,
+  isDragging: boolean,
+  touchedBase: Base | undefined,
+  touchedDepot: import('./types').MiningDepot | undefined
+): boolean {
+  const playerIndex = resolvePlayerIndex(state, startPos.x);
+  
+  if (!isDragging && 
+      elapsed >= WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS && 
+      !state.warpGate && 
+      !state.buildingMenu && 
+      !touchedBase && 
+      !touchedDepot && 
+      state.selectedUnits.size === 0 &&
+      dist < 10) { // Must not have moved significantly
+    const worldStart = screenToWorldPosition(state, canvas, startPos);
+    
+    // Check if position is within player's influence
+    if (isPositionInInfluence(worldStart, playerIndex, state)) {
+      // Initialize warp gate
+      state.warpGate = {
+        position: worldStart,
+        owner: playerIndex,
+        startTime: Date.now(),
+        stage: 'initial-shockwave',
+        hp: WARP_GATE_MAX_HP,
+        maxHp: WARP_GATE_MAX_HP,
+        swirlAngle: 0,
+      };
+      soundManager.playBuildingPlace();
+      // Create initial shockwave visual effect
+      createEnergyPulse(state, worldStart, state.players[playerIndex].color, 0.5, 3);
+      return true;
+    } else {
+      // Out of influence - show error
+      soundManager.playError();
+      // Create influence error rings
+      const playerZones = getPlayerInfluenceZones(playerIndex, state);
+      if (!state.influenceErrorRings) {
+        state.influenceErrorRings = [];
+      }
+      playerZones.forEach(zone => {
+        state.influenceErrorRings!.push({
+          id: generateId(),
+          position: zone.position,
+          radius: zone.radius,
+          color: state.players[playerIndex].color,
+          startTime: Date.now(),
+          duration: INFLUENCE_ERROR_RING_DURATION_MS / 1000,
+        });
+      });
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 export function handleTouchStart(e: TouchEvent, state: GameState, canvas: HTMLCanvasElement): void {
   if (state.mode !== 'game') return;
   e.preventDefault();
@@ -445,53 +512,7 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
     
     // Check for warp gate initiation on hold (no dragging, no other actions)
     const elapsed = Date.now() - touchState.startTime;
-    const playerIndex = resolvePlayerIndex(state, touchState.startPos.x);
-    
-    if (!touchState.isDragging && 
-        elapsed >= WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS && 
-        !state.warpGate && 
-        !state.buildingMenu && 
-        !touchState.touchedBase && 
-        !touchState.touchedDepot && 
-        state.selectedUnits.size === 0 &&
-        dist < 10) { // Must not have moved significantly
-      const worldStart = screenToWorldPosition(state, canvas, touchState.startPos);
-      
-      // Check if position is within player's influence
-      if (isPositionInInfluence(worldStart, playerIndex, state)) {
-        // Initialize warp gate
-        state.warpGate = {
-          position: worldStart,
-          owner: playerIndex,
-          startTime: Date.now(),
-          stage: 'initial-shockwave',
-          hp: WARP_GATE_MAX_HP,
-          maxHp: WARP_GATE_MAX_HP,
-          swirlAngle: 0,
-        };
-        soundManager.playBuildingPlace();
-        // Create initial shockwave visual effect
-        createEnergyPulse(state, worldStart, state.players[playerIndex].color, 0.5, 3);
-      } else {
-        // Out of influence - show error
-        soundManager.playError();
-        // Create influence error rings
-        const playerZones = getPlayerInfluenceZones(playerIndex, state);
-        if (!state.influenceErrorRings) {
-          state.influenceErrorRings = [];
-        }
-        playerZones.forEach(zone => {
-          state.influenceErrorRings!.push({
-            id: generateId(),
-            position: zone.position,
-            radius: zone.radius,
-            color: state.players[playerIndex].color,
-            startTime: Date.now(),
-            duration: INFLUENCE_ERROR_RING_DURATION_MS / 1000,
-          });
-        });
-      }
-    }
+    checkAndInitiateWarpGate(state, canvas, touchState.startPos, elapsed, dist, touchState.isDragging, touchState.touchedBase, touchState.touchedDepot);
   });
 }
 
@@ -1623,53 +1644,7 @@ export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCan
   
   // Check for warp gate initiation on hold (no dragging, no other actions)
   const elapsed = Date.now() - mouseState.startTime;
-  const playerIndex = resolvePlayerIndex(state, mouseState.startPos.x);
-  
-  if (!mouseState.isDragging && 
-      elapsed >= WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS && 
-      !state.warpGate && 
-      !state.buildingMenu && 
-      !mouseState.touchedBase && 
-      !mouseState.touchedDepot && 
-      state.selectedUnits.size === 0 &&
-      dist < 10) { // Must not have moved significantly
-    const worldStart = screenToWorldPosition(state, canvas, mouseState.startPos);
-    
-    // Check if position is within player's influence
-    if (isPositionInInfluence(worldStart, playerIndex, state)) {
-      // Initialize warp gate
-      state.warpGate = {
-        position: worldStart,
-        owner: playerIndex,
-        startTime: Date.now(),
-        stage: 'initial-shockwave',
-        hp: WARP_GATE_MAX_HP,
-        maxHp: WARP_GATE_MAX_HP,
-        swirlAngle: 0,
-      };
-      soundManager.playBuildingPlace();
-      // Create initial shockwave visual effect
-      createEnergyPulse(state, worldStart, state.players[playerIndex].color, 0.5, 3);
-    } else {
-      // Out of influence - show error
-      soundManager.playError();
-      // Create influence error rings
-      const playerZones = getPlayerInfluenceZones(playerIndex, state);
-      if (!state.influenceErrorRings) {
-        state.influenceErrorRings = [];
-      }
-      playerZones.forEach(zone => {
-        state.influenceErrorRings!.push({
-          id: generateId(),
-          position: zone.position,
-          radius: zone.radius,
-          color: state.players[playerIndex].color,
-          startTime: Date.now(),
-          duration: INFLUENCE_ERROR_RING_DURATION_MS / 1000,
-        });
-      });
-    }
-  }
+  checkAndInitiateWarpGate(state, canvas, mouseState.startPos, elapsed, dist, mouseState.isDragging, mouseState.touchedBase, mouseState.touchedDepot);
 }
 
 export function handleMouseUp(e: MouseEvent, state: GameState, canvas: HTMLCanvasElement): void {
