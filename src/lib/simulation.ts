@@ -34,6 +34,7 @@ import {
   WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS,
   WARP_GATE_SWIRL_SPEED,
   WARP_GATE_MAX_SIZE_METERS,
+  WARP_GATE_PHOTON_SIPHON_RATE,
 } from './types';
 import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians, hasLineOfSight, isEnemyUnitVisible, calculateInfluenceZones } from './gameUtils';
 import { checkObstacleCollision } from './maps';
@@ -2213,7 +2214,7 @@ function updateWarpGate(state: GameState, deltaTime: number): void {
     if (state.warpGate.selectedBuilding && state.warpGate.photonsAbsorbed !== undefined && state.warpGate.buildingHp !== undefined) {
       const structureDef = STRUCTURE_DEFINITIONS[state.warpGate.selectedBuilding];
       const photonsNeeded = structureDef.hp; // Building HP matches photon cost
-      const photonsPerSecond = 20; // Siphon rate
+      const photonsPerSecond = WARP_GATE_PHOTON_SIPHON_RATE;
       
       const photonsThisFrame = photonsPerSecond * deltaTime;
       state.warpGate.photonsAbsorbed += photonsThisFrame;

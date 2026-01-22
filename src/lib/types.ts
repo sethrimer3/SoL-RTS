@@ -51,6 +51,9 @@ export const WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS = 1000; // 1 second for initial
 export const WARP_GATE_MAX_SIZE_METERS = 5; // 5 meters wide when fully open (size of a building)
 export const WARP_GATE_MAX_HP = 10; // Can be destroyed with any damage during growth
 export const WARP_GATE_SWIRL_SPEED = 2; // Rotations per second for swirling energy
+export const WARP_GATE_PHOTON_SIPHON_RATE = 20; // Photons per second during construction
+export const WARP_GATE_BUILDING_ICON_SIZE_METERS = 1.5; // Size of building icon hitbox in meters
+export const WARP_GATE_BUILDING_ICON_SIZE_PIXELS = 30; // Size of building icon in pixels
 
 // Influence system constants
 export const INFLUENCE_RADIUS_BASE = 12; // Influence radius around bases

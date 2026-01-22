@@ -24,6 +24,7 @@ import {
   WARP_GATE_MAX_SIZE_METERS,
   WARP_GATE_MAX_HP,
   INFLUENCE_ERROR_RING_DURATION_MS,
+  WARP_GATE_BUILDING_ICON_SIZE_METERS,
 } from './types';
 import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId, isEnemyUnitVisible, getViewportScale, isPositionInInfluence, getPlayerInfluenceZones } from './gameUtils';
 import { screenToWorld, worldToScreen, zoomCamera, zoomCameraAtPoint, initializeCamera } from './camera';
@@ -1958,7 +1959,7 @@ function getTappedBuildingIcon(state: GameState, worldPos: Vector2): import('./t
   
   const warpGatePos = state.warpGate.position;
   const iconRadius = WARP_GATE_MAX_SIZE_METERS * 0.8; // Icons are 80% of warp gate radius away
-  const iconSize = 1.5; // Size of each icon hitbox in meters
+  const iconSize = WARP_GATE_BUILDING_ICON_SIZE_METERS;
   
   // Building icons are positioned at 4 cardinal directions around the warp gate
   const playerFaction = state.settings.playerFaction;
@@ -1966,7 +1967,6 @@ function getTappedBuildingIcon(state: GameState, worldPos: Vector2): import('./t
     { type: 'offensive', position: { x: warpGatePos.x - iconRadius, y: warpGatePos.y } }, // Left
     { type: `faction-${playerFaction}` as import('./types').StructureType, position: { x: warpGatePos.x + iconRadius, y: warpGatePos.y } }, // Right
     { type: 'defensive', position: { x: warpGatePos.x, y: warpGatePos.y - iconRadius } }, // Up
-    { type: 'offensive', position: { x: warpGatePos.x, y: warpGatePos.y + iconRadius } }, // Down (duplicate for now, could be a different type)
   ];
   
   for (const building of buildingPositions) {

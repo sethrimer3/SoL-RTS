@@ -30,6 +30,7 @@ import {
   WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS,
   WARP_GATE_HOLD_TIME_MS,
   WARP_GATE_MAX_SIZE_METERS,
+  WARP_GATE_BUILDING_ICON_SIZE_PIXELS,
 } from './types';
 import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract, getViewportOffset, getViewportDimensions, getArenaHeight, getPlayfieldRotationRadians, isEnemyUnitVisible } from './gameUtils';
 import { applyCameraTransform, removeCameraTransform, worldToScreen } from './camera';
@@ -6640,14 +6641,13 @@ function drawWarpGate(ctx: CanvasRenderingContext2D, state: GameState): void {
 function drawBuildingIcons(ctx: CanvasRenderingContext2D, state: GameState, warpGate: NonNullable<GameState['warpGate']>): void {
   const warpPos = positionToPixels(warpGate.position);
   const iconRadius = WARP_GATE_MAX_SIZE_METERS * 0.8 * PIXELS_PER_METER;
-  const iconSize = 30; // pixels
+  const iconSize = WARP_GATE_BUILDING_ICON_SIZE_PIXELS;
   
   const playerFaction = state.settings.playerFaction;
   const buildings: Array<{ type: import('./types').StructureType; angle: number; label: string }> = [
     { type: 'offensive', angle: Math.PI, label: 'ATK' }, // Left
     { type: `faction-${playerFaction}` as import('./types').StructureType, angle: 0, label: 'FAC' }, // Right
     { type: 'defensive', angle: -Math.PI / 2, label: 'DEF' }, // Up
-    { type: 'offensive', angle: Math.PI / 2, label: 'ATK' }, // Down
   ];
   
   buildings.forEach(building => {
