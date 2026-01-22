@@ -1171,24 +1171,18 @@ function drawOffscreenZoomIndicators(ctx: CanvasRenderingContext2D, state: GameS
   
   const viewportOffset = getViewportOffset();
   const viewportDimensions = getViewportDimensions();
+  // Use the full canvas bounds so off-screen indicators reach the screen edges.
   const bounds = {
-    left: viewportOffset.x,
-    right: viewportOffset.x + viewportDimensions.width,
-    top: viewportOffset.y,
-    bottom: viewportOffset.y + viewportDimensions.height,
+    left: 0,
+    right: canvas.width,
+    top: 0,
+    bottom: canvas.height,
   };
   
-  // Fallback to full canvas when viewport dimensions are unavailable
-  if (viewportDimensions.width === 0 || viewportDimensions.height === 0) {
-    bounds.left = 0;
-    bounds.right = canvas.width;
-    bounds.top = 0;
-    bounds.bottom = canvas.height;
-  }
-  
   const center = {
-    x: (bounds.left + bounds.right) / 2,
-    y: (bounds.top + bounds.bottom) / 2,
+    // Keep the origin aligned to the letterboxed arena center for consistent indicator angles.
+    x: viewportDimensions.width > 0 ? viewportOffset.x + viewportDimensions.width / 2 : canvas.width / 2,
+    y: viewportDimensions.height > 0 ? viewportOffset.y + viewportDimensions.height / 2 : canvas.height / 2,
   };
   
   const drawIndicator = (screenPos: Vector2, color: string, radius: number): void => {

@@ -6,7 +6,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 ## Dependencies
 ### Imports
 - `./types` - GameState and world constants for camera calculations.
-- `./gameUtils` - Viewport scale, offsets, and arena sizing helpers.
+- `./gameUtils` - Viewport scale, offsets, arena sizing helpers, and playfield rotation state.
 
 ### Used By
 - `src/App.tsx` - Initializes and updates the camera during the game loop.
@@ -17,7 +17,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 ### clampCameraOffset(state: GameState, offset: Vector2, zoom: number)
 - **Purpose:** Restricts camera offsets so the visible viewport stays within the arena bounds, with a small wall peek.
 - **Returns:** Clamped offset values in world-space meters.
-- **Notes:** Computes view extents from zoom and viewport size, then converts pixel bounds back to meters.
+- **Notes:** Computes view extents from zoom and viewport size, then converts pixel bounds back to meters with rotation-aware arena dimensions.
 
 ### getMobileButtonBarHeight(state: GameState)
 - **Purpose:** Reserves pixel space for the mobile button action bar when in button mode.
@@ -27,7 +27,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 ### calculateMinZoom(state: GameState)
 - **Purpose:** Computes the smallest allowed zoom that keeps the full arena visible.
 - **Returns:** Minimum zoom factor based on viewport and arena dimensions.
-- **Notes:** Accounts for mobile UI chrome by shrinking the usable height.
+- **Notes:** Accounts for mobile UI chrome by shrinking the usable height and swaps arena dimensions when the desktop view is rotated.
 
 ### initializeCamera(state: GameState, options?: CameraInitializationOptions)
 - **Purpose:** Creates the camera state with initial offsets and zoom.
@@ -68,6 +68,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 - The minimum zoom now matches the full-field fit exactly so players cannot zoom out past the full arena.
 - Pinch zoom alignment uses target offsets to keep the pinch center anchored during smoothing.
 - Offset clamping prevents panning outside the arena while still allowing a small wall peek at the edges.
+- Rotation-aware arena sizing keeps min zoom and clamp limits aligned to the rotated desktop playfield.
 
 ### Known Issues
 - None documented.
@@ -84,6 +85,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 - **2025-03-24:** Aligned pinch zoom world-point calculations with target offsets to reduce center drift.
 - **2025-03-24:** Added initialization options for focus/zoom and removed the fixed zoom-out floor so the max zoom-out matches the full-field fit.
 - **2025-03-25:** Added camera offset clamping to keep the zoomed-in view within arena bounds while leaving a slight wall peek.
+- **2026-01-22:** Matched zoom and clamp bounds to the rotated playfield dimensions on desktop.
 
 ## Watch Out For
 - Keep zoom bounds in sync with any UI layout changes that affect the playfield size.

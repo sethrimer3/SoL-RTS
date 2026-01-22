@@ -7,7 +7,8 @@ import { updateGame, spawnUnit } from './lib/simulation';
 import { updateAI } from './lib/ai';
 import { renderGame } from './lib/renderer';
 import { handleTouchStart, handleTouchMove, handleTouchEnd, handleMouseDown, handleMouseMove, handleMouseUp, getActiveSelectionRect } from './lib/input';
-import { initializeCamera, updateCamera, zoomCamera, panCamera, resetCamera, worldToScreen } from './lib/camera';
+import { initializeCamera, updateCamera, zoomCameraAtPoint, panCamera, resetCamera, worldToScreen } from './lib/camera';
+import { getPlayfieldRotationRadians } from './lib/gameUtils';
 import { updateVisualEffects, createCelebrationParticles } from './lib/visualEffects';
 import { FormationType, getFormationName } from './lib/formations';
 import { initializeFloaters, updateFloaters } from './lib/floaters';
@@ -427,7 +428,10 @@ function App() {
       if (gameStateRef.current.mode === 'game' && enableCameraControls) {
         e.preventDefault();
         const zoomDelta = e.deltaY > 0 ? -1 : 1;
-        zoomCamera(gameStateRef.current, zoomDelta);
+        // Zoom toward the cursor position so the focus stays under the mouse.
+        const rect = canvas.getBoundingClientRect();
+        const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        zoomCameraAtPoint(gameStateRef.current, zoomDelta, screenPoint, canvas);
       }
     };
     
@@ -493,19 +497,28 @@ function App() {
     const updateCameraPan = () => {
       if (pressedKeys.size === 0 || !enableCameraControls) return;
 
-      const direction = { x: 0, y: 0 };
+      const screenDirection = { x: 0, y: 0 };
       
-      if (pressedKeys.has('w') || pressedKeys.has('arrowup')) direction.y -= 1;
-      if (pressedKeys.has('s') || pressedKeys.has('arrowdown')) direction.y += 1;
-      if (pressedKeys.has('a') || pressedKeys.has('arrowleft')) direction.x -= 1;
-      if (pressedKeys.has('d') || pressedKeys.has('arrowright')) direction.x += 1;
+      if (pressedKeys.has('w') || pressedKeys.has('arrowup')) screenDirection.y -= 1;
+      if (pressedKeys.has('s') || pressedKeys.has('arrowdown')) screenDirection.y += 1;
+      if (pressedKeys.has('a') || pressedKeys.has('arrowleft')) screenDirection.x -= 1;
+      if (pressedKeys.has('d') || pressedKeys.has('arrowright')) screenDirection.x += 1;
 
       // Normalize diagonal movement
-      const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+      const length = Math.sqrt(screenDirection.x * screenDirection.x + screenDirection.y * screenDirection.y);
       if (length > 0) {
-        direction.x /= length;
-        direction.y /= length;
-        panCamera(gameStateRef.current, direction, 1/60);
+        screenDirection.x /= length;
+        screenDirection.y /= length;
+        // Convert screen-space intent into world-space offset deltas, honoring rotation.
+        const rotation = getPlayfieldRotationRadians();
+        const cos = Math.cos(rotation);
+        const sin = Math.sin(rotation);
+        const worldDirection = {
+          x: screenDirection.x * cos + screenDirection.y * sin,
+          y: -screenDirection.x * sin + screenDirection.y * cos,
+        };
+        // Negate so the camera moves with the key direction (world moves opposite).
+        panCamera(gameStateRef.current, { x: -worldDirection.x, y: -worldDirection.y }, 1/60);
       }
     };
 
