@@ -2104,27 +2104,80 @@ export function updateGame(state: GameState, deltaTime: number): void {
   checkVictory(state);
 }
 
+// Helper function to check line of sight between two points (for sun-based mining)
+// Returns true if there's a clear line of sight (no obstacles blocking)
+function hasLineOfSight(from: Vector2, to: Vector2, obstacles: import('./maps').Obstacle[]): boolean {
+  // Simple ray casting: check if any obstacle intersects the line
+  const dir = normalize(subtract(to, from));
+  const dist = distance(from, to);
+  
+  // Sample points along the line
+  const samples = Math.ceil(dist * 2); // 2 samples per meter
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const point = add(from, scale(dir, dist * t));
+    
+    // Check if this point collides with any obstacle
+    if (checkObstacleCollision(point, 0.1, obstacles)) {
+      return false; // Line is blocked
+    }
+  }
+  
+  return true; // Clear line of sight
+}
+
 function updateIncome(state: GameState, deltaTime: number): void {
   state.players.forEach((player, playerIndex) => {
-    // Calculate mining income from active mining drones (only source of income)
     let miningIncome = 0;
-    state.miningDepots.forEach((depot) => {
-      if (depot.owner === playerIndex) {
-        depot.deposits.forEach((deposit) => {
-          const activeWorkers = (deposit.workerIds ?? []).filter((workerId) => {
-            // Check if each worker is still alive
-            const worker = state.units.find(u => u.id === workerId);
-            return !!worker;
-          });
-
-          // Update worker list to remove dead drones
-          deposit.workerIds = activeWorkers;
-
-          // Each active drone adds +2 income
-          miningIncome += activeWorkers.length * 2;
+    
+    // NEW SYSTEM: Solar-based mining
+    // Mining drones (solar mirrors) generate +1 HP/sec to base when they have clear LOS to both sun and base
+    if (state.sun) {
+      const sun = state.sun; // Local reference for TypeScript null check
+      const ownerBase = state.bases.find(b => b.owner === playerIndex);
+      if (ownerBase) {
+        state.units.forEach((unit) => {
+          if (unit.type === 'miningDrone' && unit.owner === playerIndex && unit.hp > 0) {
+            // Check line of sight from drone to sun
+            const hasLOStoSun = hasLineOfSight(unit.position, sun.position, state.obstacles);
+            // Check line of sight from drone to base
+            const hasLOStoBase = hasLineOfSight(unit.position, ownerBase.position, state.obstacles);
+            
+            if (hasLOStoSun && hasLOStoBase) {
+              // Drone is producing: +1 HP/second added to base capacity
+              miningIncome += 1;
+              
+              // Mark the drone as producing for visual effects
+              if (!unit.miningState) {
+                unit.miningState = {
+                  depotId: '',
+                  depositId: '',
+                  atDepot: true,
+                };
+              }
+              // Use a flag to indicate this drone is currently producing
+              unit.miningState.isProducing = true;
+            } else if (unit.miningState) {
+              unit.miningState.isProducing = false;
+            }
+          }
         });
       }
-    });
+    } else {
+      // OLD SYSTEM: Depot-based mining (fallback for compatibility)
+      state.miningDepots.forEach((depot) => {
+        if (depot.owner === playerIndex) {
+          depot.deposits.forEach((deposit) => {
+            const activeWorkers = (deposit.workerIds ?? []).filter((workerId) => {
+              const worker = state.units.find(u => u.id === workerId);
+              return !!worker;
+            });
+            deposit.workerIds = activeWorkers;
+            miningIncome += activeWorkers.length * 2;
+          });
+        }
+      });
+    }
     
     player.incomeRate = miningIncome;
   });
@@ -2132,8 +2185,41 @@ function updateIncome(state: GameState, deltaTime: number): void {
   state.lastIncomeTime += deltaTime;
   if (state.lastIncomeTime >= 1.0) {
     state.lastIncomeTime -= 1.0;
+    
+    // Initialize popups array if needed
+    if (!state.miningIncomePopups) {
+      state.miningIncomePopups = [];
+    }
+    
+    // Create income popups for producing drones
+    if (state.sun) {
+      const sun = state.sun; // Local reference for TypeScript null check
+      state.units.forEach((unit) => {
+        if (unit.type === 'miningDrone' && unit.miningState && unit.miningState.isProducing) {
+          state.miningIncomePopups!.push({
+            position: { ...unit.position },
+            startTime: Date.now(),
+          });
+        }
+      });
+    }
+    
     state.players.forEach((player, index) => {
-      player.photons += player.incomeRate;
+      // Add income to base HP AND player photons
+      const base = state.bases.find(b => b.owner === index);
+      if (base) {
+        // Add income to base HP, capped at max HP
+        const newHp = Math.min(base.hp + player.incomeRate, base.maxHp);
+        const actualIncome = newHp - base.hp;
+        base.hp = newHp;
+        
+        // Also update player photons for UI/stats
+        player.photons += actualIncome;
+      } else {
+        // Fallback if no base found
+        player.photons += player.incomeRate;
+      }
+      
       if (index === 0) {
         soundManager.playIncomeTick();
       }
@@ -5177,10 +5263,22 @@ function checkTimeLimit(state: GameState): void {
 
 export function spawnUnit(state: GameState, owner: number, type: UnitType, spawnPos: { x: number; y: number }, rallyPos: { x: number; y: number }): boolean {
   const def = UNIT_DEFINITIONS[type];
-
-  if (state.players[owner].photons < def.cost) return false;
+  
+  // Find the owner's base
+  const ownerBase = state.bases.find(b => b.owner === owner);
+  if (!ownerBase) return false;
+  
+  // Calculate minimum HP (10% of starting HP)
+  const minHp = ownerBase.startingHp * 0.1;
+  
+  // Check if base has enough HP to spawn the unit (cannot spend below 10%)
+  if (ownerBase.hp - def.cost < minHp) return false;
   if (!state.settings.enabledUnits.has(type)) return false;
 
+  // Spend base HP instead of photons
+  ownerBase.hp -= def.cost;
+  
+  // Still track photons spent for statistics
   state.players[owner].photons -= def.cost;
 
   if (state.matchStats && owner === 0) {

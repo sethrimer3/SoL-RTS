@@ -3,6 +3,7 @@ import {
   Unit,
   Base,
   BaseType,
+  Sun,
   COLORS,
   UNIT_SIZE_METERS,
   BASE_SIZE_METERS,
@@ -646,8 +647,16 @@ function drawRadiantBaseSprite(
     return false;
   }
 
+  // Apply health-based opacity: 100% HP = 100% opaque, 0% HP = 20% opaque
+  const healthPercent = base.hp / base.maxHp;
+  const baseOpacity = 0.2 + (healthPercent * 0.8);
+  ctx.save();
+  ctx.globalAlpha = baseOpacity;
+  
   const spriteSize = size * BASE_SPRITE_SCALE;
   drawCenteredSprite(ctx, sprite, screenPos, spriteSize, 0, color, !!state.settings.enableGlowEffects, isSelected);
+  
+  ctx.restore();
   return true;
 }
 
@@ -951,6 +960,102 @@ function drawFogOfWar(ctx: CanvasRenderingContext2D, state: GameState, canvas: H
   ctx.restore();
 }
 
+function drawMiningDroneEffects(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.sun) return;
+  
+  const sun = state.sun; // Local reference for TypeScript null check
+  const time = Date.now() / 1000;
+  
+  state.units.forEach((unit) => {
+    if (unit.type !== 'miningDrone' || !unit.miningState) return;
+    
+    const isProducing = unit.miningState.isProducing;
+    if (!isProducing) return;
+    
+    const dronePos = positionToPixels(unit.position);
+    const sunPos = positionToPixels(sun.position);
+    const ownerBase = state.bases.find(b => b.owner === unit.owner);
+    if (!ownerBase) return;
+    const basePos = positionToPixels(ownerBase.position);
+    
+    // Draw subtle line to sun (light beam reflection)
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 230, 100, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(dronePos.x, dronePos.y);
+    ctx.lineTo(sunPos.x, sunPos.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Draw subtle line to base (energy transfer)
+    const playerColor = state.players[unit.owner].color;
+    ctx.strokeStyle = addAlphaToColor(playerColor, 0.2);
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(dronePos.x, dronePos.y);
+    ctx.lineTo(basePos.x, basePos.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Draw pulsing glow around producing drones
+    const pulseIntensity = Math.sin(time * 3) * 0.3 + 0.7;
+    const gradient = ctx.createRadialGradient(dronePos.x, dronePos.y, 0, dronePos.x, dronePos.y, 15);
+    gradient.addColorStop(0, `rgba(255, 230, 100, ${0.3 * pulseIntensity})`);
+    gradient.addColorStop(1, 'rgba(255, 230, 100, 0)');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(dronePos.x, dronePos.y, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawMiningIncomePopups(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.sun || !state.miningIncomePopups) return;
+  
+  const time = Date.now();
+  
+  // Render each active popup
+  state.miningIncomePopups.forEach((popup: any, index: number) => {
+    const elapsed = (time - popup.startTime) / 1000;
+    const duration = 1.0; // 1 second animation
+    
+    if (elapsed >= duration) {
+      // Remove expired popups
+      state.miningIncomePopups!.splice(index, 1);
+      return;
+    }
+    
+    const progress = elapsed / duration;
+    const opacity = 1 - progress; // Fade out
+    const yOffset = progress * 30; // Rise up 30 pixels
+    
+    const pos = positionToPixels(popup.position);
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    
+    // Draw photon icon (bright dot)
+    ctx.fillStyle = 'rgba(255, 230, 100, 1)';
+    ctx.shadowColor = 'rgba(255, 230, 100, 0.8)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(pos.x - 10, pos.y - yOffset, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw +1 text
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = '#FFF';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('+1', pos.x, pos.y - yOffset);
+    
+    ctx.restore();
+  });
+}
+
 export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canvas: HTMLCanvasElement, selectionRect?: { x1: number; y1: number; x2: number; y2: number } | null): void {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -998,6 +1103,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
 
   if (state.mode === 'game' || state.mode === 'countdown') {
     drawObstacles(ctx, state);
+    drawSun(ctx, state); // Draw the central sun
     drawMiningDepots(ctx, state);
     drawResourceOrbs(ctx, state);
     drawBases(ctx, state);
@@ -1018,6 +1124,8 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       drawSpawnEffects(ctx, state);
       drawImpactEffects(ctx, state);
       drawDamageNumbers(ctx, state);
+      drawMiningDroneEffects(ctx, state); // Draw LOS lines for producing drones
+      drawMiningIncomePopups(ctx, state); // Draw +1 photon popups
       drawSelectionIndicators(ctx, state);
       drawAbilityRangeIndicators(ctx, state);
       drawAbilityCastPreview(ctx, state);
@@ -1410,6 +1518,61 @@ function drawPlayfieldBorder(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasEl
   ctx.restore();
 }
 
+
+// Draw the central sun for the new solar mining system
+function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.sun) return;
+  
+  const pixels = positionToPixels(state.sun.position);
+  const radiusPixels = metersToPixels(state.sun.radius);
+  
+  ctx.save();
+  
+  // Draw outer glow
+  const gradient = ctx.createRadialGradient(pixels.x, pixels.y, 0, pixels.x, pixels.y, radiusPixels * 2);
+  gradient.addColorStop(0, 'rgba(255, 220, 100, 0.8)');
+  gradient.addColorStop(0.3, 'rgba(255, 180, 50, 0.4)');
+  gradient.addColorStop(0.6, 'rgba(255, 140, 30, 0.2)');
+  gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+  
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(pixels.x, pixels.y, radiusPixels * 2, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw core
+  const coreGradient = ctx.createRadialGradient(pixels.x, pixels.y, 0, pixels.x, pixels.y, radiusPixels);
+  coreGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  coreGradient.addColorStop(0.5, 'rgba(255, 230, 120, 1)');
+  coreGradient.addColorStop(1, 'rgba(255, 180, 50, 0.9)');
+  
+  ctx.fillStyle = coreGradient;
+  ctx.beginPath();
+  ctx.arc(pixels.x, pixels.y, radiusPixels, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Add animated rays
+  const time = Date.now() / 1000;
+  const rayCount = 12;
+  ctx.strokeStyle = 'rgba(255, 220, 100, 0.3)';
+  ctx.lineWidth = 2;
+  
+  for (let i = 0; i < rayCount; i++) {
+    const angle = (i / rayCount) * Math.PI * 2 + time * 0.5;
+    const rayLength = radiusPixels * (1.5 + Math.sin(time * 2 + i) * 0.3);
+    const startX = pixels.x + Math.cos(angle) * radiusPixels;
+    const startY = pixels.y + Math.sin(angle) * radiusPixels;
+    const endX = pixels.x + Math.cos(angle) * rayLength;
+    const endY = pixels.y + Math.sin(angle) * rayLength;
+    
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+  }
+  
+  ctx.restore();
+}
 function drawObstacles(ctx: CanvasRenderingContext2D, state: GameState): void {
   state.obstacles.forEach((obstacle) => {
     // Skip drawing boundary obstacles (they're invisible)
@@ -2124,6 +2287,10 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.restore();
     }
 
+    // Apply health-based opacity for base: 100% HP = 100% opaque, 0% HP = 20% opaque
+    const healthPercent = base.hp / base.maxHp;
+    const baseOpacity = 0.2 + (healthPercent * 0.8); // Range from 0.2 to 1.0
+
     const factionDef = FACTION_DEFINITIONS[base.faction];
     // Draw the sprite art for Radiant bases when enabled; fallback to vector base shapes otherwise.
     const spriteDrawn = spritesEnabled && base.faction === 'radiant'
@@ -2204,7 +2371,7 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
     }
 
     if (!spriteDrawn) {
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha = baseOpacity * 0.3; // Use health-based opacity
       if (factionDef.baseShape === 'circle') {
         ctx.beginPath();
         ctx.arc(screenPos.x, screenPos.y, size / 2, 0, Math.PI * 2);
@@ -2454,6 +2621,47 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.shadowColor = '#4ade80';
       ctx.shadowBlur = 15;
       ctx.stroke();
+      ctx.restore();
+    }
+    
+    // Draw "leaking energy" effect when base is at max HP (10x starting)
+    if (base.hp >= base.maxHp && base.maxHp >= base.startingHp * 10) {
+      const time = Date.now() / 1000;
+      const leakCount = 8;
+      
+      for (let i = 0; i < leakCount; i++) {
+        const angle = (i / leakCount) * Math.PI * 2 + time * 0.5;
+        const baseRadius = size * 0.6;
+        const leakDistance = Math.sin(time * 3 + i) * 15 + 20;
+        const startX = screenPos.x + Math.cos(angle) * baseRadius;
+        const startY = screenPos.y + Math.sin(angle) * baseRadius;
+        const endX = screenPos.x + Math.cos(angle) * (baseRadius + leakDistance);
+        const endY = screenPos.y + Math.sin(angle) * (baseRadius + leakDistance);
+        
+        ctx.save();
+        const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
+        gradient.addColorStop(0, 'rgba(255, 230, 100, 0.6)');
+        gradient.addColorStop(1, 'rgba(255, 230, 100, 0)');
+        
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = 'rgba(255, 230, 100, 0.8)';
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+        ctx.restore();
+      }
+      
+      // Draw warning icon/text above base
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 230, 100, 1)';
+      ctx.shadowColor = 'rgba(255, 230, 100, 0.8)';
+      ctx.shadowBlur = 10;
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('MAX CAPACITY', screenPos.x, screenPos.y - size * 0.8);
       ctx.restore();
     }
   });
@@ -3323,6 +3531,11 @@ function drawUnits(ctx: CanvasRenderingContext2D, state: GameState): void {
 
     if (unit.cloaked) {
       ctx.globalAlpha = 0.3;
+    } else {
+      // Apply health-based opacity: 100% HP = 100% opaque, 0% HP = 20% opaque
+      const healthPercent = unit.hp / unit.maxHp;
+      const opacity = 0.2 + (healthPercent * 0.8); // Range from 0.2 to 1.0
+      ctx.globalAlpha = opacity;
     }
 
     // Apply damage flash effect

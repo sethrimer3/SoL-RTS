@@ -2388,6 +2388,12 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
   
   // Create initial mining drones on diagonal deposits
   const initialDrones = createInitialMiningDrones(miningDepots);
+  
+  // Create the central sun for the new mining system
+  const sun = {
+    position: { x: arenaWidth / 2, y: arenaHeight / 2 },
+    radius: 5, // 5 meters diameter sun
+  };
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
 
@@ -2399,13 +2405,15 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
     shells: [],
     obstacles: obstacles,
     miningDepots: miningDepots,
+    sun: sun, // Add the central sun
     bases: [
       {
         id: generateId(),
         owner: 0,
         position: basePositions.player,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
@@ -2420,7 +2428,8 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
         owner: 1,
         position: basePositions.enemy,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
@@ -2539,6 +2548,12 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
   
   // Create initial mining drones on diagonal deposits
   const initialDrones = createInitialMiningDrones(miningDepots);
+  
+  // Create the central sun for the new mining system
+  const sun = {
+    position: { x: arenaWidth / 2, y: arenaHeight / 2 },
+    radius: 5, // 5 meters diameter sun
+  };
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.playerBaseType || 'standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.enemyBaseType || 'standard'];
@@ -2552,13 +2567,15 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     structures: [],
     obstacles: obstacles,
     miningDepots: miningDepots,
+    sun: sun, // Add the central sun
     bases: [
       {
         id: generateId(),
         owner: 0,
         position: basePositions.player,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
@@ -2573,7 +2590,8 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
         owner: 1,
         position: basePositions.enemy,
         hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp,
+        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: enemyBaseTypeDef.hp,
         armor: enemyBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
@@ -2642,6 +2660,12 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
   
   // Create initial mining drones on diagonal deposits
   const initialDrones = createInitialMiningDrones(miningDepots);
+  
+  // Create the central sun for the new mining system
+  const sun = {
+    position: { x: arenaWidth / 2, y: arenaHeight / 2 },
+    radius: 5, // 5 meters diameter sun
+  };
 
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.playerBaseType || 'standard'];
   const enemyBaseTypeDef = BASE_TYPE_DEFINITIONS[settings.enemyBaseType || 'standard'];
@@ -2654,13 +2678,15 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
     shells: [],
     obstacles: obstacles,
     miningDepots: miningDepots,
+    sun: sun, // Add the central sun
     bases: [
       {
         id: generateId(),
         owner: 0,
         position: basePositions.player,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
@@ -2675,7 +2701,8 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
         owner: 1,
         position: basePositions.enemy,
         hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp,
+        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: enemyBaseTypeDef.hp,
         armor: enemyBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
@@ -2732,6 +2759,12 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
   
   // Create initial mining drones on diagonal deposits
   const initialDrones = createInitialMiningDrones(miningDepots);
+  
+  // Create the central sun for the new mining system
+  const sun = {
+    position: { x: arenaWidth / 2, y: arenaHeight / 2 },
+    radius: 5, // 5 meters diameter sun
+  };
 
   // For online games, use standard base type for now
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
@@ -2745,13 +2778,15 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
     shells: [],
     obstacles: obstacles,
     miningDepots: miningDepots,
+    sun: sun, // Add the central sun
     bases: [
       {
         id: generateId(),
         owner: 0,
         position: basePositions.player,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
@@ -2766,7 +2801,8 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
         owner: 1,
         position: basePositions.enemy,
         hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp,
+        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: enemyBaseTypeDef.hp,
         armor: enemyBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
@@ -2840,6 +2876,12 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
   
   // Create initial mining drones on diagonal deposits
   const initialDrones = createInitialMiningDrones(miningDepots);
+  
+  // Create the central sun for the new mining system
+  const sun = {
+    position: { x: arenaWidth / 2, y: arenaHeight / 2 },
+    radius: 5, // 5 meters diameter sun
+  };
 
   // For online games, use standard base type for now
   const playerBaseTypeDef = BASE_TYPE_DEFINITIONS['standard'];
@@ -2853,13 +2895,15 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     shells: [],
     obstacles: obstacles,
     miningDepots: miningDepots,
+    sun: sun, // Add the central sun
     bases: [
       {
         id: generateId(),
         owner: 0,
         position: basePositions.player,
         hp: playerBaseTypeDef.hp,
-        maxHp: playerBaseTypeDef.hp,
+        maxHp: playerBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: playerBaseTypeDef.hp,
         armor: playerBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.player, basePositions.enemy),
@@ -2874,7 +2918,8 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
         owner: 1,
         position: basePositions.enemy,
         hp: enemyBaseTypeDef.hp,
-        maxHp: enemyBaseTypeDef.hp,
+        maxHp: enemyBaseTypeDef.hp * 10, // Max capacity is 10x starting HP
+        startingHp: enemyBaseTypeDef.hp,
         armor: enemyBaseTypeDef.armor,
         movementTarget: null,
         rallyPoint: calculateDefaultRallyPoint(basePositions.enemy, basePositions.player),
