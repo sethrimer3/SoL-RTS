@@ -173,6 +173,7 @@ Multiple functions for unit abilities:
 - **2026-01-13**: Converted marine basic ranged attacks to instant hits with ricochet feedback and standardized right-side shell ejection
 - **2025-03-24**: Clarified sprite corner trail math to align with the global sprite-forward PI/2 rotation offset.
 - **2025-03-24**: Added lookahead-based path following to smooth unit turns on drawn paths.
+- **2026-01-22**: Synced player photon totals with base HP every tick, aligned unit spend updates, and reused sun-shadow visibility checks for structure targeting
 
 ## Watch Out For
 - Delta time must be in seconds, not milliseconds

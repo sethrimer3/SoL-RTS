@@ -46,7 +46,6 @@ export const PROMOTION_MULTIPLIER = 1.1;
 export const QUEUE_BONUS_PER_NODE = 0.1;
 
 // Fog of war vision range in meters
-export const FOG_OF_WAR_VISION_RANGE = 15;
 
 export const COLORS = {
   background: '#0a0a0a',
@@ -1194,7 +1193,6 @@ export interface GameState {
     mirrorAbilityCasting?: boolean; // Mirror ability casting along both X and Y axes
     chessMode?: boolean; // Enable chess mode: queue commands, then execute all at once every 10 seconds
     aiDifficulty?: 'easy' | 'medium' | 'hard'; // AI difficulty level
-    enableFogOfWar?: boolean; // Enable fog of war (developer mode)
     controlMode?: 'swipe' | 'buttons' | 'radial'; // Control mode for unit spawning
     movementMode?: 'tap' | 'pathDrawing'; // Movement mode: tap to move or draw path
   };
@@ -1279,23 +1277,6 @@ export interface GameState {
   
   // Field particles for mid-field physics effects (between 1st and 3rd quartiles)
   fieldParticles?: FieldParticle[];
-  
-  // Fog of war particles for swirling purple effects
-  fogParticles?: Array<{
-    id: string;
-    position: Vector2;
-    velocity: Vector2;
-    angle: number; // Current rotation angle
-    orbitRadius: number; // Distance from orbit center
-    orbitCenter: Vector2; // Point this particle orbits around
-    orbitSpeed: number; // Angular velocity
-    size: number;
-    opacity: number;
-    phase: number; // Phase offset for wave motion
-  }>;
-  
-  // Fog of war exploration grid - tracks which areas have been explored
-  fogExploredGrid?: boolean[][];
   
   // Impact effects for hits and explosions
   impactEffects?: Array<{

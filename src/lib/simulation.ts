@@ -29,7 +29,7 @@ import {
   QUEUE_MAX_LENGTH,
   BASE_TYPE_DEFINITIONS,
 } from './types';
-import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians } from './gameUtils';
+import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians, hasLineOfSight, isEnemyUnitVisible } from './gameUtils';
 import { checkObstacleCollision } from './maps';
 import { soundManager } from './sound';
 import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash, createLaserParticles, createBounceParticles, createMuzzleFlash } from './visualEffects';
@@ -2155,30 +2155,23 @@ export function updateGame(state: GameState, deltaTime: number): void {
   updateHitSparks(state, deltaTime);
   updateMotionTrails(state);
   updateSpriteCornerTrails(state);
+  syncPlayerPhotonsWithBase(state);
   checkTimeLimit(state);
   checkVictory(state);
 }
 
-// Helper function to check line of sight between two points (for sun-based mining)
-// Returns true if there's a clear line of sight (no obstacles blocking)
-function hasLineOfSight(from: Vector2, to: Vector2, obstacles: import('./maps').Obstacle[]): boolean {
-  // Simple ray casting: check if any obstacle intersects the line
-  const dir = normalize(subtract(to, from));
-  const dist = distance(from, to);
-  
-  // Sample points along the line
-  const samples = Math.ceil(dist * 2); // 2 samples per meter
-  for (let i = 0; i <= samples; i++) {
-    const t = i / samples;
-    const point = add(from, scale(dir, dist * t));
-    
-    // Check if this point collides with any obstacle
-    if (checkObstacleCollision(point, 0.1, obstacles)) {
-      return false; // Line is blocked
+/**
+ * Sync player photon totals with their base HP now that photons represent base health.
+ * @param state - Current game state to update player resource totals
+ */
+function syncPlayerPhotonsWithBase(state: GameState): void {
+  // Keep each player's photon resource aligned with their base HP for UI and spending logic.
+  state.players.forEach((player, index) => {
+    const base = state.bases.find(currentBase => currentBase.owner === index);
+    if (base) {
+      player.photons = base.hp;
     }
-  }
-  
-  return true; // Clear line of sight
+  });
 }
 
 function updateIncome(state: GameState, deltaTime: number): void {
@@ -3272,7 +3265,7 @@ function updateStructures(state: GameState, deltaTime: number): void {
         
         // Check enemy units
         state.units.forEach((unit) => {
-          if (unit.owner !== structure.owner && isVisibleToPlayer(unit.position, state)) {
+          if (unit.owner !== structure.owner && isEnemyUnitVisible(unit.position, state)) {
             const dist = distance(structure.position, unit.position);
             if (dist <= structureDef.attackRange && dist < closestDist) {
               closestDist = dist;
@@ -5333,8 +5326,10 @@ export function spawnUnit(state: GameState, owner: number, type: UnitType, spawn
   // Spend base HP instead of photons
   ownerBase.hp -= def.cost;
   
+  // Keep player photons synced to base HP for UI and resource checks.
+  state.players[owner].photons = ownerBase.hp;
+  
   // Still track photons spent for statistics
-  state.players[owner].photons -= def.cost;
 
   if (state.matchStats && owner === 0) {
     state.matchStats.unitsTrainedByPlayer += 1;

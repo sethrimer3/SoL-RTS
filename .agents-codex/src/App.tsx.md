@@ -172,6 +172,7 @@ Main application component that orchestrates the entire game. Manages game state
 - **2025-03-22**: Initialized shell casing arrays alongside projectiles in game state setup.
 - **2025-03-22**: Preloaded UI/gameplay sound effect assets and routed settings controls to the setting change cue.
 - **2025-03-22**: Added a sprite rendering toggle to persisted settings and the settings screen.
+- **2026-01-22**: Removed fog-of-war settings/particles from state initialization and game loop updates.
 
 ## Watch Out For
 - Game state ref vs React state - use correctly for performance

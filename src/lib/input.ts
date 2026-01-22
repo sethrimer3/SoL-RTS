@@ -20,7 +20,7 @@ import {
   Vector2,
   PIXELS_PER_METER,
 } from './types';
-import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId, isVisibleToPlayer, getViewportScale } from './gameUtils';
+import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId, isEnemyUnitVisible, getViewportScale } from './gameUtils';
 import { screenToWorld, worldToScreen, zoomCamera, zoomCameraAtPoint, initializeCamera } from './camera';
 import { spawnUnit } from './simulation';
 import { soundManager } from './sound';
@@ -824,13 +824,27 @@ function handleMiningDepotDrag(state: GameState, depot: import('./types').Mining
   
   // Check if player has enough photons
   const miningDroneCost = 10;
+  const playerBase = state.bases.find(base => base.owner === playerIndex);
+  const minBaseHp = playerBase ? playerBase.startingHp * 0.1 : 0;
+  
   if (state.players[playerIndex].photons < miningDroneCost) {
     soundManager.playError();
     return;
   }
   
+  if (playerBase && playerBase.hp - miningDroneCost < minBaseHp) {
+    soundManager.playError();
+    return;
+  }
+  
   // Deduct cost
-  state.players[playerIndex].photons -= miningDroneCost;
+  if (playerBase) {
+    playerBase.hp -= miningDroneCost;
+    // Keep photons aligned with base HP since they share the same resource pool.
+    state.players[playerIndex].photons = playerBase.hp;
+  } else {
+    state.players[playerIndex].photons -= miningDroneCost;
+  }
   
   // Create mining drone at depot position
   const droneId = generateId();
@@ -938,18 +952,19 @@ function isDoubleTap(state: GameState, screenPos: { x: number; y: number }): boo
 }
 
 // Determine whether a unit should be visible/selectable to the given player.
-function isUnitVisibleToPlayer(unit: Unit, playerIndex: number): boolean {
+function isUnitVisibleToPlayer(unit: Unit, state: GameState, playerIndex: number): boolean {
   if (unit.owner === playerIndex) {
     return true;
   }
 
-  return !unit.cloaked;
+  // Enemy units must be uncloaked and satisfy sun-shadow visibility rules.
+  return !unit.cloaked && isEnemyUnitVisible(unit.position, state);
 }
 
 // Find the first visible unit under the cursor for selection and double-tap logic.
 function getVisibleUnitAtPosition(state: GameState, worldPos: { x: number; y: number }, playerIndex: number): Unit | undefined {
   return state.units.find((unit) => {
-    if (!isUnitVisibleToPlayer(unit, playerIndex)) return false;
+    if (!isUnitVisibleToPlayer(unit, state, playerIndex)) return false;
     return distance(unit.position, worldPos) < getUnitSelectionRadius(unit);
   });
 }
@@ -1377,9 +1392,9 @@ export function handleMouseMove(e: MouseEvent, state: GameState, canvas: HTMLCan
       const dist = distance(worldPos, unit.position);
       if (dist >= 0.8) return false; // Outside unit radius
       
-      // For enemy units, check if they're visible (fog of war)
+      // For enemy units, only allow hover tooltips when sun-shadow visibility is satisfied.
       if (unit.owner !== 0) {
-        return isVisibleToPlayer(unit.position, state);
+        return isEnemyUnitVisible(unit.position, state);
       }
       
       return true; // Show player units
