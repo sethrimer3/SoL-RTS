@@ -471,7 +471,7 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
         };
         soundManager.playBuildingPlace();
         // Create initial shockwave visual effect
-        createEnergyPulse(state, worldStart, state.players[playerIndex].color, 3, 0.5);
+        createEnergyPulse(state, worldStart, state.players[playerIndex].color, 0.5, 3);
       } else {
         // Out of influence - show error
         soundManager.playError();

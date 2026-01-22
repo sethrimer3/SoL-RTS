@@ -2220,23 +2220,20 @@ function updateWarpGate(state: GameState, deltaTime: number): void {
       const photonsPerSecond = WARP_GATE_PHOTON_SIPHON_RATE;
       
       const photonsThisFrame = photonsPerSecond * deltaTime;
-      state.warpGate.photonsAbsorbed += photonsThisFrame;
-      state.warpGate.buildingHp += photonsThisFrame;
       
       // Deduct photons from player's base (but maintain minimum 10% HP)
       const ownerBase = state.bases.find(b => b.owner === state.warpGate!.owner);
+      let actualDeduction = photonsThisFrame;
       if (ownerBase && ownerBase.hp > 0) {
         const minBaseHp = ownerBase.maxHp * 0.1;
         const availablePhotons = Math.max(0, ownerBase.hp - minBaseHp);
-        const actualDeduction = Math.min(photonsThisFrame, availablePhotons);
+        actualDeduction = Math.min(photonsThisFrame, availablePhotons);
         ownerBase.hp = Math.max(minBaseHp, ownerBase.hp - actualDeduction);
-        
-        // If base is critically low, slow down construction
-        if (availablePhotons < photonsThisFrame) {
-          state.warpGate.photonsAbsorbed += actualDeduction;
-          state.warpGate.buildingHp += actualDeduction;
-        }
       }
+      
+      // Update building construction with actual photons deducted
+      state.warpGate.photonsAbsorbed += actualDeduction;
+      state.warpGate.buildingHp += actualDeduction;
       
       // Check if building is complete
       if (state.warpGate.photonsAbsorbed >= photonsNeeded) {
