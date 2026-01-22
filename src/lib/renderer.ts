@@ -645,7 +645,6 @@ function drawSolariUnitSprite(
  * @param ctx - Canvas rendering context
  * @param unit - Solar mirror unit
  * @param screenPos - Screen-space center position of the unit
- * @param playfieldRotation - Rotation offset applied to the playfield
  * @param timeSeconds - Current time in seconds for flicker animation
  */
 function drawSolarMirrorThruster(
