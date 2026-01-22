@@ -1777,6 +1777,45 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.stroke();
   }
   
+  // Add subtle lens-flare effect when sun is visible
+  // Create multiple halos with decreasing intensity
+  const flareCount = 3;
+  for (let i = 0; i < flareCount; i++) {
+    const flareRadius = radiusPixels * (2.5 + i * 0.8);
+    const flareAlpha = 0.08 - i * 0.02; // Decreasing opacity for subtle effect
+    const flareGradient = ctx.createRadialGradient(
+      pixels.x, pixels.y, flareRadius * 0.8,
+      pixels.x, pixels.y, flareRadius
+    );
+    flareGradient.addColorStop(0, `rgba(255, 240, 200, ${flareAlpha})`);
+    flareGradient.addColorStop(1, 'rgba(255, 240, 200, 0)');
+    
+    ctx.fillStyle = flareGradient;
+    ctx.beginPath();
+    ctx.arc(pixels.x, pixels.y, flareRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Add subtle star-like lens streaks
+  ctx.strokeStyle = 'rgba(255, 245, 220, 0.12)';
+  ctx.lineWidth = 1.5;
+  const streakCount = 4;
+  for (let i = 0; i < streakCount; i++) {
+    const streakAngle = (i / streakCount) * Math.PI;
+    const streakLength = radiusPixels * 3.5;
+    
+    ctx.beginPath();
+    ctx.moveTo(
+      pixels.x - Math.cos(streakAngle) * streakLength,
+      pixels.y - Math.sin(streakAngle) * streakLength
+    );
+    ctx.lineTo(
+      pixels.x + Math.cos(streakAngle) * streakLength,
+      pixels.y + Math.sin(streakAngle) * streakLength
+    );
+    ctx.stroke();
+  }
+  
   ctx.restore();
 }
 
