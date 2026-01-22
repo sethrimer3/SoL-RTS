@@ -1273,6 +1273,14 @@ export interface GameState {
     startTime: number;
   };
   
+  // Selection wheel for base unit production
+  selectionWheel?: {
+    baseId: string;
+    selectedIndex: number; // Index of selected unit (0-6)
+    visible: boolean;
+    animationStartTime: number;
+  };
+  
   // Background stars for visual effect
   stars?: Array<{
     x: number;

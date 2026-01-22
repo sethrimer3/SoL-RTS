@@ -1092,6 +1092,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
     drawMiningDepots(ctx, state);
     drawResourceOrbs(ctx, state);
     drawBases(ctx, state);
+    drawSelectionWheel(ctx, state);
     drawStructures(ctx, state);
     drawSunLight(ctx, state);
     
@@ -2986,6 +2987,110 @@ function drawBases(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.restore();
     }
   });
+}
+
+function drawSelectionWheel(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.selectionWheel || !state.selectionWheel.visible) {
+    return;
+  }
+
+  // Find the base that owns this selection wheel
+  const base = state.bases.find(b => b.id === state.selectionWheel!.baseId);
+  if (!base) return;
+
+  const screenPos = positionToPixels(base.position);
+  const baseSize = metersToPixels(BASE_SIZE_METERS);
+  const color = state.players[base.owner].color;
+  
+  // Get enabled units for this player
+  const enabledUnits = Array.from(state.settings.enabledUnits);
+  if (enabledUnits.length === 0) return;
+  
+  // Ensure we have exactly 7 units (pad with repeats if needed)
+  while (enabledUnits.length < 7) {
+    enabledUnits.push(enabledUnits[enabledUnits.length % enabledUnits.length]);
+  }
+  
+  // Calculate animation progress (spin out effect)
+  const elapsed = Date.now() - state.selectionWheel.animationStartTime;
+  const animDuration = 300; // 300ms animation
+  const animProgress = Math.min(elapsed / animDuration, 1);
+  const easeProgress = 1 - Math.pow(1 - animProgress, 3); // Ease out cubic
+  
+  // Wheel dimensions
+  const innerRadius = baseSize * 0.7 * easeProgress;
+  const outerRadius = baseSize * 1.5 * easeProgress;
+  const sectionAngle = (Math.PI * 2) / 7; // 360° / 7 sections
+  
+  // Only show top 3 sections (indices: -1, 0, 1 relative to selected)
+  const selectedIndex = state.selectionWheel.selectedIndex;
+  const visibleIndices = [-1, 0, 1]; // Left, center, right
+  
+  ctx.save();
+  ctx.globalAlpha = easeProgress * 0.9;
+  
+  visibleIndices.forEach(offset => {
+    const index = (selectedIndex + offset + 7) % 7;
+    const unitType = enabledUnits[index];
+    const unitDef = UNIT_DEFINITIONS[unitType];
+    
+    // Calculate section angle (top center is at -90°, sections go clockwise)
+    const baseAngle = -Math.PI / 2; // Start at top
+    const sectionStartAngle = baseAngle + (offset * sectionAngle) - sectionAngle / 2;
+    const sectionEndAngle = sectionStartAngle + sectionAngle;
+    const middleAngle = sectionStartAngle + sectionAngle / 2;
+    
+    // Draw section background
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, innerRadius, sectionStartAngle, sectionEndAngle);
+    ctx.arc(screenPos.x, screenPos.y, outerRadius, sectionEndAngle, sectionStartAngle, true);
+    ctx.closePath();
+    
+    // Highlight selected unit (center)
+    if (offset === 0) {
+      ctx.fillStyle = addAlphaToColor(color, 0.4);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+    } else {
+      ctx.fillStyle = addAlphaToColor(color, 0.15);
+      ctx.strokeStyle = addAlphaToColor(color, 0.5);
+      ctx.lineWidth = 2;
+    }
+    
+    ctx.fill();
+    ctx.stroke();
+    
+    // Draw unit icon/text in the section
+    const iconRadius = (innerRadius + outerRadius) / 2;
+    const iconX = screenPos.x + Math.cos(middleAngle) * iconRadius;
+    const iconY = screenPos.y + Math.sin(middleAngle) * iconRadius;
+    
+    ctx.save();
+    ctx.translate(iconX, iconY);
+    
+    // Draw unit name
+    ctx.fillStyle = offset === 0 ? color : addAlphaToColor(color, 0.7);
+    ctx.font = offset === 0 ? 'bold 14px Arial' : 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(unitDef.name, 0, -8);
+    
+    // Draw unit cost
+    ctx.font = '10px Arial';
+    ctx.fillStyle = addAlphaToColor(color, 0.8);
+    ctx.fillText(`${unitDef.cost} ⚡`, 0, 8);
+    
+    ctx.restore();
+  });
+  
+  // Draw center circle (base area)
+  ctx.beginPath();
+  ctx.arc(screenPos.x, screenPos.y, innerRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  ctx.restore();
 }
 
 function drawStructures(ctx: CanvasRenderingContext2D, state: GameState): void {
