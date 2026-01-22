@@ -67,6 +67,12 @@ const BASE_LASER_BEAM_THICKNESS_METERS = 0.8; // Thickness of base laser beams
 const UNIT_LASER_BEAM_THICKNESS_METERS = 0.6; // Thickness of unit laser beams (slightly smaller)
 // All unit sprites are authored facing "up" in texture space, so rotate to match the engine's forward direction.
 const SPRITE_ROTATION_OFFSET = Math.PI / 2;
+// Total number of base rays used for the sun's lighting visibility polygon.
+const SUN_LIGHT_RAY_COUNT = 160;
+// Small angle offset to prevent rays from skipping along occluder edges.
+const SUN_LIGHT_RAY_EPSILON = 0.0001;
+
+type LightSegment = { start: Vector2; end: Vector2 };
 
 // Sprite asset paths for the Radiant faction (exclude "knots" files on purpose).
 const radiantUnitSpritePaths: Partial<Record<UnitType, string>> = {
@@ -1109,6 +1115,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
     drawResourceOrbs(ctx, state);
     drawBases(ctx, state);
     drawStructures(ctx, state);
+    drawSunLight(ctx, state);
     
     if (state.mode === 'game') {
       drawCommandQueues(ctx, state);
@@ -1516,6 +1523,237 @@ function drawPlayfieldBorder(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasEl
   ctx.lineWidth = 1;
   ctx.strokeRect(viewportOffset.x, viewportOffset.y, playfieldWidthPixels, playfieldHeightPixels);
   
+  ctx.restore();
+}
+
+/**
+ * Rotates a point around the origin by the provided angle in radians.
+ */
+function rotatePoint(point: Vector2, angle: number): Vector2 {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    x: point.x * cos - point.y * sin,
+    y: point.x * sin + point.y * cos,
+  };
+}
+
+/**
+ * Builds edge segments for a rectangle centered at the provided position.
+ */
+function buildRectangleSegments(center: Vector2, width: number, height: number, rotation = 0): LightSegment[] {
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  const localCorners = [
+    { x: -halfWidth, y: -halfHeight },
+    { x: halfWidth, y: -halfHeight },
+    { x: halfWidth, y: halfHeight },
+    { x: -halfWidth, y: halfHeight },
+  ];
+  const worldCorners = localCorners.map((corner) => {
+    const rotated = rotation !== 0 ? rotatePoint(corner, rotation) : corner;
+    return { x: center.x + rotated.x, y: center.y + rotated.y };
+  });
+
+  return worldCorners.map((corner, index) => ({
+    start: corner,
+    end: worldCorners[(index + 1) % worldCorners.length],
+  }));
+}
+
+/**
+ * Collects ray-blocking segments from asteroids, obstacles, and buildings.
+ */
+function buildSunOccluderSegments(state: GameState): LightSegment[] {
+  const segments: LightSegment[] = [];
+
+  state.asteroids.forEach((asteroid) => {
+    const rotatedVertices = asteroid.vertices.map((vertex) => {
+      const rotated = rotatePoint(vertex, asteroid.rotation);
+      return { x: asteroid.position.x + rotated.x, y: asteroid.position.y + rotated.y };
+    });
+
+    rotatedVertices.forEach((vertex, index) => {
+      segments.push({
+        start: vertex,
+        end: rotatedVertices[(index + 1) % rotatedVertices.length],
+      });
+    });
+  });
+
+  state.obstacles.forEach((obstacle) => {
+    if (obstacle.type === 'boundary') {
+      return;
+    }
+
+    segments.push(...buildRectangleSegments(obstacle.position, obstacle.width, obstacle.height, obstacle.rotation));
+  });
+
+  state.structures.forEach((structure) => {
+    const structureDef = STRUCTURE_DEFINITIONS[structure.type];
+    segments.push(
+      ...buildRectangleSegments(structure.position, structureDef.size, structureDef.size),
+    );
+  });
+
+  state.bases.forEach((base) => {
+    segments.push(...buildRectangleSegments(base.position, BASE_SIZE_METERS, BASE_SIZE_METERS));
+  });
+
+  state.miningDepots.forEach((depot) => {
+    segments.push(...buildRectangleSegments(depot.position, MINING_DEPOT_SIZE_METERS, MINING_DEPOT_SIZE_METERS));
+  });
+
+  return segments;
+}
+
+/**
+ * Creates the arena bounds as line segments in world-space meters.
+ */
+function buildPlayfieldBoundsSegments(): LightSegment[] {
+  const arenaHeight = getArenaHeight();
+  const topLeft = { x: 0, y: 0 };
+  const topRight = { x: ARENA_WIDTH_METERS, y: 0 };
+  const bottomRight = { x: ARENA_WIDTH_METERS, y: arenaHeight };
+  const bottomLeft = { x: 0, y: arenaHeight };
+
+  return [
+    { start: topLeft, end: topRight },
+    { start: topRight, end: bottomRight },
+    { start: bottomRight, end: bottomLeft },
+    { start: bottomLeft, end: topLeft },
+  ];
+}
+
+/**
+ * Returns the cross product of two vectors treated as 2D vectors.
+ */
+function cross2D(a: Vector2, b: Vector2): number {
+  return a.x * b.y - a.y * b.x;
+}
+
+/**
+ * Finds the closest intersection distance for a ray against a line segment.
+ */
+function intersectRayWithSegment(origin: Vector2, direction: Vector2, segment: LightSegment): number | null {
+  const segmentVector = {
+    x: segment.end.x - segment.start.x,
+    y: segment.end.y - segment.start.y,
+  };
+  const denominator = cross2D(direction, segmentVector);
+
+  if (Math.abs(denominator) < 0.000001) {
+    return null;
+  }
+
+  const diff = {
+    x: segment.start.x - origin.x,
+    y: segment.start.y - origin.y,
+  };
+  const t = cross2D(diff, segmentVector) / denominator;
+  const u = cross2D(diff, direction) / denominator;
+
+  if (t >= 0 && u >= 0 && u <= 1) {
+    return t;
+  }
+
+  return null;
+}
+
+/**
+ * Builds a visibility polygon for the sun's light rays.
+ */
+function buildSunVisibilityPolygon(state: GameState): Array<{ angle: number; point: Vector2 }> {
+  const origin = state.sun?.position;
+
+  if (!origin) {
+    return [];
+  }
+
+  const occluders = buildSunOccluderSegments(state);
+  const bounds = buildPlayfieldBoundsSegments();
+  const allSegments = [...occluders, ...bounds];
+  const angles: number[] = [];
+
+  for (let i = 0; i < SUN_LIGHT_RAY_COUNT; i++) {
+    angles.push((i / SUN_LIGHT_RAY_COUNT) * Math.PI * 2);
+  }
+
+  allSegments.forEach((segment) => {
+    [segment.start, segment.end].forEach((endpoint) => {
+      const angle = Math.atan2(endpoint.y - origin.y, endpoint.x - origin.x);
+      angles.push(angle - SUN_LIGHT_RAY_EPSILON, angle, angle + SUN_LIGHT_RAY_EPSILON);
+    });
+  });
+
+  return angles.map((angle) => {
+    const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    allSegments.forEach((segment) => {
+      const hitDistance = intersectRayWithSegment(origin, direction, segment);
+      if (hitDistance !== null && hitDistance < closestDistance) {
+        closestDistance = hitDistance;
+      }
+    });
+
+    const point = {
+      x: origin.x + direction.x * closestDistance,
+      y: origin.y + direction.y * closestDistance,
+    };
+
+    return { angle, point };
+  });
+}
+
+/**
+ * Draws sun light rays across the playfield, with shadows cast by occluders.
+ */
+function drawSunLight(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.sun) {
+    return;
+  }
+
+  const visibilityPolygon = buildSunVisibilityPolygon(state)
+    .filter((entry) => Number.isFinite(entry.point.x) && Number.isFinite(entry.point.y))
+    .sort((a, b) => a.angle - b.angle);
+
+  if (visibilityPolygon.length < 3) {
+    return;
+  }
+
+  const sunPixels = positionToPixels(state.sun.position);
+  const maxRadius = Math.max(ARENA_WIDTH_METERS, getArenaHeight()) * 1.1;
+  const maxRadiusPixels = metersToPixels(maxRadius);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.18;
+
+  const gradient = ctx.createRadialGradient(
+    sunPixels.x,
+    sunPixels.y,
+    0,
+    sunPixels.x,
+    sunPixels.y,
+    maxRadiusPixels,
+  );
+  gradient.addColorStop(0, 'rgba(255, 245, 215, 0.35)');
+  gradient.addColorStop(0.5, 'rgba(255, 220, 170, 0.18)');
+  gradient.addColorStop(1, 'rgba(255, 200, 140, 0)');
+  ctx.fillStyle = gradient;
+
+  ctx.beginPath();
+  visibilityPolygon.forEach((entry, index) => {
+    const pointPixels = positionToPixels(entry.point);
+    if (index === 0) {
+      ctx.moveTo(pointPixels.x, pointPixels.y);
+    } else {
+      ctx.lineTo(pointPixels.x, pointPixels.y);
+    }
+  });
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 
