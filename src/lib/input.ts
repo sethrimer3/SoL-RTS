@@ -374,7 +374,7 @@ export function handleTouchMove(e: TouchEvent, state: GameState, canvas: HTMLCan
       // Initialize building menu if holding with mining drones selected
       if (allMiningDrones && elapsed >= WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS && !state.buildingMenu && !state.warpGate && !touchState.touchedBase && !touchState.touchedDepot && dist < WARP_GATE_MAX_MOVEMENT_THRESHOLD) {
         const worldStart = screenToWorldPosition(state, canvas, touchState.startPos);
-        const playerIndex = resolvePlayerIndex(state, touchState.startPos.x);
+        const playerIndex = resolvePlayerIndex(state, worldStart.x);
         
         // Check if position is within player's influence
         if (isPositionInInfluence(worldStart, playerIndex, state)) {
