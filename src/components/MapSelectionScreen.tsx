@@ -13,8 +13,11 @@ interface MapSelectionScreenProps {
 export function MapSelectionScreen({ selectedMap, onMapSelect, onBack }: MapSelectionScreenProps) {
   const maps = getMapList();
 
+  // Add extra scroll padding so mobile safe areas don't clip menu content.
+  const menuScrollStyle = { paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' };
+
   return (
-    <div className="absolute inset-0 overflow-y-auto">
+    <div className="absolute inset-0 overflow-y-auto" style={menuScrollStyle}>
       <div className="min-h-full flex items-start justify-center p-4 py-8">
       <Card className="w-full max-w-2xl my-auto">
         <CardHeader>

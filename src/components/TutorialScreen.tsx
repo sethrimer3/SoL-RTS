@@ -173,13 +173,15 @@ export function TutorialScreen({ onBack }: TutorialScreenProps) {
       ]
     }
   ];
+  // Add extra scroll padding so mobile safe areas don't clip menu content.
+  const menuScrollStyle = { paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' };
 
   return (
     <div className="absolute inset-0 overflow-hidden">
       {/* 50% transparent black overlay */}
       <div className="absolute inset-0 bg-black opacity-50 pointer-events-none" />
       
-      <div className="absolute inset-0 overflow-y-auto animate-in fade-in duration-300">
+      <div className="absolute inset-0 overflow-y-auto animate-in fade-in duration-300" style={menuScrollStyle}>
         <div className="min-h-full flex items-start justify-center p-4 py-8">
           <Card className="w-full max-w-4xl overflow-hidden my-auto">
             <CardHeader className="border-b border-border sticky top-0 bg-card z-10">

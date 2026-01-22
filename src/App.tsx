@@ -84,7 +84,8 @@ function App() {
   const [chessMode, setChessMode] = useKV<boolean>('chess-mode', false);
   const [aiDifficulty, setAiDifficulty] = useKV<'easy' | 'medium' | 'hard'>('ai-difficulty', 'medium');
   const [controlMode, setControlMode] = useKV<'swipe' | 'buttons' | 'radial'>('control-mode', 'swipe');
-  const [movementMode, setMovementMode] = useKV<'tap' | 'pathDrawing'>('movement-mode', 'pathDrawing');
+  // Default to tap movement so new players get the simpler movement scheme.
+  const [movementMode, setMovementMode] = useKV<'tap' | 'pathDrawing'>('movement-mode', 'tap');
 
   const gameState = gameStateRef.current;
   const lastVictoryStateRef = useRef<boolean>(false);
@@ -158,7 +159,8 @@ function App() {
       chessMode: chessMode ?? false,
       aiDifficulty: aiDifficulty || 'medium',
       controlMode: controlMode || 'swipe',
-      movementMode: movementMode || 'pathDrawing',
+      // Prefer tap movement unless the player has saved a different choice.
+      movementMode: movementMode || 'tap',
     };
     gameStateRef.current.showMinimap = showMinimap ?? true;
     gameStateRef.current.players = gameStateRef.current.players.map((p, i) => ({
@@ -1349,6 +1351,9 @@ function App() {
     },
   }, gameState.mode === 'game' || gameState.mode !== 'menu');
 
+  // Add extra scroll padding so mobile safe areas don't clip the bottom of menus.
+  const menuScrollStyle = { paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background" onClick={handleCanvasSurrenderReset}>
       {/* Animated background for menu screens */}
@@ -1716,7 +1721,7 @@ function App() {
           <div className="absolute inset-0 bg-black opacity-50 pointer-events-none" />
           
           <MenuTransition direction={gameState.menuTransitionDirection || 'back'}>
-            <div className="absolute inset-0 overflow-y-auto">
+            <div className="absolute inset-0 overflow-y-auto" style={menuScrollStyle}>
               <div className="min-h-full flex items-center justify-center p-4 py-8">
                 <div className="flex flex-col gap-4 w-80 max-w-[90vw] my-auto">
                 <div className="flex justify-center mb-4 animate-in fade-in zoom-in-95 duration-700">
@@ -1830,7 +1835,7 @@ function App() {
 
       {gameState.mode === 'settings' && (
         <MenuTransition direction={gameState.menuTransitionDirection || 'forward'}>
-          <div className="absolute inset-0 overflow-y-auto">
+          <div className="absolute inset-0 overflow-y-auto" style={menuScrollStyle}>
             <div className="min-h-full flex items-start justify-center p-4 py-8">
             <Card className="w-96 max-w-full my-auto">
             <CardHeader>
@@ -2458,7 +2463,8 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
       playerBaseType: 'standard',
       enemyBaseType: 'standard',
       controlMode: 'swipe',
-      movementMode: 'pathDrawing',
+      // Keep background battle aligned with the default tap movement mode.
+      movementMode: 'tap',
     },
     surrenderClicks: 0,
     lastSurrenderClickTime: 0,
@@ -2508,7 +2514,8 @@ function createInitialState(): GameState {
       playerBaseType: 'standard',
       enemyBaseType: 'standard',
       controlMode: 'swipe',
-      movementMode: 'pathDrawing',
+      // Default new game sessions to tap movement.
+      movementMode: 'tap',
     },
     surrenderClicks: 0,
     lastSurrenderClickTime: 0,

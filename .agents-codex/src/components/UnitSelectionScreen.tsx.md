@@ -53,6 +53,7 @@ Provides the unit loadout configuration screen where players select faction and 
 
 ## Change History
 - **2026-01-01**: Fixed the slot layout by enforcing a consistent square aspect ratio for the base container.
+- **2026-01-22**: Added safe-area scroll padding to keep menu content fully visible on mobile.
 
 ## Watch Out For
 - Keep slot button offsets aligned with the base container size
