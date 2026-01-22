@@ -34,6 +34,8 @@ export function MultiplayerLobbyScreen({
   const [playerName, setPlayerName] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Add extra scroll padding so mobile safe areas don't clip menu content.
+  const menuScrollStyle = { paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -72,7 +74,7 @@ export function MultiplayerLobbyScreen({
 
   if (currentLobby) {
     return (
-      <div className="absolute inset-0 overflow-y-auto">
+      <div className="absolute inset-0 overflow-y-auto" style={menuScrollStyle}>
         <div className="min-h-full flex items-start justify-center p-4 py-8">
         <Card className="w-full max-w-md my-auto">
           <CardHeader>
@@ -165,7 +167,7 @@ export function MultiplayerLobbyScreen({
   }
 
   return (
-    <div className="absolute inset-0 overflow-y-auto">
+    <div className="absolute inset-0 overflow-y-auto" style={menuScrollStyle}>
       <div className="min-h-full flex items-start justify-center p-4 py-8">
       <Card className="w-full max-w-2xl flex flex-col my-auto">
         <CardHeader>

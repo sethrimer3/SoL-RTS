@@ -26,6 +26,8 @@ export function LANModeScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [availableGames, setAvailableGames] = useState<LANGameInfo[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  // Add extra scroll padding so mobile safe areas don't clip menu content.
+  const menuScrollStyle = { paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' };
 
   const handleHost = async () => {
     setIsLoading(true);
@@ -106,7 +108,7 @@ export function LANModeScreen({
 
   if (mode === 'select') {
     return (
-      <div className="absolute inset-0 overflow-y-auto">
+      <div className="absolute inset-0 overflow-y-auto" style={menuScrollStyle}>
         <div className="min-h-full flex items-start justify-center p-4 py-8">
         <Card className="w-full max-w-md my-auto">
           <CardHeader>
@@ -194,7 +196,7 @@ export function LANModeScreen({
 
   if (mode === 'host') {
     return (
-      <div className="absolute inset-0 overflow-y-auto">
+      <div className="absolute inset-0 overflow-y-auto" style={menuScrollStyle}>
         <div className="min-h-full flex items-start justify-center p-4 py-8">
         <Card className="w-full max-w-md my-auto">
           <CardHeader>
@@ -247,7 +249,7 @@ export function LANModeScreen({
 
   if (mode === 'join') {
     return (
-      <div className="absolute inset-0 overflow-y-auto">
+      <div className="absolute inset-0 overflow-y-auto" style={menuScrollStyle}>
         <div className="min-h-full flex items-start justify-center p-4 py-8">
         <Card className="w-full max-w-md my-auto">
           <CardHeader>
@@ -280,7 +282,7 @@ export function LANModeScreen({
 
   if (mode === 'browse') {
     return (
-      <div className="absolute inset-0 overflow-y-auto">
+      <div className="absolute inset-0 overflow-y-auto" style={menuScrollStyle}>
         <div className="min-h-full flex items-start justify-center p-4 py-8">
         <Card className="w-full max-w-md my-auto">
           <CardHeader>

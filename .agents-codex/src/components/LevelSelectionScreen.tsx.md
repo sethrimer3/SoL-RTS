@@ -67,6 +67,7 @@ Renders the single-player level selection UI, including scrollable map cards wit
 
 ## Change History
 - **2026-01-04:** Added map previews and scrolling constraint to level selection.
+- **2026-01-22:** Added safe-area scroll padding to keep the menu content fully visible on mobile.
 
 ## Watch Out For
 - Keep map preview scaling consistent if arena dimensions change.

@@ -38,6 +38,8 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
   // Build faction logo URLs with the configured base path for GitHub Pages compatibility.
   const assetBaseUrl = import.meta.env.BASE_URL;
   const [selectedSlot, setSelectedSlot] = useState<'left' | 'up' | 'down' | 'right' | null>(null);
+  // Add extra scroll padding so mobile safe areas don't clip menu content.
+  const menuScrollStyle = { paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' };
 
   // Get the appropriate sprite path for a unit type based on faction
   const getUnitSpritePath = (unitType: UnitType, faction: FactionType): string => {
@@ -96,7 +98,7 @@ export function UnitSelectionScreen({ unitSlots, onSlotChange, onBack, playerCol
   };
 
   return (
-    <div className="absolute inset-0 overflow-y-auto">
+    <div className="absolute inset-0 overflow-y-auto" style={menuScrollStyle}>
       <div className="min-h-full flex items-start justify-center p-4 py-8">
       <Card className="w-[600px] max-w-full my-auto">
         <CardHeader>

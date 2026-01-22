@@ -106,6 +106,7 @@ The component does NOT automatically reflect changes from types.ts or simulation
 - **2026-01-11:** Added Blade combo swing attack wording to describe the semicircle and 360° damage arcs
 - **2025-03-24:** Updated Aurum and Solari ability descriptions to reflect live simulation values
 - **2026-01-23:** Updated the solar mirror (mining drone) ability description to match sunlight LOS photon production.
+- **2026-01-22:** Added safe-area scroll padding to keep menu content fully visible on mobile.
 
 ## Watch Out For
 - When adding new units, remember to add entries in:
