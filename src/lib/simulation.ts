@@ -1997,7 +1997,7 @@ function updateAsteroids(state: GameState, deltaTime: number): void {
     // Update rotation
     asteroid.rotation += asteroid.rotationSpeed * deltaTime;
     
-    // Check if asteroid is in shadow (not in direct line of sight from sun)
+    // Check if asteroid is in shadow (not in direct line of sight from sun).
     const isInShadow = !hasLineOfSight(asteroid.position, sun.position, state.obstacles);
     
     // Check if any friendly unit or building is nearby
@@ -2031,8 +2031,8 @@ function updateAsteroids(state: GameState, deltaTime: number): void {
       }
     }
     
-    // Asteroid is visible only if in shadow AND friendly unit/building is nearby
-    asteroid.isVisible = isInShadow && hasFriendlyNearby;
+    // Reveal asteroids when either in shadow or near friendly presence so they stay visible.
+    asteroid.isVisible = isInShadow || hasFriendlyNearby;
   });
 }
 

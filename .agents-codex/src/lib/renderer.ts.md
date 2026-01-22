@@ -208,6 +208,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **2025-03-25**: Added ray-traced sun lighting that brightens the playfield while casting occluder shadows.
 - **2025-03-24**: Applied the playfield rotation offset to unit rendering and motion trails for desktop landscape alignment.
 - **2025-03-24**: Rendered follow-path command segments so drawn paths remain visible during execution.
+- **2025-03-25**: Reduced solar mirror income popup size and tied their visibility to camera zoom thresholds.
 - **2025-03-24**: Reduced Blade sword particle size, added pale connector lines, and retracted the blade when no enemies are in range.
 - **2026-01-22**: Removed fog-of-war rendering and applied sun-shadow visibility checks when drawing enemy units
 - **2025-03-24**: Swapped selection range visuals to show attack range when idle and ability range only during active ability drags.
