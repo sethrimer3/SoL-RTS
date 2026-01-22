@@ -619,7 +619,6 @@ export function handleTouchEnd(e: TouchEvent, state: GameState, canvas: HTMLCanv
         state.selectedUnits.clear();
         
         // Initialize selection wheel
-        const enabledUnits = Array.from(state.settings.enabledUnits);
         state.selectionWheel = {
           baseId: base.id,
           selectedIndex: 0,
