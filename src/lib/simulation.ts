@@ -35,7 +35,7 @@ import {
   WARP_GATE_SWIRL_SPEED,
   WARP_GATE_MAX_SIZE_METERS,
 } from './types';
-import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians, hasLineOfSight, isEnemyUnitVisible } from './gameUtils';
+import { distance, normalize, scale, add, subtract, generateId, getPlayfieldRotationRadians, hasLineOfSight, isEnemyUnitVisible, calculateInfluenceZones } from './gameUtils';
 import { checkObstacleCollision } from './maps';
 import { soundManager } from './sound';
 import { createSpawnEffect, createHitSparks, createAbilityEffect, createEnhancedDeathExplosion, createScreenFlash, createLaserParticles, createBounceParticles, createMuzzleFlash } from './visualEffects';
@@ -2272,6 +2272,8 @@ export function updateGame(state: GameState, deltaTime: number): void {
   updateIncome(state, deltaTime);
   updateFloaters(state, deltaTime); // Update background floaters
   updateWarpGate(state, deltaTime); // Update warp gate
+  // Update influence zones (for field particle coloring)
+  state.influenceZones = calculateInfluenceZones(state);
   updateUnits(state, deltaTime);
   updateBases(state, deltaTime);
   updateStructures(state, deltaTime);

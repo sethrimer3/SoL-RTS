@@ -6062,9 +6062,10 @@ function drawFieldParticles(ctx: CanvasRenderingContext2D, state: GameState): vo
     ctx.save();
     ctx.globalAlpha = particle.opacity;
     
-    // Draw white particle with subtle glow
-    ctx.fillStyle = COLORS.white;
-    ctx.shadowColor = COLORS.white;
+    // Use particle color if in influence zone, otherwise use white
+    const color = particle.color || COLORS.white;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
     ctx.shadowBlur = size * 3;
     
     ctx.beginPath();

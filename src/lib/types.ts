@@ -1141,6 +1141,7 @@ export interface FieldParticle {
   mass: number; // Very low mass for easy repulsion
   size: number;
   opacity: number;
+  color?: string; // Color based on influence zone (undefined = white/default)
 }
 
 // Resource orb dropped by units on death (secondary resource)
