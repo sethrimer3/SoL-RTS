@@ -25,6 +25,7 @@ import {
   WARP_GATE_MAX_HP,
   INFLUENCE_ERROR_RING_DURATION_MS,
   WARP_GATE_BUILDING_ICON_SIZE_METERS,
+  MiningDepot,
 } from './types';
 import { distance, normalize, scale, add, subtract, pixelsToPosition, positionToPixels, getViewportOffset, getViewportDimensions, generateId, isEnemyUnitVisible, getViewportScale, isPositionInInfluence, getPlayerInfluenceZones } from './gameUtils';
 import { screenToWorld, worldToScreen, zoomCamera, zoomCameraAtPoint, initializeCamera } from './camera';
@@ -43,7 +44,7 @@ interface TouchState {
   touchedBase?: Base;
   touchedBaseWasSelected?: boolean; // Track if the touched base was already selected
   touchedMovementDot?: { base: Base; dotPos: { x: number; y: number } };
-  touchedDepot?: import('./types').MiningDepot; // Track if touched a mining depot
+  touchedDepot?: MiningDepot; // Track if touched a mining depot
   touchedDepotPos?: Vector2; // World position where depot was touched
   pathDrawing?: {
     nearUnit: Unit; // The unit near where path drawing started
@@ -181,8 +182,13 @@ function checkAndInitiateWarpGate(
   dist: number,
   isDragging: boolean,
   touchedBase: Base | undefined,
-  touchedDepot: import('./types').MiningDepot | undefined
+  touchedDepot: MiningDepot | undefined
 ): boolean {
+  // Early exit: only check if enough time has elapsed to avoid performance issues on every mouse move
+  if (elapsed < WARP_GATE_INITIAL_SHOCKWAVE_TIME_MS) {
+    return false;
+  }
+  
   const playerIndex = resolvePlayerIndex(state, startPos.x);
   
   if (!isDragging && 
