@@ -60,6 +60,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 ### Critical Details
 - Minimum zoom is recalculated every frame to stay aligned with viewport changes.
 - Mobile button mode reserves UI height to keep the arena fully visible.
+- Pinch zoom alignment uses target offsets to keep the pinch center anchored during smoothing.
 
 ### Known Issues
 - None documented.
@@ -73,6 +74,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 
 ## Change History
 - **2025-03-24:** Added mobile button bar reservation to the minimum zoom calculation.
+- **2025-03-24:** Aligned pinch zoom world-point calculations with target offsets to reduce center drift.
 
 ## Watch Out For
 - Keep zoom bounds in sync with any UI layout changes that affect the playfield size.
