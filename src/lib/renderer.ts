@@ -6769,8 +6769,8 @@ function drawPhotonSiphoning(ctx: CanvasRenderingContext2D, state: GameState): v
       const trailY = basePos.y + (warpPos.y - basePos.y) * trailStartOffset;
       
       const gradient = ctx.createLinearGradient(trailX, trailY, x, y);
-      // Use rgba for transparency to work with any color format
-      gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+      // Use oklch with alpha for transparency to match photon color format
+      gradient.addColorStop(0, 'oklch(0.85 0.20 95 / 0)');
       gradient.addColorStop(1, COLORS.photon);
       
       ctx.strokeStyle = gradient;
