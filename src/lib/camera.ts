@@ -46,25 +46,38 @@ function calculateMinZoom(state: GameState): number {
   const zoomX = viewportDimensions.width / arenaWidthPixels;
   const zoomY = availableHeight / arenaHeightPixels;
   
-  // Use the smaller zoom to ensure entire field is visible
-  return Math.max(MIN_ZOOM, Math.min(zoomX, zoomY));
+  // Use the smaller zoom to ensure entire field is visible.
+  // Avoid flooring to a fixed minimum so the "full field fits" zoom is the max zoom-out.
+  return Math.min(zoomX, zoomY);
 }
 
 const MIN_ZOOM = 0.3; // Absolute minimum fallback
 const MAX_ZOOM = 3.0; // Allow zooming in really far as requested
 
+type CameraInitializationOptions = {
+  initialZoom?: number;
+  focusPosition?: Vector2;
+};
+
 /**
  * Initialize camera for game state
  * On mobile, start zoomed out so the playing field is visible above the bottom UI buttons
  */
-export function initializeCamera(state: GameState): void {
+export function initializeCamera(state: GameState, options: CameraInitializationOptions = {}): void {
   if (!state.camera) {
+    // Determine the minimum zoom that keeps the full arena visible.
+    const minZoom = calculateMinZoom(state);
     // On mobile, start zoomed out to the minimum allowed so the field clears the bottom controls.
-    const initialZoom = state.isMobile ? calculateMinZoom(state) : 1.0;
+    const defaultZoom = state.isMobile ? minZoom : 1.0;
+    // Respect any provided zoom preference while still honoring the minimum zoom-out limit.
+    const initialZoom = Math.max(minZoom, options.initialZoom ?? defaultZoom);
+    // Center on a provided focus position (like the player's base) if available.
+    const focusPosition = options.focusPosition;
+    const initialOffset = focusPosition ? { x: -focusPosition.x, y: -focusPosition.y } : { x: 0, y: 0 };
     
     state.camera = {
-      offset: { x: 0, y: 0 },
-      targetOffset: { x: 0, y: 0 },
+      offset: initialOffset,
+      targetOffset: initialOffset,
       zoom: initialZoom,
       targetZoom: initialZoom,
       smoothing: CAMERA_SMOOTHING,
