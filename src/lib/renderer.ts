@@ -1121,7 +1121,6 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState, canv
       drawAbilityCastPreview(ctx, state);
       drawPathDrawingPreview(ctx, state);
       drawBaseAbilityPreview(ctx, state);
-      drawBuildingMenu(ctx, state);
       drawVisualFeedback(ctx, state);
     }
     
