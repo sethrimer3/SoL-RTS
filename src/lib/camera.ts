@@ -196,12 +196,13 @@ export function zoomCameraAtPoint(state: GameState, delta: number, screenPoint: 
   const newWorldPointX = (screenPoint.x - centerX) / newZoom - camera.targetOffset.x * PIXELS_PER_METER * viewportScale + centerX;
   const newWorldPointY = (screenPoint.y - centerY) / newZoom - camera.targetOffset.y * PIXELS_PER_METER * viewportScale + centerY;
   
-  // Adjust offset to keep the world point at the same screen position
+  // Adjust offset to keep the world point at the same screen position.
+  // Add the delta so the camera offset moves in the same direction as the world-point shift.
   const offsetDiffX = (newWorldPointX - worldPointX) / (PIXELS_PER_METER * viewportScale);
   const offsetDiffY = (newWorldPointY - worldPointY) / (PIXELS_PER_METER * viewportScale);
   
-  camera.targetOffset.x -= offsetDiffX;
-  camera.targetOffset.y -= offsetDiffY;
+  camera.targetOffset.x += offsetDiffX;
+  camera.targetOffset.y += offsetDiffY;
 
   // Keep the adjusted zoom focus within the arena bounds.
   camera.targetOffset = clampCameraOffset(state, camera.targetOffset, camera.targetZoom);

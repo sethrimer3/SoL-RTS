@@ -67,6 +67,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 - Mobile button mode reserves UI height to keep the arena fully visible.
 - The minimum zoom now matches the full-field fit exactly so players cannot zoom out past the full arena.
 - Pinch zoom alignment uses target offsets to keep the pinch center anchored during smoothing.
+- Zoom-at-point offset adjustments add the computed world-point delta so the mouse position stays stable on desktop.
 - Offset clamping prevents panning outside the arena while still allowing a small wall peek at the edges.
 - Rotation-aware arena sizing keeps min zoom and clamp limits aligned to the rotated desktop playfield.
 
@@ -86,6 +87,7 @@ Defines the camera system for the game, including initialization, smooth zooming
 - **2025-03-24:** Added initialization options for focus/zoom and removed the fixed zoom-out floor so the max zoom-out matches the full-field fit.
 - **2025-03-25:** Added camera offset clamping to keep the zoomed-in view within arena bounds while leaving a slight wall peek.
 - **2026-01-22:** Matched zoom and clamp bounds to the rotated playfield dimensions on desktop.
+- **2025-03-26:** Adjusted zoom-at-point offset direction so the cursor stays anchored during wheel zooming.
 
 ## Watch Out For
 - Keep zoom bounds in sync with any UI layout changes that affect the playfield size.
