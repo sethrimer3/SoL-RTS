@@ -35,6 +35,7 @@ Main application component that orchestrates the entire game. Manages game state
 
 #### Persistent State (useKV)
 - **playerColor/enemyColor**: Player color preferences
+- **colorScheme**: Environment palette selection for background visuals
 - **enabledUnits**: Unit roster selection
 - **unitSlots**: Unit spawn shortcuts (left/up/down/right)
 - **selectedMap**: Current map choice
@@ -119,6 +120,7 @@ Main application component that orchestrates the entire game. Manages game state
 - Gameplay coordinate orientation is derived from `shouldUsePortraitCoordinates()` to keep desktop rotation cosmetic
 - Settings synced from useKV to game state on change
 - Sprite rendering toggle stored in settings for the renderer
+- Environment palette selection is persisted and applied to both active gameplay and the menu background battle
 - Initial solar mirrors are spawned near bases on the sun-facing side for early economy
 - Match statistics tracked throughout game
 - MMR calculated using ELO formula for online matches
@@ -183,6 +185,7 @@ Main application component that orchestrates the entire game. Manages game state
 - **2025-03-25**: Expanded mobile detection with touch-aware sizing to keep button controls docked at the bottom on touch devices.
 - **2026-01-22**: Defaulted movement mode to tap and added safe-area scroll padding for menu containers.
 - **2026-01-22**: Anchored mouse-wheel zoom to cursor position and corrected keyboard pan direction with rotation-aware math.
+- **2025-03-26**: Added persisted environment color scheme selection and wired it into background battle setup.
 
 ## Watch Out For
 - Game state ref vs React state - use correctly for performance

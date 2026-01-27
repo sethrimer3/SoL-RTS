@@ -1,8 +1,8 @@
-import { FieldParticle, GameState, ARENA_WIDTH_METERS, WARP_GATE_MAX_SIZE_METERS, COLORS } from './types';
+import { FieldParticle, GameState, ARENA_WIDTH_METERS, WARP_GATE_MAX_SIZE_METERS, COLORS, ENVIRONMENT_COLOR_SCHEMES, EnvironmentColorScheme } from './types';
 import { generateId, getArenaHeight, distance, normalize, subtract } from './gameUtils';
 
 // Field particle constants
-const FIELD_PARTICLE_BASE_COUNT = 1000; // Base number of particles
+const FIELD_PARTICLE_BASE_COUNT = 3000; // Base number of particles (tripled for denser space dust)
 const FIELD_PARTICLE_SIZE = 0.075; // Size in meters
 const FIELD_PARTICLE_MASS = 0.05; // Very low mass for easy repulsion
 const FIELD_PARTICLE_OPACITY = 0.4; // Opacity for white particles
@@ -121,8 +121,13 @@ function rgbToCss(color: RgbColor): string {
 /**
  * Initialize field particles evenly distributed across the arena.
  */
-export function initializeFieldParticles(arenaWidth: number, arenaHeight: number): FieldParticle[] {
+export function initializeFieldParticles(
+  arenaWidth: number,
+  arenaHeight: number,
+  colorScheme: EnvironmentColorScheme = 'default'
+): FieldParticle[] {
   const particles: FieldParticle[] = [];
+  const dustPalette = ENVIRONMENT_COLOR_SCHEMES[colorScheme].dust.baseColors;
   
   // Calculate boundaries that keep particles inside the playable area.
   const minX = BOUNDARY_MARGIN;
@@ -135,6 +140,7 @@ export function initializeFieldParticles(arenaWidth: number, arenaHeight: number
     // Pick a random position inside the bounds to avoid density bias.
     const x = minX + Math.random() * (maxX - minX);
     const y = minY + Math.random() * (maxY - minY);
+    const baseColor = dustPalette[Math.floor(Math.random() * dustPalette.length)] || COLORS.grey;
     
     particles.push({
       id: generateId(),
@@ -143,6 +149,7 @@ export function initializeFieldParticles(arenaWidth: number, arenaHeight: number
       mass: FIELD_PARTICLE_MASS,
       size: FIELD_PARTICLE_SIZE,
       opacity: FIELD_PARTICLE_OPACITY,
+      baseColor,
     });
   }
   
@@ -157,8 +164,10 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
   
   const arenaWidth = ARENA_WIDTH_METERS;
   const arenaHeight = getArenaHeight();
-  const neutralDustColor = parseColorToRgb(COLORS.grey);
+  const dustPalette = ENVIRONMENT_COLOR_SCHEMES[state.settings.colorScheme]?.dust ?? ENVIRONMENT_COLOR_SCHEMES.default.dust;
+  const neutralDustColor = parseColorToRgb(dustPalette.neutralColor);
   const playerColorCache = new Map<number, RgbColor>();
+  const baseDustColorCache = new Map<string, RgbColor>();
   
   // Calculate boundaries that keep particles inside the playable area.
   const minX = BOUNDARY_MARGIN;
@@ -170,6 +179,14 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
     // Reset force accumulator
     let forceX = 0;
     let forceY = 0;
+    const paletteOptions = dustPalette.baseColors;
+    const hasValidBaseColor = particle.baseColor && paletteOptions.includes(particle.baseColor);
+
+    // Ensure each particle has a base color that matches the current palette.
+    if (!hasValidBaseColor) {
+      particle.baseColor = paletteOptions[Math.floor(Math.random() * paletteOptions.length)] || COLORS.grey;
+    }
+    const particleBaseColor = particle.baseColor || COLORS.grey;
     
     // Apply repulsion from units
     for (const unit of state.units) {
@@ -299,12 +316,18 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
     }
     
     // Update particle color based on influence zones.
-    particle.color = COLORS.grey; // Default to grey (neutral/no influence).
+    particle.color = particleBaseColor; // Default to its palette-matched dust color.
     
     // Check if particle is in any player's influence zone
     if (state.influenceZones) {
       let combinedWeight = 0;
       let blendedInfluenceColor: RgbColor = { r: 0, g: 0, b: 0 };
+      const baseDustColor = baseDustColorCache.get(particleBaseColor) ?? parseColorToRgb(particleBaseColor);
+
+      // Cache the parsed dust color to avoid repeated conversions.
+      if (!baseDustColorCache.has(particleBaseColor)) {
+        baseDustColorCache.set(particleBaseColor, baseDustColor);
+      }
 
       for (const zone of state.influenceZones) {
         const dist = distance(particle.position, zone.position);
@@ -337,7 +360,8 @@ export function updateFieldParticles(state: GameState, deltaTime: number): void 
           b: blendedInfluenceColor.b / combinedWeight,
         };
         const influenceOpacity = clamp01(combinedWeight);
-        const finalColor = mixRgb(neutralDustColor, normalizedInfluenceColor, influenceOpacity);
+        const baseColorForBlend = mixRgb(baseDustColor, neutralDustColor, 0.35);
+        const finalColor = mixRgb(baseColorForBlend, normalizedInfluenceColor, influenceOpacity);
         particle.color = rgbToCss(finalColor);
       }
     }

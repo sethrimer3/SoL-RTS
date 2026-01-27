@@ -79,6 +79,138 @@ export const COLORS = {
   borderShadow: 'oklch(0.20 0 0)',
 };
 
+// Environment color schemes for background elements like space, sun, and asteroids.
+export type EnvironmentColorScheme = 'default' | 'coldIce';
+
+type EnvironmentAsteroidPalette = {
+  fill: string;
+  stroke: string;
+  glow: string;
+  shadow: string;
+};
+
+type EnvironmentSunPalette = {
+  glowStops: [string, string, string, string];
+  coreStops: [string, string, string];
+  rayColor: string;
+  lensFlareColor: string;
+  lensStreakColor: string;
+};
+
+type EnvironmentDustPalette = {
+  baseColors: string[];
+  neutralColor: string;
+};
+
+type EnvironmentColorPalette = {
+  label: string;
+  background: string;
+  asteroids: {
+    large: EnvironmentAsteroidPalette;
+    medium: EnvironmentAsteroidPalette;
+    small: EnvironmentAsteroidPalette;
+  };
+  sun: EnvironmentSunPalette;
+  dust: EnvironmentDustPalette;
+};
+
+// Centralized palette data for easy theme expansion.
+export const ENVIRONMENT_COLOR_SCHEMES: Record<EnvironmentColorScheme, EnvironmentColorPalette> = {
+  default: {
+    label: 'Default',
+    background: COLORS.background,
+    asteroids: {
+      large: {
+        fill: 'oklch(0.25 0.08 260)',
+        stroke: 'oklch(0.45 0.12 260)',
+        glow: 'oklch(0.55 0.15 260)',
+        shadow: 'oklch(0.15 0.05 260)',
+      },
+      medium: {
+        fill: 'oklch(0.28 0.08 250)',
+        stroke: 'oklch(0.48 0.12 250)',
+        glow: 'oklch(0.58 0.15 250)',
+        shadow: 'oklch(0.15 0.05 260)',
+      },
+      small: {
+        fill: 'oklch(0.30 0.08 240)',
+        stroke: 'oklch(0.50 0.12 240)',
+        glow: 'oklch(0.60 0.15 240)',
+        shadow: 'oklch(0.15 0.05 260)',
+      },
+    },
+    sun: {
+      glowStops: [
+        'rgba(255, 220, 100, 0.8)',
+        'rgba(255, 180, 50, 0.4)',
+        'rgba(255, 140, 30, 0.2)',
+        'rgba(255, 100, 0, 0)',
+      ],
+      coreStops: [
+        'rgba(255, 255, 255, 1)',
+        'rgba(255, 230, 120, 1)',
+        'rgba(255, 180, 50, 0.9)',
+      ],
+      rayColor: 'rgba(255, 220, 100, 0.3)',
+      lensFlareColor: '255, 240, 200',
+      lensStreakColor: '255, 245, 220',
+    },
+    dust: {
+      baseColors: [COLORS.grey],
+      neutralColor: COLORS.grey,
+    },
+  },
+  coldIce: {
+    label: 'ColdIce',
+    background: '#081429',
+    asteroids: {
+      large: {
+        fill: 'oklch(0.30 0.12 295)',
+        stroke: 'oklch(0.52 0.16 300)',
+        glow: 'oklch(0.62 0.18 305)',
+        shadow: 'oklch(0.18 0.08 290)',
+      },
+      medium: {
+        fill: 'oklch(0.32 0.11 285)',
+        stroke: 'oklch(0.54 0.15 290)',
+        glow: 'oklch(0.64 0.17 295)',
+        shadow: 'oklch(0.18 0.08 290)',
+      },
+      small: {
+        fill: 'oklch(0.34 0.10 275)',
+        stroke: 'oklch(0.56 0.14 280)',
+        glow: 'oklch(0.66 0.16 285)',
+        shadow: 'oklch(0.18 0.08 290)',
+      },
+    },
+    sun: {
+      glowStops: [
+        'rgba(200, 235, 255, 0.8)',
+        'rgba(160, 210, 255, 0.4)',
+        'rgba(120, 190, 255, 0.2)',
+        'rgba(80, 150, 255, 0)',
+      ],
+      coreStops: [
+        'rgba(235, 248, 255, 1)',
+        'rgba(200, 230, 255, 1)',
+        'rgba(170, 210, 255, 0.9)',
+      ],
+      rayColor: 'rgba(190, 225, 255, 0.3)',
+      lensFlareColor: '210, 240, 255',
+      lensStreakColor: '220, 245, 255',
+    },
+    dust: {
+      baseColors: [
+        'oklch(0.62 0.02 260)',
+        'oklch(0.58 0.04 290)',
+        'oklch(0.54 0.06 320)',
+        'oklch(0.50 0.03 250)',
+      ],
+      neutralColor: 'oklch(0.56 0.04 290)',
+    },
+  },
+};
+
 export type Vector2 = { x: number; y: number };
 
 // Unit modifiers that affect how units interact with each other
@@ -1145,7 +1277,8 @@ export interface FieldParticle {
   mass: number; // Very low mass for easy repulsion
   size: number;
   opacity: number;
-  color?: string; // Color based on influence zone (undefined = white/default)
+  color?: string; // Color based on influence zone (undefined = base color)
+  baseColor?: string; // Base neutral color for the particle when uninfluenced
 }
 
 // Resource orb dropped by units on death (secondary resource)
@@ -1198,6 +1331,7 @@ export interface GameState {
   settings: {
     playerColor: string;
     enemyColor: string;
+    colorScheme: EnvironmentColorScheme;
     enabledUnits: Set<UnitType>;
     unitSlots: Record<'left' | 'up' | 'down' | 'right', UnitType>;
     selectedMap: string;

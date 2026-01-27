@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useKV } from './hooks/useKV';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
-import { GameState, COLORS, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS, FactionType, FACTION_DEFINITIONS, BASE_TYPE_DEFINITIONS, BaseType, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, STRUCTURE_DEFINITIONS, StructureType, Structure } from './lib/types';
+import { GameState, COLORS, ENVIRONMENT_COLOR_SCHEMES, EnvironmentColorScheme, UnitType, BASE_SIZE_METERS, UNIT_DEFINITIONS, FactionType, FACTION_DEFINITIONS, BASE_TYPE_DEFINITIONS, BaseType, ARENA_WIDTH_METERS, ARENA_HEIGHT_METERS, STRUCTURE_DEFINITIONS, StructureType, Structure } from './lib/types';
 import { generateId, generateTopographyLines, generateStarfield, generateNebulaClouds, shouldUsePortraitCoordinates, updateViewportScale, calculateDefaultRallyPoint, createInitialSolarMirrors, getArenaHeight, createAsteroids } from './lib/gameUtils';
 import { updateGame, spawnUnit } from './lib/simulation';
 import { updateAI } from './lib/ai';
@@ -61,6 +61,7 @@ function App() {
 
   const [playerColor, setPlayerColor] = useKV('player-color', COLORS.playerDefault);
   const [enemyColor, setEnemyColor] = useKV('enemy-color', COLORS.enemyDefault);
+  const [colorScheme, setColorScheme] = useKV<EnvironmentColorScheme>('color-scheme', 'default');
   const [enabledUnits, setEnabledUnits] = useKV<string[]>('enabled-units', ['marine', 'warrior', 'snaker', 'tank', 'scout', 'artillery', 'medic', 'interceptor']);
   const [unitSlots, setUnitSlots] = useKV<Record<string, UnitType>>('unit-slots', { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' });
   const [selectedMap, setSelectedMap] = useKV('selected-map', 'open');
@@ -143,6 +144,7 @@ function App() {
     gameStateRef.current.settings = {
       playerColor: playerColor || COLORS.playerDefault,
       enemyColor: enemyColor || COLORS.enemyDefault,
+      colorScheme: colorScheme || 'default',
       enabledUnits: new Set((enabledUnits || ['marine', 'warrior', 'snaker', 'tank', 'scout', 'artillery', 'medic', 'interceptor']) as UnitType[]),
       unitSlots: (unitSlots || { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' }) as Record<'left' | 'up' | 'down' | 'right', UnitType>,
       selectedMap: selectedMap || 'open',
@@ -168,7 +170,11 @@ function App() {
       ...p,
       color: i === 0 ? (playerColor || COLORS.playerDefault) : (enemyColor || COLORS.enemyDefault),
     }));
-  }, [playerColor, enemyColor, enabledUnits, unitSlots, selectedMap, showNumericHP, showHealthBarsOnlyWhenDamaged, showMinimap, playerFaction, enemyFaction, enableGlowEffects, enableParticleEffects, enableMotionBlur, enableSprites, mirrorAbilityCasting, chessMode, aiDifficulty, controlMode, movementMode]);
+    // Keep the menu background battle in sync with the selected environment palette.
+    if (gameStateRef.current.backgroundBattle) {
+      gameStateRef.current.backgroundBattle.settings.colorScheme = colorScheme || 'default';
+    }
+  }, [playerColor, enemyColor, colorScheme, enabledUnits, unitSlots, selectedMap, showNumericHP, showHealthBarsOnlyWhenDamaged, showMinimap, playerFaction, enemyFaction, enableGlowEffects, enableParticleEffects, enableMotionBlur, enableSprites, mirrorAbilityCasting, chessMode, aiDifficulty, controlMode, movementMode]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -238,7 +244,7 @@ function App() {
       if (gameStateRef.current.mode === 'menu') {
         // Initialize background battle if it doesn't exist
         if (!gameStateRef.current.backgroundBattle) {
-          gameStateRef.current.backgroundBattle = createBackgroundBattle(canvas);
+          gameStateRef.current.backgroundBattle = createBackgroundBattle(canvas, colorScheme || 'default');
           initializeCamera(gameStateRef.current.backgroundBattle);
         }
 
@@ -256,7 +262,7 @@ function App() {
 
         // Restart battle if one side wins
         if (bg.winner !== null) {
-          gameStateRef.current.backgroundBattle = createBackgroundBattle(canvas);
+          gameStateRef.current.backgroundBattle = createBackgroundBattle(canvas, colorScheme || 'default');
           initializeCamera(gameStateRef.current.backgroundBattle);
         }
       } else {
@@ -1921,6 +1927,29 @@ function App() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label>Environment Scheme</Label>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(ENVIRONMENT_COLOR_SCHEMES).map(([schemeKey, scheme]) => (
+                    <button
+                      key={schemeKey}
+                      onClick={() => {
+                        soundManager.playSettingChange();
+                        setColorScheme(schemeKey as EnvironmentColorScheme);
+                      }}
+                      className="px-3 py-2 rounded border-2 text-xs uppercase tracking-wide transition-all"
+                      style={{
+                        backgroundColor: scheme.background,
+                        borderColor: colorScheme === schemeKey ? 'white' : 'transparent',
+                        color: schemeKey === 'default' ? 'white' : 'rgb(230, 240, 255)',
+                      }}
+                    >
+                      {scheme.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
                 <p><strong>Audio:</strong></p>
               </div>
@@ -2373,7 +2402,7 @@ function App() {
   );
 }
 
-function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
+function createBackgroundBattle(canvas: HTMLCanvasElement, colorScheme: EnvironmentColorScheme): GameState {
   const arenaWidth = ARENA_WIDTH_METERS;
   const arenaHeight = getArenaHeight();
 
@@ -2478,6 +2507,7 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
     settings: {
       playerColor: COLORS.playerDefault,
       enemyColor: COLORS.enemyDefault,
+      colorScheme,
       enabledUnits: enabledUnits,
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: 'open',
@@ -2498,7 +2528,7 @@ function createBackgroundBattle(canvas: HTMLCanvasElement): GameState {
     nebulaClouds,
     stars,
     floaters: initializeFloaters(),
-    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
+    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight, colorScheme),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };
@@ -2529,6 +2559,7 @@ function createInitialState(): GameState {
     settings: {
       playerColor: COLORS.playerDefault,
       enemyColor: COLORS.enemyDefault,
+      colorScheme: 'default',
       enabledUnits: new Set(['marine', 'warrior', 'snaker', 'tank', 'scout', 'artillery', 'medic', 'interceptor']),
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: 'open',
@@ -2659,7 +2690,7 @@ function createCountdownState(mode: 'ai' | 'player', settings: GameState['settin
     nebulaClouds,
     stars,
     floaters: initializeFloaters(),
-    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
+    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight, settings.colorScheme),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };
@@ -2760,13 +2791,14 @@ function createGameState(mode: 'ai' | 'player', settings: GameState['settings'])
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
     floaters: initializeFloaters(),
-    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
+    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight, settings.colorScheme),
   };
 }
 
 function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
   const arenaWidth = ARENA_WIDTH_METERS;
   const arenaHeight = getArenaHeight();
+  const colorScheme: EnvironmentColorScheme = 'default';
 
   const selectedMapDef = getMapById(lobby.mapId) || getMapById('open')!;
   const mapObstacles = selectedMapDef.obstacles;
@@ -2852,6 +2884,7 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
     settings: {
       playerColor: isHost ? lobby.hostColor : lobby.guestColor || COLORS.playerDefault,
       enemyColor: isHost ? lobby.guestColor || COLORS.enemyDefault : lobby.hostColor,
+      colorScheme,
       enabledUnits: new Set(lobby.enabledUnits as UnitType[]),
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: lobby.mapId,
@@ -2872,13 +2905,14 @@ function createOnlineGameState(lobby: LobbyData, isHost: boolean): GameState {
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
     floaters: initializeFloaters(),
-    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
+    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight, colorScheme),
   };
 }
 
 function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: HTMLCanvasElement): GameState {
   const arenaWidth = ARENA_WIDTH_METERS;
   const arenaHeight = getArenaHeight();
+  const colorScheme: EnvironmentColorScheme = 'default';
 
   const selectedMapDef = getMapById(lobby.mapId) || getMapById('open')!;
   const mapObstacles = selectedMapDef.obstacles;
@@ -2969,6 +3003,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     settings: {
       playerColor: isHost ? lobby.hostColor : lobby.guestColor || COLORS.playerDefault,
       enemyColor: isHost ? lobby.guestColor || COLORS.enemyDefault : lobby.hostColor,
+      colorScheme,
       enabledUnits: new Set(lobby.enabledUnits as UnitType[]),
       unitSlots: { left: 'marine', up: 'warrior', down: 'snaker', right: 'tank' },
       selectedMap: lobby.mapId,
@@ -2999,7 +3034,7 @@ function createOnlineCountdownState(lobby: LobbyData, isHost: boolean, canvas: H
     nebulaClouds,
     stars,
     floaters: initializeFloaters(),
-    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight),
+    fieldParticles: initializeFieldParticles(arenaWidth, arenaHeight, colorScheme),
     // Keep gameplay coordinates consistent across devices
     isPortrait: shouldUsePortraitCoordinates(),
   };
