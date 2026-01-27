@@ -5,8 +5,8 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 
 ## Dependencies
 ### Imports
-- `./types` - All game types, colors, and constants
-- `./gameUtils` - Coordinate conversions and vector math
+- `./types` - All game types, colors, and constants (including environment palettes)
+- `./gameUtils` - Coordinate conversions, viewport sizing, and vector math
 - `./camera` - Camera transforms for zoomed/panned rendering
 - `./maps` - Obstacle type
 
@@ -38,12 +38,13 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **Notes:**
   - Fills outside the playfield with neutral gray during gameplay
   - Clips nebula, starfield, and topography to the playfield rectangle
-  - Moves background effects with camera transforms in gameplay modes
+  - Uses the active environment palette to tint the playfield space color
 
 #### drawBackgroundEffects(ctx, state?): void
 - **Purpose:** Draws nebula clouds, starfield twinkles, and topography lines
 - **Notes:**
   - Assumes caller has applied any desired clipping region
+  - Starfield renders in screen space with a small parallax factor so zooming doesn't over-shift distant stars
 
 #### getPlayfieldRect(): { x, y, width, height }
 - **Purpose:** Returns the current playfield rectangle in pixels
@@ -129,6 +130,8 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - Mining depots render a dashed preview line when `state.miningDragPreview` targets that depot
 - Resource deposits adjust glow/brightness based on 0/1/2 assigned worker drones
 - Camera transforms are applied to world layers and removed before drawing screen-space UI
+- Environment palettes drive the sun, asteroid, and background colors for theme selection
+- Starfield parallax uses a reduced zoom/offset factor to keep stars from moving more than foreground layers
 - Gameplay rendering is clipped to the playfield rectangle to avoid drawing effects outside the arena
 - Off-screen indicators render at full screen edges when zoomed in to keep units/bases visible
 - Cloaked enemy units are culled from rendering (including the minimap), while cloaked friendly units render at reduced opacity
@@ -198,6 +201,7 @@ Handles all game rendering to HTML5 canvas. Draws game state including units, ba
 - **2026-01-04**: Applied camera transforms to world rendering and added off-screen zoom indicators for units and bases
 - **2025-03-22**: Added Blade sword particle rendering, knife projectile visuals, and marine shell casing rendering
 - **2026-01-08**: Hid cloaked enemy units in the main unit render pass while keeping friendly cloaked opacity
+- **2025-03-26**: Added environment palette support for backgrounds/sun/asteroids and tuned starfield parallax under zoom.
 - **2026-01-22**: Aligned off-screen zoom indicator bounds to the full canvas edges on desktop.
 - **2026-01-09**: Spaced Blade sword particles farther apart by reading the shared spacing constant for magnet-like separation
 - **2026-01-11**: Added Blade movement lag sampling so sword particles trail behind the unit based on history snapshots

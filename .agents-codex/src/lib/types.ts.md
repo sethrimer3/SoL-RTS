@@ -45,6 +45,9 @@ Defines all color values using OKLCH color space for consistent appearance:
 - `photon`, `laser`, `telegraph` - Game effect colors
 - `white` - Pure white for UI elements
 
+### Environment Color Schemes
+Defines `EnvironmentColorScheme` values (`default`, `coldIce`) alongside `ENVIRONMENT_COLOR_SCHEMES` to drive background, sun, asteroid, and space-dust palettes.
+
 ### Vector2 Type
 ```typescript
 type Vector2 = { x: number; y: number }
@@ -61,6 +64,9 @@ interface Particle {
 }
 ```
 Represents a visual particle in the particle physics system. Particles are attracted to their parent unit and orbit around it, creating visual interest.
+
+### FieldParticle Interface
+Includes `baseColor` to retain per-particle dust palette shades when uninfluenced.
 
 ### CommandNode Type
 Union type for unit commands:
@@ -122,6 +128,7 @@ The complete game state structure containing:
 - **winner**: Game outcome
 - **settings**: Game configuration
   - **enableSprites**: Toggle for sprite-based rendering
+  - **colorScheme**: Environment palette key for background visuals
 - **surrenderClicks**: Surrender mechanism tracking
 - **countdownStartTime**: Multiplayer countdown
 - **countdownSeconds**: UI countdown snapshot used for rendering and audio cues
@@ -152,6 +159,7 @@ The complete game state structure containing:
 - Shield domes can now specify ranged/melee damage multipliers per source unit
 - Solar mirror mining state now stores sunlight visibility and photon yield for rendering
 - Sprite rendering toggles live in settings for renderer access
+- Environment palettes centralize background theme colors to keep visual styles consistent
 
 ### Known Issues
 None currently identified
@@ -188,6 +196,7 @@ None currently identified
 - **2026-01-23**: Renamed mining drone display name to Solar Mirror and added sunlight/photon yield fields for sheen and popup rendering.
 - **2026-01-22**: Slowed solar mirror/base move speeds and made mining depot identifiers optional on mining state.
 - **2025-03-26**: Clarified asteroid visibility state to reflect always-visible rendering behavior.
+- **2025-03-26**: Added environment color scheme definitions and a settings field to select the active palette.
 
 ## Watch Out For
 - Always use meters for game logic, only convert to pixels for rendering

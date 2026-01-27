@@ -5,6 +5,7 @@ import {
   BaseType,
   Sun,
   COLORS,
+  ENVIRONMENT_COLOR_SCHEMES,
   UNIT_SIZE_METERS,
   BASE_SIZE_METERS,
   MINING_DEPOT_SIZE_METERS,
@@ -32,7 +33,7 @@ import {
   WARP_GATE_MAX_SIZE_METERS,
   WARP_GATE_BUILDING_ICON_SIZE_PIXELS,
 } from './types';
-import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract, getViewportOffset, getViewportDimensions, getArenaHeight, getPlayfieldRotationRadians, isEnemyUnitVisible } from './gameUtils';
+import { positionToPixels, metersToPixels, distance, add, scale, normalize, subtract, getViewportOffset, getViewportDimensions, getViewportScale, getArenaHeight, getPlayfieldRotationRadians, isEnemyUnitVisible } from './gameUtils';
 import { applyCameraTransform, removeCameraTransform, worldToScreen } from './camera';
 import { Obstacle } from './maps';
 import { MOTION_TRAIL_DURATION, QUEUE_FADE_DURATION, QUEUE_DRAW_DURATION, QUEUE_UNDRAW_DURATION } from './simulation';
@@ -83,8 +84,17 @@ const LENS_FLARE_ALPHA_DECREMENT = 0.02;
 const LENS_FLARE_STREAK_COUNT = 4;
 const LENS_FLARE_STREAK_LENGTH = 3.5;
 const LENS_FLARE_INNER_RADIUS_RATIO = 0.8;
+const STAR_PARALLAX_FACTOR = 0.12; // Lower value keeps stars mostly static during camera zoom/pan.
 
 type LightSegment = { start: Vector2; end: Vector2 };
+
+/**
+ * Resolve the active environment palette for background rendering.
+ */
+function getEnvironmentPalette(state?: GameState) {
+  const scheme = state?.settings?.colorScheme ?? 'default';
+  return ENVIRONMENT_COLOR_SCHEMES[scheme] ?? ENVIRONMENT_COLOR_SCHEMES.default;
+}
 
 // Sprite asset paths for the Radiant faction (exclude "knots" files on purpose).
 const radiantUnitSpritePaths: Partial<Record<UnitType, string>> = {
@@ -1247,6 +1257,7 @@ function drawOffscreenZoomIndicators(ctx: CanvasRenderingContext2D, state: GameS
 
 function drawBackground(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, state?: GameState): void {
   const shouldClipToPlayfield = state?.mode === 'game' || state?.mode === 'countdown';
+  const palette = getEnvironmentPalette(state);
 
   if (shouldClipToPlayfield) {
     // Fill the entire canvas with the neutral gray used outside the arena.
@@ -1267,7 +1278,7 @@ function drawBackground(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement
     ctx.clip();
 
     // Paint the playfield interior before drawing atmospheric effects.
-    ctx.fillStyle = COLORS.background;
+    ctx.fillStyle = palette.background;
     ctx.fillRect(playfieldRect.x, playfieldRect.y, playfieldRect.width, playfieldRect.height);
 
     // Draw background effects only inside the playfield.
@@ -1282,7 +1293,7 @@ function drawBackground(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement
   }
 
   // Default background for menus/overlays that do not need playfield clipping.
-  ctx.fillStyle = COLORS.background;
+  ctx.fillStyle = palette.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   drawBackgroundEffects(ctx, state);
 }
@@ -1326,13 +1337,37 @@ function drawBackgroundEffects(ctx: CanvasRenderingContext2D, state?: GameState)
   // Draw animated starfield.
   if (state?.stars && state.stars.length > 0) {
     const time = Date.now() / 1000;
+    const viewportScale = getViewportScale();
+    const viewportOffset = getViewportOffset();
+    const viewportDimensions = getViewportDimensions();
+    const centerX = viewportDimensions.width > 0 ? viewportOffset.x + viewportDimensions.width / 2 : ctx.canvas.width / 2;
+    const centerY = viewportDimensions.height > 0 ? viewportOffset.y + viewportDimensions.height / 2 : ctx.canvas.height / 2;
+    const cameraZoom = state?.camera?.zoom ?? 1;
+    const cameraOffset = state?.camera
+      ? {
+        x: state.camera.offset.x * PIXELS_PER_METER * viewportScale,
+        y: state.camera.offset.y * PIXELS_PER_METER * viewportScale,
+      }
+      : { x: 0, y: 0 };
+    const parallaxZoom = 1 + (cameraZoom - 1) * STAR_PARALLAX_FACTOR;
+    const parallaxOffset = {
+      x: cameraOffset.x * STAR_PARALLAX_FACTOR,
+      y: cameraOffset.y * STAR_PARALLAX_FACTOR,
+    };
+
+    // Draw stars in screen space so zooming doesn't shift them more than foreground layers.
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
     state.stars.forEach(star => {
       const twinkle = Math.sin(time * star.twinkleSpeed + star.twinkleOffset) * 0.3 + 0.7;
       const alpha = star.brightness * twinkle;
+      const starX = centerX + (star.x - centerX) * parallaxZoom + parallaxOffset.x;
+      const starY = centerY + (star.y - centerY) * parallaxZoom + parallaxOffset.y;
       
       ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
       ctx.beginPath();
-      ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+      ctx.arc(starX, starY, star.size, 0, Math.PI * 2);
       ctx.fill();
       
       // Add subtle glow for larger stars.
@@ -1343,6 +1378,8 @@ function drawBackgroundEffects(ctx: CanvasRenderingContext2D, state?: GameState)
         ctx.shadowBlur = 0;
       }
     });
+
+    ctx.restore();
   }
 
   // Draw topography lines if available.
@@ -1732,6 +1769,7 @@ function drawSunLight(ctx: CanvasRenderingContext2D, state: GameState): void {
 function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   if (!state.sun) return;
   
+  const palette = getEnvironmentPalette(state);
   const pixels = positionToPixels(state.sun.position);
   const radiusPixels = metersToPixels(state.sun.radius);
   const sunSprite = getSpriteFromCache(centralSunSpritePath);
@@ -1740,10 +1778,10 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   
   // Draw outer glow
   const gradient = ctx.createRadialGradient(pixels.x, pixels.y, 0, pixels.x, pixels.y, radiusPixels * 2);
-  gradient.addColorStop(0, 'rgba(255, 220, 100, 0.8)');
-  gradient.addColorStop(0.3, 'rgba(255, 180, 50, 0.4)');
-  gradient.addColorStop(0.6, 'rgba(255, 140, 30, 0.2)');
-  gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+  gradient.addColorStop(0, palette.sun.glowStops[0]);
+  gradient.addColorStop(0.3, palette.sun.glowStops[1]);
+  gradient.addColorStop(0.6, palette.sun.glowStops[2]);
+  gradient.addColorStop(1, palette.sun.glowStops[3]);
   
   ctx.fillStyle = gradient;
   ctx.beginPath();
@@ -1756,9 +1794,9 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.drawImage(sunSprite, pixels.x - spriteSize / 2, pixels.y - spriteSize / 2, spriteSize, spriteSize);
   } else {
     const coreGradient = ctx.createRadialGradient(pixels.x, pixels.y, 0, pixels.x, pixels.y, radiusPixels);
-    coreGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    coreGradient.addColorStop(0.5, 'rgba(255, 230, 120, 1)');
-    coreGradient.addColorStop(1, 'rgba(255, 180, 50, 0.9)');
+    coreGradient.addColorStop(0, palette.sun.coreStops[0]);
+    coreGradient.addColorStop(0.5, palette.sun.coreStops[1]);
+    coreGradient.addColorStop(1, palette.sun.coreStops[2]);
     
     ctx.fillStyle = coreGradient;
     ctx.beginPath();
@@ -1769,7 +1807,7 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   // Add animated rays
   const time = Date.now() / 1000;
   const rayCount = 12;
-  ctx.strokeStyle = 'rgba(255, 220, 100, 0.3)';
+  ctx.strokeStyle = palette.sun.rayColor;
   ctx.lineWidth = 2;
   
   for (let i = 0; i < rayCount; i++) {
@@ -1795,8 +1833,8 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
       pixels.x, pixels.y, flareRadius * LENS_FLARE_INNER_RADIUS_RATIO,
       pixels.x, pixels.y, flareRadius
     );
-    flareGradient.addColorStop(0, `rgba(255, 240, 200, ${flareAlpha})`);
-    flareGradient.addColorStop(1, 'rgba(255, 240, 200, 0)');
+    flareGradient.addColorStop(0, `rgba(${palette.sun.lensFlareColor}, ${flareAlpha})`);
+    flareGradient.addColorStop(1, `rgba(${palette.sun.lensFlareColor}, 0)`);
     
     ctx.fillStyle = flareGradient;
     ctx.beginPath();
@@ -1807,7 +1845,7 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
   // Add subtle star-like lens streaks
   // 4 full-diameter lines create an 8-pointed star appearance (each line spans from one side to the opposite)
   // Using π radians for 4 streaks gives us angles: 0°, 45°, 90°, 135° which create 8 visible points
-  ctx.strokeStyle = 'rgba(255, 245, 220, 0.12)';
+  ctx.strokeStyle = `rgba(${palette.sun.lensStreakColor}, 0.12)`;
   ctx.lineWidth = 1.5;
   for (let i = 0; i < LENS_FLARE_STREAK_COUNT; i++) {
     const streakAngle = (i / LENS_FLARE_STREAK_COUNT) * Math.PI;
@@ -1832,6 +1870,8 @@ function drawSun(ctx: CanvasRenderingContext2D, state: GameState): void {
 function drawAsteroids(ctx: CanvasRenderingContext2D, state: GameState): void {
   if (!state.asteroids || state.asteroids.length === 0) return;
   
+  const palette = getEnvironmentPalette(state);
+
   state.asteroids.forEach((asteroid) => {
     const screenPos = positionToPixels(asteroid.position);
     
@@ -1858,25 +1898,29 @@ function drawAsteroids(ctx: CanvasRenderingContext2D, state: GameState): void {
     let fillColor: string;
     let strokeColor: string;
     let glowColor: string;
+    let shadowColor: string;
     
     if (asteroid.size === 'large') {
-      fillColor = 'oklch(0.25 0.08 260)'; // Dark blue-gray
-      strokeColor = 'oklch(0.45 0.12 260)';
-      glowColor = 'oklch(0.55 0.15 260)';
+      fillColor = palette.asteroids.large.fill;
+      strokeColor = palette.asteroids.large.stroke;
+      glowColor = palette.asteroids.large.glow;
+      shadowColor = palette.asteroids.large.shadow;
     } else if (asteroid.size === 'medium') {
-      fillColor = 'oklch(0.28 0.08 250)';
-      strokeColor = 'oklch(0.48 0.12 250)';
-      glowColor = 'oklch(0.58 0.15 250)';
+      fillColor = palette.asteroids.medium.fill;
+      strokeColor = palette.asteroids.medium.stroke;
+      glowColor = palette.asteroids.medium.glow;
+      shadowColor = palette.asteroids.medium.shadow;
     } else {
-      fillColor = 'oklch(0.30 0.08 240)';
-      strokeColor = 'oklch(0.50 0.12 240)';
-      glowColor = 'oklch(0.60 0.15 240)';
+      fillColor = palette.asteroids.small.fill;
+      strokeColor = palette.asteroids.small.stroke;
+      glowColor = palette.asteroids.small.glow;
+      shadowColor = palette.asteroids.small.shadow;
     }
     
     // Fill with gradient
     const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, metersToPixels(asteroid.radius));
     gradient.addColorStop(0, fillColor);
-    gradient.addColorStop(1, 'oklch(0.15 0.05 260)');
+    gradient.addColorStop(1, shadowColor);
     ctx.fillStyle = gradient;
     ctx.fill();
     
@@ -6190,8 +6234,8 @@ function drawFieldParticles(ctx: CanvasRenderingContext2D, state: GameState): vo
     ctx.save();
     ctx.globalAlpha = particle.opacity;
     
-    // Use particle color if in influence zone, otherwise use white
-    const color = particle.color || COLORS.white;
+    // Use influence color when available, otherwise fall back to the particle's base palette.
+    const color = particle.color || particle.baseColor || COLORS.white;
     ctx.fillStyle = color;
     ctx.shadowColor = color;
     ctx.shadowBlur = size * 3;

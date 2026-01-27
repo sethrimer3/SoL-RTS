@@ -5,7 +5,7 @@ Handles initialization and simulation of ambient field particles that provide mi
 
 ## Dependencies
 ### Imports
-- `./types` (FieldParticle, GameState, ARENA_WIDTH_METERS, WARP_GATE_MAX_SIZE_METERS, COLORS)
+- `./types` (FieldParticle, GameState, ARENA_WIDTH_METERS, WARP_GATE_MAX_SIZE_METERS, COLORS, ENVIRONMENT_COLOR_SCHEMES, EnvironmentColorScheme)
 - `./gameUtils` (generateId, getArenaHeight, distance, normalize, subtract)
 
 ### Used By
@@ -14,10 +14,11 @@ Handles initialization and simulation of ambient field particles that provide mi
 
 ## Key Components
 ### initializeFieldParticles
-- **Purpose:** Spawns ambient field particles with a uniform distribution across the arena bounds.
+- **Purpose:** Spawns ambient field particles with a uniform distribution across the arena bounds and assigns palette-matched base colors.
 - **Parameters:**
   - `arenaWidth` - Arena width in meters.
   - `arenaHeight` - Arena height in meters.
+  - `colorScheme` - Environment palette key for dust coloration (defaults to `default`).
 - **Returns:** Array of initialized `FieldParticle` objects.
 - **Notes:** Uses the boundary margin to avoid immediate edge collisions.
 
@@ -36,8 +37,9 @@ Handles initialization and simulation of ambient field particles that provide mi
 ## Implementation Notes
 ### Critical Details
 - Particles are clamped to arena boundaries with a soft bounce to keep them in-bounds.
-- Particle colors fade from neutral grey into blended player colors based on influence strength and overlap.
+- Particle colors fade from palette dust shades into blended player colors based on influence strength and overlap.
 - Influence tinting converts OKLCH team colors into sRGB for mixing.
+- Particles store a base color so dust palettes can vary per particle without flicker.
 
 ### Known Issues
 - None noted.
@@ -52,6 +54,7 @@ Handles initialization and simulation of ambient field particles that provide mi
 ## Change History
 - **2026-01-22:** Increased particle count, removed density bias, and expanded repulsion sources (structures, mining depots, shells, warp gates).
 - **2025-03-26:** Reduced particle size/opacity and blended influence colors with distance-based fades.
+- **2025-03-26:** Tripled field particle count and added palette-aware dust colors for environment themes.
 
 ## Watch Out For
 - Ensure any new repulsion sources maintain stable forces to avoid extreme particle velocities.
