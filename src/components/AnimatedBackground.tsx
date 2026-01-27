@@ -34,6 +34,18 @@ export function AnimatedBackground({
       rotationSpeed: number;
     }
 
+    // Decorative asteroid drift data for the menu sun vignette.
+    interface Asteroid {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+      rotation: number;
+      rotationSpeed: number;
+      craterOffsets: Array<{ x: number; y: number; size: number }>;
+    }
+
     // Particle system - enhanced with galaxy membership
     interface Particle {
       x: number;
@@ -50,14 +62,43 @@ export function AnimatedBackground({
     }
 
     const MIN_VELOCITY = 0.08; // Minimum velocity to prevent jittering
+    const SUN_LAYER_OPACITY = 0.2; // Render the sun vignette at 20% opacity.
+    const ASTEROID_COUNT = 12; // Small group of asteroids for subtle motion.
     const galaxies: Galaxy[] = [];
     const particles: Particle[] = [];
+    const asteroids: Asteroid[] = [];
+
+    // Create a single asteroid with randomized spin, drift, and crater detail.
+    const createAsteroid = (): Asteroid => {
+      const baseX = Math.random() * canvas.width * 0.35;
+      const baseY = Math.random() * canvas.height * 0.35;
+      const driftAngle = Math.random() * Math.PI * 2;
+      const driftSpeed = 0.05 + Math.random() * 0.12;
+      const craterCount = 2 + Math.floor(Math.random() * 3);
+
+      return {
+        x: baseX,
+        y: baseY,
+        vx: Math.cos(driftAngle) * driftSpeed,
+        vy: Math.sin(driftAngle) * driftSpeed,
+        size: 3 + Math.random() * 4,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.9,
+        craterOffsets: Array.from({ length: craterCount }, () => ({
+          x: (Math.random() - 0.5) * 0.8,
+          y: (Math.random() - 0.5) * 0.8,
+          size: 0.15 + Math.random() * 0.25,
+        })),
+      };
+    };
 
     // Initialize galaxies
     const initGalaxies = () => {
       galaxies.length = 0;
       // Also clear particles when reinitializing
       particles.length = 0;
+      // Reset the asteroid layer whenever the canvas size changes.
+      asteroids.length = 0;
       
       for (let i = 0; i < galaxyCount; i++) {
         // Position galaxies away from edges
@@ -119,6 +160,11 @@ export function AnimatedBackground({
           galaxyId: null,
         });
       }
+
+      // Create drifting asteroids for the menu sun vignette.
+      for (let i = 0; i < ASTEROID_COUNT; i++) {
+        asteroids.push(createAsteroid());
+      }
     };
 
     // Resize canvas to fill screen
@@ -142,6 +188,99 @@ export function AnimatedBackground({
       const deltaTime = Math.min((currentTime - lastFrameTime) / 1000, 0.1); // Cap at 0.1s to prevent huge jumps
       lastFrameTime = currentTime;
       const time = currentTime / 1000;
+      const sunX = canvas.width * 0.12;
+      const sunY = canvas.height * 0.18;
+      const sunRadius = Math.min(canvas.width, canvas.height) * 0.12;
+
+      // Draw the sun glow in the top-left corner with a warm lighting gradient.
+      ctx.save();
+      ctx.globalAlpha = SUN_LAYER_OPACITY;
+      const sunGradient = ctx.createRadialGradient(
+        sunX,
+        sunY,
+        sunRadius * 0.2,
+        sunX,
+        sunY,
+        sunRadius * 2.4,
+      );
+      sunGradient.addColorStop(0, 'rgba(255, 228, 154, 0.9)');
+      sunGradient.addColorStop(0.35, 'rgba(255, 178, 92, 0.55)');
+      sunGradient.addColorStop(0.7, 'rgba(255, 138, 70, 0.2)');
+      sunGradient.addColorStop(1, 'rgba(255, 110, 40, 0)');
+      ctx.fillStyle = sunGradient;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, sunRadius * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Draw asteroids with slow drift, spin, and soft shadows cast away from the sun.
+      asteroids.forEach((asteroid) => {
+        asteroid.x += asteroid.vx;
+        asteroid.y += asteroid.vy;
+        asteroid.rotation += asteroid.rotationSpeed * deltaTime;
+
+        // Respawn asteroids once they drift off-screen so they cycle in and out.
+        const driftMargin = 60;
+        if (
+          asteroid.x < -driftMargin ||
+          asteroid.y < -driftMargin ||
+          asteroid.x > canvas.width + driftMargin ||
+          asteroid.y > canvas.height + driftMargin
+        ) {
+          Object.assign(asteroid, createAsteroid());
+        }
+
+        // Compute shadow offset based on sun direction.
+        const dx = asteroid.x - sunX;
+        const dy = asteroid.y - sunY;
+        const dist = Math.hypot(dx, dy) || 1;
+        const shadowOffset = Math.min(10, dist * 0.05);
+        const shadowX = (dx / dist) * shadowOffset;
+        const shadowY = (dy / dist) * shadowOffset;
+
+        ctx.save();
+        ctx.globalAlpha = SUN_LAYER_OPACITY;
+        ctx.translate(asteroid.x, asteroid.y);
+        ctx.rotate(asteroid.rotation);
+
+        // Draw soft shadow first so it appears behind the asteroid.
+        ctx.fillStyle = 'rgba(20, 12, 6, 0.45)';
+        ctx.beginPath();
+        ctx.ellipse(
+          shadowX,
+          shadowY,
+          asteroid.size * 1.2,
+          asteroid.size * 0.7,
+          0,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+
+        // Draw the asteroid body with warm highlights.
+        ctx.fillStyle = 'rgba(170, 142, 120, 0.85)';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, asteroid.size, asteroid.size * 0.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Add crater details for texture.
+        ctx.fillStyle = 'rgba(120, 96, 78, 0.7)';
+        asteroid.craterOffsets.forEach((crater) => {
+          ctx.beginPath();
+          ctx.ellipse(
+            crater.x * asteroid.size,
+            crater.y * asteroid.size,
+            crater.size * asteroid.size,
+            crater.size * asteroid.size * 0.7,
+            0,
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+        });
+
+        ctx.restore();
+      });
 
       // Update galaxies (slow drift)
       galaxies.forEach((galaxy) => {
